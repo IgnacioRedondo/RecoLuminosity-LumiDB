@@ -1,8 +1,17 @@
+'''
+This module is graphical API using pymatplotlib.
+Specs:
+-- We use matplotlib OO class level api, we do not use its high-level helper modules. Favor endured stability over simplicity. 
+-- use TkAgg for interactive mode. Beaware of Tk,pyTk installation defects in various cern distributions.
+-- PNG as default batch file format
+-- we support http mode by sending string buf via meme type image/png. Sending a premade static plot to webserver is considered a uploading process instead of http dynamic graphical mode. Therefore covered in this module.
+'''
 import sys
-import numpy
+import numpy,datetime
 import matplotlib
-batchonly=False
+from RecoLuminosity.LumiDB import CommonUtil
 
+batchonly=False
 try:
     matplotlib.use('TkAgg',warn=False)
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg as CanvasBackend
@@ -20,16 +29,17 @@ from matplotlib.figure import Figure
 from matplotlib.font_manager import fontManager,FontProperties
 matplotlib.rcParams['lines.linewidth']=1.3
 matplotlib.rcParams['grid.linewidth']=0.2
-matplotlib.rcParams['xtick.labelsize']='medium'
-matplotlib.rcParams['ytick.labelsize']='medium'
-matplotlib.rcParams['font.weight']='demibold'
-def myinclusiveRange(start,stop,step):
-    v=start
-    while v<stop:
-        yield v
-        v+=step
-    if v>=stop:
-        yield stop
+matplotlib.rcParams['xtick.labelsize']=8
+matplotlib.rcParams['ytick.labelsize']=8
+matplotlib.rcParams['legend.fontsize']=10
+matplotlib.rcParams['axes.labelsize']=10
+#def myinclusiveRange(start,stop,step):
+#    v=start
+#    while v<stop:
+#        yield v
+#        v+=step
+#    if v>=stop:
+#        yield stop
 
 def destroy(e) :
     sys.exit()
@@ -50,7 +60,7 @@ class matplotRender():
         xidx=[]
         #print 'max rawxdata ',max(rawxdata)
         #print 'min rawxdata ',min(rawxdata)
-        for x in myinclusiveRange(min(rawxdata),max(rawxdata),sampleinterval):
+        for x in CommonUtil.inclusiveRange(min(rawxdata),max(rawxdata),sampleinterval):
             #print 'x : ',x
             xpoints.append(x)
             xidx.append(rawxdata.index(x)) #get the index of the sample points
@@ -80,7 +90,7 @@ class matplotRender():
             cl='k'
             if self.colormap.has_key(ylabel):
                 cl=self.colormap[ylabel]
-            ax.plot(xpoints,ypoints[ylabel],label=ylabel,color=cl)
+            ax.plot(xpoints,ypoints[ylabel],label=ylabel,color=cl,drawstyle='steps')
             legendlist.append(ylabel+' '+'%.2f'%(ytotal[ylabel])+' '+'nb$^{-1}$')
         #font=FontProperties(size='medium',weight='demibold')
 
@@ -88,14 +98,6 @@ class matplotRender():
         self.__fig.subplots_adjust(bottom=0.18,left=0.18)
         
     def plotSumX_Fill(self,rawxdata,rawydata,rawfillDict,sampleinterval=2,nticks=6):
-        #rawxdata,rawydata must be equal size
-        #calculate tick values
-        print 'rawxdata : ',rawxdata
-        print 'total : ',len(rawxdata)
-        print 'rawydata : ',rawydata
-        print 'total delivered : ',len(rawydata.values()[0])
-        print 'total recorded : ',len(rawydata.values()[1])
-        print 'rawfillDict : ',rawfillDict
         fillboundaries=[]
         xpoints=[]
         ypoints={}
@@ -103,25 +105,8 @@ class matplotRender():
         for ylabel in rawydata.keys():
             ypoints[ylabel]=[]
         xidx=[]
-        for x in myinclusiveRange(min(rawfillDict.keys()),max(rawfillDict.keys()),sampleinterval):
-            if rawfillDict.has_key(x):
-                xpoints.append(x)
-        print 'xpoints',xpoints
         
-        for fillboundary in xpoints:
-            keylist=rawfillDict.keys()
-            keylist.sort()
-            for fill in keylist:
-                if fill==fillboundary:
-                    runlist=rawfillDict[fill]
-                    runlist.sort()
-                    xidx=rawxdata.index(max(runlist))
-                    #break
-            print 'max runnum for fillboundary ',fillboundary, rawxdata[xidx]
-            
-            for ylabel in ypoints.keys():
-                ypoints[ylabel].append(sum(rawydata[ylabel][0:xidx])/1000.0)
-        print 'ypoints : ',ypoints
+        #print 'ypoints : ',ypoints
         for ylabel,yvalue in rawydata.items():
             ytotal[ylabel]=sum(rawydata[ylabel])/1000.0
         ax=self.__fig.add_subplot(111)
@@ -142,12 +127,126 @@ class matplotRender():
             cl='k'
             if self.colormap.has_key(ylabel):
                 cl=self.colormap[ylabel]
-            ax.plot(xpoints,ypoints[ylabel],label=ylabel,color=cl)
+            ax.plot(xpoints,ypoints[ylabel],label=ylabel,color=cl,drawstyle='steps')
             legendlist.append(ylabel+' '+'%.2f'%(ytotal[ylabel])+' '+'nb$^{-1}$')
         #font=FontProperties(size='medium',weight='demibold')
         ax.legend(tuple(legendlist),loc='best')
         self.__fig.subplots_adjust(bottom=0.18,left=0.3)
         
+    def plotSumX_Time(self,rawxdata,rawydata,minTime,maxTime,nticks=6):
+        xpoints=[]
+        ypoints={}
+        ytotal={}
+        xidx=[]
+        runs=rawxdata.keys()
+        runs.sort()
+        #delta=datetime.timedelta(hours=timedeltahours)
+        #timesamplers=matplotlib.dates.drange(minTime,maxTime,delta)
+        #print 'minTime ordinal ',minTime.toordinal()
+        #print 'maxTime ordinal ',maxTime.toordinal()
+        #binning in time
+        for run in runs:
+            #xpoints.append(rawxdata[run][0].toordinal())
+            xpoints.append(matplotlib.dates.date2num(rawxdata[run][0]))
+            xidx.append(runs.index(run))
+        for ylabel,yvalue in rawydata.items():
+            ypoints[ylabel]=[]
+            for i in xidx:
+                ypoints[ylabel].append(sum(yvalue[0:i])/1000.0)
+            ytotal[ylabel]=sum(yvalue)/1000.0
+        #print 'minTime ',minTime.toordinal()
+        #print 'maxTime ',maxTime.toordinal()
+        #print 'xpoints ',xpoints
+        #print 'ypoints ',ypoints
+        ax=self.__fig.add_subplot(111)
+        dateFmt=matplotlib.dates.DateFormatter('%d/%m')
+        #majourhourLoc=matplotlib.dates.HourLocator(interval=72)
+        #minorhourLoc=matplotlib.dates.HourLocator(interval=12)
+        #majorAutoLoc=matplotlib.dates.AutoDateLocator()
+        majorLoc=matplotlib.ticker.LinearLocator(numticks=nticks)
+        minorLoc=matplotlib.ticker.LinearLocator(numticks=nticks*4)
+        #minorhourLoc=matplotlib.dates.HourLocator(interval=12)
+        #dateFmt=matplotlib.dates.AutoDateFormatter(daysLoc)
+        ax.xaxis.set_major_formatter(dateFmt)
+        ax.set_xlabel(r'Date',position=(0.84,0))
+        ax.set_ylabel(r'L nb$^{-1}$',position=(0,0.9))
+        #daysLoc=matplotlib.dates.DayLocator(interval=3)
+        #hoursLoc=matplotlib.dates.HourLocator(interval=3)
+        ax.xaxis.set_major_locator(majorLoc)
+        ax.xaxis.set_minor_locator(minorLoc)
+        xticklabels=ax.get_xticklabels()
+        for tx in xticklabels:
+            tx.set_horizontalalignment('left')
+        ax.grid(True)
+        keylist=ypoints.keys()
+        keylist.sort()
+        legendlist=[]
+        for ylabel in keylist:
+            cl='k'
+            if self.colormap.has_key(ylabel):
+                cl=self.colormap[ylabel]
+            ax.plot(xpoints,ypoints[ylabel],label=ylabel,color=cl,drawstyle='steps')
+            legendlist.append(ylabel+' '+'%.2f'%(ytotal[ylabel])+' '+'nb$^{-1}$')
+        #font=FontProperties(size='medium',weight='demibold')
+        ax.legend(tuple(legendlist),loc='best')
+        ax.set_xlim(left=matplotlib.dates.date2num(minTime),right=matplotlib.dates.date2num(maxTime))
+        self.__fig.autofmt_xdate(bottom=0.18,rotation=0)
+        self.__fig.subplots_adjust(bottom=0.18,left=0.3)
+    def plotPerdayX_Time(self,rawxdata,rawydata,minTime,maxTime,nticks=6):
+        xpoints=[]
+        ypoints={}
+        ytotal={}
+        xidx=[]
+        runs=rawxdata.keys()
+        runs.sort()
+        minDay=minTime.toordinal()
+        maxDay=maxTime.toordinal()
+        daydict={}
+
+        for day in range(minDay,maxDay+1,1):
+            daydict[day]=[]#run index list
+        for run in runs:
+            runstartday=rawxdata[run][0].toordinal()
+            if CommonUtil.findInList(daydict.keys() ,runstartday):
+                daydict[runstartday].append(runs.index(run))
+        xpoints=daydict.keys()
+        ymax={}
+        for ylabel,yvalue in rawydata.items():
+            ypoints[ylabel]=[]
+            ymax[ylabel]=[]
+            for day,runindices in daydict.items():
+                sumlumi=0.0
+                maxlumi=0.0
+                if len(runindices)!=0:
+                    sumlumi=sum(yvalue[min(runindices):max(runindices)+1])/1000.0
+                ypoints[ylabel].append(sumlumi)
+            ymax[ylabel]=max(ypoints[ylabel])
+        ax=self.__fig.add_subplot(111)
+        dateFmt=matplotlib.dates.DateFormatter('%d/%m')
+        majorLoc=matplotlib.ticker.LinearLocator(numticks=nticks)
+        minorLoc=matplotlib.ticker.LinearLocator(numticks=nticks*4)
+        ax.xaxis.set_major_formatter(dateFmt)
+        ax.set_xlabel(r'Date',position=(0.84,0))
+        ax.set_ylabel(r'L nb$^{-1}$',position=(0,0.9))
+        ax.xaxis.set_major_locator(majorLoc)
+        ax.xaxis.set_minor_locator(minorLoc)
+        xticklabels=ax.get_xticklabels()
+        for tx in xticklabels:
+            tx.set_horizontalalignment('right')
+        ax.grid(True)
+        keylist=ypoints.keys()
+        keylist.sort()
+        legendlist=[]
+        for ylabel in keylist:
+            cl='k'
+            if self.colormap.has_key(ylabel):
+                cl=self.colormap[ylabel]
+            ax.plot(xpoints,ypoints[ylabel],label=ylabel,color=cl,drawstyle='steps')
+            legendlist.append(ylabel+' Max '+'%.2f'%(ymax[ylabel])+' '+'nb$^{-1}$')
+        ax.legend(tuple(legendlist),loc='upper left')
+        ax.set_xlim(left=minDay,right=maxDay)
+        self.__fig.autofmt_xdate(bottom=0.18,rotation=0)
+        self.__fig.subplots_adjust(bottom=0.18,left=0.3)    
     def drawHTTPstring(self):
         self.__canvas=CanvasBackend(self.__fig)    
         cherrypy.response.headers['Content-Type']='image/png'
