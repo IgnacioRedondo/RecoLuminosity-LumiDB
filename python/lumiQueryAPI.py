@@ -1,6 +1,6 @@
 import os
 import coral,datetime
-from RecoLuminosity.LumiDB import nameDealer,lumiTime
+from RecoLuminosity.LumiDB import nameDealer,lumiTime,CommonUtil
 '''
 This module defines lowlevel SQL query API for lumiDB 
 We do not like range queries so far because of performance of range scan.Use only necessary.
@@ -11,6 +11,103 @@ Do not handle transaction in here.
 Do not do explicit del queryhandle in here.
 Note: all the returned dict format are not sorted by itself.Sort it outside if needed.
 '''
+def allruns(schemaHandle,requireRunsummary=True,requireLumisummary=False,requireTrg=False,requireHlt=False):
+    '''
+    find all runs in the DB. By default requires cmsrunsummary table contain the run. The condition can be loosed in situation where db loading failed on certain data portions.
+    '''
+    if not requireRunsummary and not requireLumiummary and not requireTrg and not requireHlt:
+        print 'must require at least one table'
+        raise
+    runresult=[]
+    runlist=[]
+    numdups=0
+    if requireRunsummary:
+        numdups=numdups+1
+        queryHandle=schemaHandle.newQuery()
+        queryHandle.addToTableList(nameDealer.cmsrunsummaryTableName())
+        queryHandle.addToOutputList("RUNNUM","run")
+        #queryBind=coral.AttributeList()
+        result=coral.AttributeList()
+        result.extend("run","unsigned int")
+        queryHandle.defineOutput(result)
+        cursor=queryHandle.execute()
+        while cursor.next():
+            r=cursor.currentRow()['run'].data()
+            runlist.append(r)
+        del queryHandle
+    if requireLumisummary:
+        numdups=numdups+1
+        queryHandle=schemaHandle.newQuery()
+        queryHandle.addToTableList(nameDealer.lumisummaryTableName())
+        queryHandle.addToOutputList("distinct RUNNUM","run")
+        #queryBind=coral.AttributeList()
+        result=coral.AttributeList()
+        result.extend("run","unsigned int")
+        queryHandle.defineOutput(result)
+        cursor=queryHandle.execute()
+        while cursor.next():
+            r=cursor.currentRow()['run'].data()
+            runlist.append(r)
+        del queryHandle
+    if requireTrg:
+        numdups=numdups+1
+        queryHandle=schemaHandle.newQuery()
+        queryHandle.addToTableList(nameDealer.trgTableName())
+        queryHandle.addToOutputList("distinct RUNNUM","run")
+        #queryBind=coral.AttributeList()
+        result=coral.AttributeList()
+        result.extend("run","unsigned int")
+        queryHandle.defineOutput(result)
+        cursor=queryHandle.execute()
+        while cursor.next():
+            r=cursor.currentRow()['run'].data()
+            runlist.append(r)
+        del queryHandle
+    if requireHlt:
+        numdups=numdups+1
+        queryHandle=schemaHandle.newQuery()
+        queryHandle.addToTableList(nameDealer.hltTableName())
+        queryHandle.addToOutputList("distinct RUNNUM","run")
+        #queryBind=coral.AttributeList()
+        result=coral.AttributeList()
+        result.extend("run","unsigned int")
+        queryHandle.defineOutput(result)
+        cursor=queryHandle.execute()
+        while cursor.next():
+            r=cursor.currentRow()['run'].data()
+            runlist.append(r)
+        del queryHandle
+    dupresult=CommonUtil.count_dups(runlist)
+    for dup in dupresult:
+        if dup[1]==numdups:
+            runresult.append(dup[0])
+    runresult.sort()
+    return runresult
+
+def allfills(queryHandle,filtercrazy=True):
+    '''select distinct fillnum from cmsrunsummary
+    there are crazy fill numbers. we assume they are not valid runs
+    '''
+    result=[]
+    queryHandle.addToTableList(nameDealer.cmsrunsummaryTableName())
+    queryHandle.addToOutputList('distinct FILLNUM','fillnum')
+    
+    if filtercrazy:
+        queryCondition='FILLNUM>:zero and FILLNUM<:crazybig'
+        queryBind=coral.AttributeList()
+        queryBind.extend('zero','unsigned int')
+        queryBind.extend('crazybig','unsigned int')
+        queryBind['zero'].setData(int(0))
+        queryBind['crazybig'].setData(int(29701))
+        queryHandle.setCondition(queryCondition,queryBind)
+    queryResult=coral.AttributeList()
+    queryResult.extend('fillnum','unsigned int')
+    queryHandle.defineOutput(queryResult)
+    cursor=queryHandle.execute()
+    while cursor.next():
+        result.append(cursor.currentRow()['fillnum'].data())
+    result.sort()
+    return result
 def runsummaryByrun(queryHandle,runnum):
     '''
     select fillnum,sequence,hltkey,to_char(starttime),to_char(stoptime) from cmsrunsummary where runnum=:runnum
@@ -47,8 +144,9 @@ def runsummaryByrun(queryHandle,runnum):
         raise
     return result
 
-def lumisummaryByrun(queryHandle,runnum,lumiversion):
+def lumisummaryByrun(queryHandle,runnum,lumiversion,beamstatus=None,beamenergy=None,beamenergyfluctuation=0.09):
     '''
+    one can impose beamstatus, beamenergy selections at the SQL query level or process them later from the general result
     select cmslsnum,instlumi,numorbit,startorbit,beamstatus,beamenery from lumisummary where runnum=:runnum and lumiversion=:lumiversion order by startorbit;
     output: [[cmslsnum,instlumi,numorbit,startorbit,beamstatus,beamenergy,cmsalive]]
     Note: the non-cmsalive LS are included in the result
@@ -58,7 +156,7 @@ def lumisummaryByrun(queryHandle,runnum,lumiversion):
     queryCondition=coral.AttributeList()
     queryCondition.extend('runnum','unsigned int')
     queryCondition.extend('lumiversion','string')
-    
+    conditionstring='RUNNUM=:runnum and LUMIVERSION=:lumiversion'
     queryCondition['runnum'].setData(int(runnum))
     queryCondition['lumiversion'].setData(lumiversion)
     queryHandle.addToOutputList('CMSLSNUM','cmslsnum')
@@ -68,7 +166,19 @@ def lumisummaryByrun(queryHandle,runnum,lumiversion):
     queryHandle.addToOutputList('BEAMSTATUS','beamstatus')
     queryHandle.addToOutputList('BEAMENERGY','beamenergy')
     queryHandle.addToOutputList('CMSALIVE','cmsalive')
-    queryHandle.setCondition('RUNNUM=:runnum and LUMIVERSION=:lumiversion',queryCondition)
+    queryHandle.setCondition(conditionstring,queryCondition)
+    if beamstatus:
+        conditionstring=conditionstring+' and BEAMSTATUS=:beamstatus'
+        queryCondition.extend('beamstatus','string')
+        queryCondition['beamstatus'].setData(beamstatus)
+    if beamenergy:
+        minBeamenergy=float(beamenergy*(1.0-beamenergyfluctuation))
+        maxBeamenergy=float(beamenergy*(1.0+beamenergyfluctuation))
+        conditionstring=conditionstring+' and BEAMENERGY>:minBeamenergy and BEAMENERGY<:maxBeamenergy'
+        queryCondition.extend('minBeamenergy','float')
+        queryCondition.extend('maxBeamenergy','float')
+        queryCondition['minBeamenergy'].setData(float(minBeamenergy))
+        queryCondition['maxBeamenergy'].setData(float(maxBeamenergy))
     queryResult=coral.AttributeList()
     queryResult.extend('cmslsnum','unsigned int')
     queryResult.extend('instlumi','float')
@@ -90,8 +200,10 @@ def lumisummaryByrun(queryHandle,runnum,lumiversion):
         result.append([cmslsnum,instlumi,numorbit,startorbit,beamstatus,beamenergy,cmsalive])
     return result
 
-def lumisumByrun(queryHandle,runnum,lumiversion):
+def lumisumByrun(queryHandle,runnum,lumiversion,beamstatus=None,beamenergy=None,beamenergyfluctuation=0.09):
     '''
+    beamenergy unit : GeV
+    beamenergyfluctuation : fraction allowed to fluctuate around beamenergy value
     select sum(instlumi) from lumisummary where runnum=:runnum and lumiversion=:lumiversion
     output: float totallumi
     Note: the output is the raw result, need to apply LS length in time(sec)
@@ -105,7 +217,20 @@ def lumisumByrun(queryHandle,runnum,lumiversion):
     queryCondition['runnum'].setData(int(runnum))
     queryCondition['lumiversion'].setData(lumiversion)
     queryHandle.addToOutputList('sum(INSTLUMI)','lumitotal')
-    queryHandle.setCondition('RUNNUM=:runnum and LUMIVERSION=:lumiversion',queryCondition)
+    conditionstring='RUNNUM=:runnum and LUMIVERSION=:lumiversion'
+    if beamstatus:
+        conditionstring=conditionstring+' and BEAMSTATUS=:beamstatus'
+        queryCondition.extend('beamstatus','string')
+        queryCondition['beamstatus'].setData(beamstatus)
+    if beamenergy:
+        minBeamenergy=float(beamenergy*(1.0-beamenergyfluctuation))
+        maxBeamenergy=float(beamenergy*(1.0+beamenergyfluctuation))
+        conditionstring=conditionstring+' and BEAMENERGY>:minBeamenergy and BEAMENERGY<:maxBeamenergy'
+        queryCondition.extend('minBeamenergy','float')
+        queryCondition.extend('maxBeamenergy','float')
+        queryCondition['minBeamenergy'].setData(float(minBeamenergy))
+        queryCondition['maxBeamenergy'].setData(float(maxBeamenergy))
+    queryHandle.setCondition(conditionstring,queryCondition)
     queryResult=coral.AttributeList()
     queryResult.extend('lumitotal','float')
     queryHandle.defineOutput(queryResult)
@@ -150,7 +275,7 @@ def trgbitzeroByrun(queryHandle,runnum):
             result[cmslsnum]=[trgcount,deadtime,bitname,prescale]
     return result
 
-def lumisummarytrgbitzeroByrun(queryHandle,runnum,lumiversion):
+def lumisummarytrgbitzeroByrun(queryHandle,runnum,lumiversion,beamstatus=None,beamenergy=None,beamenergyfluctuation=0.09):
     '''
     select l.cmslsnum,l.instlumi,l.numorbit,l.startorbit,l.beamstatus,l.beamenery,t.trgcount,t.deadtime,t.bitname,t.prescale from trg t,lumisummary l where t.bitnum=:bitnum and l.runnum=:runnum and l.lumiversion=:lumiversion and l.runnum=t.runnum and t.cmslsnum=l.cmslsnum; 
     Everything you ever need to know about bitzero and avg luminosity. Since we do not know if joint query is better of sperate, support both.
@@ -167,6 +292,7 @@ def lumisummarytrgbitzeroByrun(queryHandle,runnum,lumiversion):
     queryCondition['bitnum'].setData(int(0))        
     queryCondition['runnum'].setData(int(runnum))
     queryCondition['lumiversion'].setData(lumiversion)
+    
     queryHandle.addToOutputList('l.CMSLSNUM','cmslsnum')
     queryHandle.addToOutputList('l.INSTLUMI','instlumi')
     queryHandle.addToOutputList('l.NUMORBIT','numorbit')
@@ -177,7 +303,20 @@ def lumisummarytrgbitzeroByrun(queryHandle,runnum,lumiversion):
     queryHandle.addToOutputList('t.DEADTIME','deadtime')
     queryHandle.addToOutputList('t.BITNAME','bitname')
     queryHandle.addToOutputList('t.PRESCALE','prescale')
-    queryHandle.setCondition('t.BITNUM=:bitnum and l.RUNNUM=:runnum and l.LUMIVERSION=:lumiversion and l.RUNNUM=t.RUNNUM and t.CMSLSNUM=l.CMSLSNUM',queryCondition)
+    conditionstring='t.BITNUM=:bitnum and l.RUNNUM=:runnum and l.LUMIVERSION=:lumiversion and l.RUNNUM=t.RUNNUM and t.CMSLSNUM=l.CMSLSNUM'
+    if beamstatus:
+        conditionstring=conditionstring+' and l.BEAMSTATUS=:beamstatus'
+        queryCondition.extend('beamstatus','string')
+        queryCondition['beamstatus'].setData(beamstatus)
+    if beamenergy:
+        minBeamenergy=float(beamenergy*(1-beamenergyfluctuation))
+        maxBeamenergy=float(beamenergy*(1+beamenergyfluctuation))
+        conditionstring=conditionstring+' and l.BEAMENERGY>:minBeamenergy and l.BEAMENERGY<:maxBeamenergy'
+        queryCondition.extend('minBeamenergy','float')
+        queryCondition.extend('maxBeamenergy','float')
+        queryCondition['minBeamenergy'].setData(float(minBeamenergy))
+        queryCondition['maxBeamenergy'].setData(float(maxBeamenergy))
+    queryHandle.setCondition(conditionstring,queryCondition)
     queryResult=coral.AttributeList()
     queryResult.extend('cmslsnum','unsigned int')
     queryResult.extend('instlumi','float')
@@ -234,7 +373,7 @@ def trgBybitnameByrun(queryHandle,runnum,bitname):
     cursor=queryHandle.execute()
     while cursor.next():
         cmslsnum=cursor.currentRow()['cmslsnum'].data()
-        trgcount=cursor.currentRow()['trgcount'].data()
+        trgcount=cursor.currerequireLumisummaryntRow()['trgcount'].data()
         deadtime=cursor.currentRow()['deadtime'].data()
         bitnum=cursor.currentRow()['bitnum'].data()
         prescale=cursor.currentRow()['prescale'].data()
@@ -363,7 +502,7 @@ def hltAllpathByrun(queryHandle,runnum):
 def lumidetailByrunByAlgo(queryHandle,runnum,algoname='OCC1'):
     '''
     select s.cmslsnum,d.bxlumivalue,d.bxlumierror,d.bxlumiquality,s.startorbit from LUMIDETAIL d,LUMISUMMARY s where s.runnum=:runnum and d.algoname=:algoname and s.lumisummary_id=d.lumisummary_id order by s.startorbit
-    output: [cmslsnum,bxlumivalue,bxlumierror,bxlumiquality,startorbit]
+    output: [[cmslsnum,bxlumivalue,bxlumierror,bxlumiquality,startorbit]]
     since the output is ordered by time, it has to be in seq list format
     '''
     result=[]
@@ -546,79 +685,99 @@ if __name__=='__main__':
     session.typeConverter().setCppTypeForSqlType("unsigned long long","NUMBER(20)")
     session.transaction().start(True)
     schema=session.nominalSchema()
+    allruns=allruns(schema,requireLumisummary=True,requireTrg=True,requireHlt=True)
+    print 'allruns in runsummary and lumisummary and trg and hlt ',len(allruns)
+    #q=schema.newQuery()
+    #runsummaryOut=runsummaryByrun(q,139400)
+    #del q
+    #q=schema.newQuery()
+    #lumisummaryOut=lumisummaryByrun(q,139400,'0001')
+    #del q
+    #q=schema.newQuery()
+    #lumisummaryOutStablebeam7TeV=lumisummaryByrun(q,139400,'0001',beamstatus='STABLE BEAMS',beamenergy=3.5E003,beamenergyfluctuation=0.09)
+    #del q
+    #q=schema.newQuery()
+    #lumitotal=lumisumByrun(q,139400,'0001')
+    #del q
+    #q=schema.newQuery()
+    #lumitotalStablebeam7TeV=lumisumByrun(q,139400,'0001',beamstatus='STABLE BEAMS',beamenergy=3.5E003,beamenergyfluctuation=0.09)
+    #del q
+    #q=schema.newQuery()
+    #trgbitzero=trgbitzeroByrun(q,139400)
+    #del q
+    #q=schema.newQuery()
+    #lumijointrg=lumisummarytrgbitzeroByrun(q,135525,'0001')
+    #del q
+    #q=schema.newQuery()
+    #lumijointrgStablebeam7TeV=lumisummarytrgbitzeroByrun(q,135525,'0001',beamstatus='STABLE BEAMS',beamenergy=3.5E003,beamenergyfluctuation=0.09)
+    #del q
+    #q=schema.newQuery()
+    #trgforbit=trgBybitnameByrun(q,139400,'L1_ZeroBias')
+    #del q
+    #q=schema.newQuery()
+    #trgallbits=trgAllbitsByrun(q,139400)
+    #del q
+    #q=schema.newQuery()
+    #hltbypath=hltBypathByrun(q,139400,'HLT_Mu5')
+    #del q
+    #q=schema.newQuery()
+    #hltallpath=hltAllpathByrun(q,139400)
+    #del q
+    #q=schema.newQuery()
+    #hlttrgmap=hlttrgMappingByrun(q,139400)
+    #del q
+    #q=schema.newQuery()
+    #occ1detail=lumidetailByrunByAlgo(q,139400,'OCC1')
+    #del q
+    #q=schema.newQuery()
+    #alldetail=lumidetailAllalgosByrun(q,139400)
+    #del q
+    #q=schema.newQuery()
+    #runsbyfill=runsByfillrange(q,1150,1170)
+    #del q
+    #now=datetime.datetime.now()
+    #aweek=datetime.timedelta(weeks=1)
+    #lastweek=now-aweek
+    #print lastweek
+    #q=schema.newQuery()
+    #runsinaweek=runsByTimerange(q,lastweek,now)
+    #del q
     q=schema.newQuery()
-    runsummaryOut=runsummaryByrun(q,139400)
-    del q
-    q=schema.newQuery()
-    lumisummaryOut=lumisummaryByrun(q,139400,'0001')
-    del q
-    q=schema.newQuery()
-    lumitotal=lumisumByrun(q,139400,'0001')
-    del q
-    q=schema.newQuery()
-    trgbitzero=trgbitzeroByrun(q,139400)
-    del q
-    q=schema.newQuery()
-    lumijointrg=lumisummarytrgbitzeroByrun(q,139400,'0001')
-    del q
-    q=schema.newQuery()
-    trgforbit=trgBybitnameByrun(q,139400,'L1_ZeroBias')
-    del q
-    q=schema.newQuery()
-    trgallbits=trgAllbitsByrun(q,139400)
-    del q
-    q=schema.newQuery()
-    hltbypath=hltBypathByrun(q,139400,'HLT_Mu5')
-    del q
-    q=schema.newQuery()
-    hltallpath=hltAllpathByrun(q,139400)
-    del q
-    q=schema.newQuery()
-    hlttrgmap=hlttrgMappingByrun(q,139400)
-    del q
-    q=schema.newQuery()
-    occ1detail=lumidetailByrunByAlgo(q,139400,'OCC1')
-    del q
-    q=schema.newQuery()
-    alldetail=lumidetailAllalgosByrun(q,139400)
-    del q
-    q=schema.newQuery()
-    runsbyfill=runsByfillrange(q,1150,1170)
-    del q
-    now=datetime.datetime.now()
-    aweek=datetime.timedelta(weeks=1)
-    lastweek=now-aweek
-    print lastweek
-    q=schema.newQuery()
-    runsinaweek=runsByTimerange(q,lastweek,now)
+    allfills=allfills(q)
     del q
     session.transaction().commit()  
     del session
     del svc
-    print 'runsummaryByrun : ',runsummaryOut
-    print
-    print 'lumisummaryByrun : ',lumisummaryOut
-    print
-    print 'totallumi : ',lumitotal
-    print
+    #print 'runsummaryByrun : ',runsummaryOut
+    #print
+    #print 'lumisummaryByrun : ',lumisummaryOut
+    #print '######'
+    #print 'lumisummaryByrun stable beams 7TeV : ',lumisummaryOutStablebeam7TeV
+    #print '######'
+    #print 'totallumi : ',lumitotal
+    #print
+    #print
+    #print 'totallumi stable beam and 7TeV: ',lumitotalStablebeam7TeV
+    #print
     #print 'trgbitzero : ',trgbitzero
-    print 
-    #print 'lumijointrg', lumijointrg
-    print
+    #print 
+    #print 'lumijointrg : ', lumijointrg
+    #print 'total LS : ',len(lumijointrg)
+    #print 'lumijointrg stable beams 7TeV :', lumijointrgStablebeam7TeV
+    #print 'total LS : ',len(lumijointrgStablebeam7TeV)
     #print 'trgforbit L1_ZeroBias ',trgforbit
-    print
+    #print
     #print 'trgallbits ',trgallbits[1] #big query. be aware of speed
-    print
-    print 'hltforpath HLT_Mu5',hltbypath
-    print
-    print 'hltallpath ',hltallpath
-    print
-    print 'hlttrgmap ',hlttrgmap
-    print
-    print 'lumidetail occ1 ',len(occ1detail)
-    print
-    print 'runsbyfill ',runsbyfill
-    print
-    print 'runsinaweek ',runsinaweek.keys()
-    
-    
+    #print
+    #print 'hltforpath HLT_Mu5',hltbypath
+    #print
+    #print 'hltallpath ',hltallpath
+    #print
+    #print 'hlttrgmap ',hlttrgmap
+    #print
+    #print 'lumidetail occ1 ',len(occ1detail)
+    #print
+    #print 'runsbyfill ',runsbyfill
+    #print
+    #print 'runsinaweek ',runsinaweek.keys()
+    print 'all fills ',allfills
