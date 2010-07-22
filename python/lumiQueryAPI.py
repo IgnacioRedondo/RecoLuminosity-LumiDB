@@ -118,12 +118,18 @@ def deliveredLumiForRun (dbsession, parameters, runnum):
         del dbsession
 
 
-def deliveredLumiForRange (dbsession, parameters, fileparsingResult):
-    """ in this case, only take run numbers from theinput file """
+def deliveredLumiForRange (dbsession, parameters, inputRange):
+    '''Takes either single run as a string or dictionary of run ranges'''
     lumidata = []
-    for run in sorted( fileparsingResult.runs() ):
-        lumidata.append( deliveredLumiForRun (dbsession, parameters, run) )
+    # is this a single string?
+    if isinstance (inputRange, str):
+        lumidata.append( deliveredLumiForRun (dbsession, parameters, inputRange) )
+    else:
+        # if not, it's one of these dictionary things
+        for run in sorted( inputRange.runs() ):
+            lumidata.append( deliveredLumiForRun (dbsession, parameters, run) )
     return lumidata
+
 
 
 def recordedLumiForRun (dbsession, parameters, runnum, lslist = None):
@@ -303,28 +309,16 @@ def filterDeadtable (inTable, lslist):
     return result
 
 
-def recordedLumiForRange (dbsession, parameters, fileparsingResult):
-    '''in this case, only take run numbers from theinput file'''
-    lumidata = []
-    for (run, lslist) in sorted (fileparsingResult.runsandls().items() ):
-        #print 'processing run ', run
-        #print 'valid ls list ', lslist
-        lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
-    return lumidata
-
-
-def recordedLumi (dbsession, parameters, inputRange):
-    '''in this case, only take run numbers from theinput file'''
+def recordedLumiForRange (dbsession, parameters, inputRange):
+    '''Takes either single run as a string or dictionary of run ranges'''
     lumidata = []
     # is this a single string?
     if isinstance (inputRange, str):
         lumidata.append( recordedLumiForRun (dbsession, parameters, inputRange) )
-        return lumidata
-    # if not, it's one of these dictionary things
-    for (run, lslist) in sorted (inputRange.runsandls().items() ):
-        #print 'processing run ', run
-        #print 'valid ls list ', lslist
-        lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
+    else:
+        # if not, it's one of these dictionary things
+        for (run, lslist) in sorted (inputRange.runsandls().items() ):
+            lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
     return lumidata
 
 

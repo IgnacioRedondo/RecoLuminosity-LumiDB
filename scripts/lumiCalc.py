@@ -93,26 +93,23 @@ if __name__ == '__main__':
         # file
         ## if not options.outputfile:
         ##     raise RuntimeError, "You must specify an outputt file in 'lumibylsXing' mode"
-    fileparsingResult = ''
-    if not options.runnumber and options.inputfile:
+    if options.runnumber:
+        inputRange = options.runnumber
+    else:
         basename, extension = os.path.splitext (options.inputfile)
         if extension == '.csv': # if file ends with .csv, use csv parser, else parse as json file
             fileparsingResult = csvSelectionParser.csvSelectionParser (options.inputfile)
         else:
             f = open (options.inputfile, 'r')
             inputfilecontent = f.read()
-            fileparsingResult =  selectionParser.selectionParser (inputfilecontent)
-        if not fileparsingResult:
+            inputRange =  selectionParser.selectionParser (inputfilecontent)
+        if not inputRange:
             print 'failed to parse the input file', options.inputfile
             raise 
-    lumidata = []
 
     # Delivered
     if action ==  'delivered':
-        if options.runnumber:
-            lumidata.append ( LumiQueryAPI.deliveredLumiForRun (session, parameters, options.runnumber))
-        else:
-            lumidata =  LumiQueryAPI.deliveredLumiForRange (session, parameters, fileparsingResult)    
+        lumidata =  LumiQueryAPI.deliveredLumiForRange (session, parameters, inputRange)    
         if not options.outputfile:
              LumiQueryAPI.printDeliveredLumi (lumidata, '')
         else:
@@ -124,10 +121,7 @@ if __name__ == '__main__':
         hltpath = ''
         if options.hltpath:
             hltpath = options.hltpath
-        if options.runnumber:
-            lumidata.append ( LumiQueryAPI.recordedLumiForRun (session, parameters, options.runnumber))
-        else:
-            lumidata =  LumiQueryAPI.recordedLumiForRange (session, parameters, fileparsingResult)
+        lumidata =  LumiQueryAPI.recordedLumiForRange (session, parameters, inputRange)
         if not options.outputfile:
              LumiQueryAPI.printRecordedLumi (lumidata, parameters.verbose, hltpath)
         else:
@@ -137,17 +131,11 @@ if __name__ == '__main__':
 
     # Overview
     if action ==  'overview':
-        delivereddata = []
-        recordeddata = []
         hltpath = ''
         if options.hltpath:
             hltpath = options.hltpath
-        if options.runnumber:
-            delivereddata.append (LumiQueryAPI.deliveredLumiForRun (session, parameters, options.runnumber))
-            recordeddata.append  (LumiQueryAPI.recordedLumiForRun  (session, parameters, options.runnumber))
-        else:
-            delivereddata = LumiQueryAPI.deliveredLumiForRange (session, parameters, fileparsingResult)
-            recordeddata  = LumiQueryAPI.recordedLumiForRange  (session, parameters, fileparsingResult)
+        delivereddata = LumiQueryAPI.deliveredLumiForRange (session, parameters, inputRange)
+        recordeddata  = LumiQueryAPI.recordedLumiForRange  (session, parameters, inputRange)
         if not options.outputfile:
             LumiQueryAPI.printOverviewData (delivereddata, recordeddata, hltpath)
         else:
@@ -159,12 +147,7 @@ if __name__ == '__main__':
 
     # Lumi by lumisection
     if action ==  'lumibyls':
-        recordeddata = []
-        xingLumiDict = {}
-        if options.runnumber:
-            recordeddata = LumiQueryAPI.recordedLumi (session, parameters , options.runnumber) 
-        else:
-            recordeddata = LumiQueryAPI.recordedLumi (session, parameters, fileparsingResult)
+        recordeddata  = LumiQueryAPI.recordedLumiForRange  (session, parameters, inputRange)
         # we got it, now we got to decide what to do with it
         if not options.outputfile:
             LumiQueryAPI.printPerLSLumi (recordeddata, parameters.verbose)
