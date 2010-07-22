@@ -4,8 +4,7 @@ import os, sys
 import coral
 import array
 import optparse
-from RecoLuminosity.LumiDB import csvSelectionParser
-from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
+from RecoLuminosity.LumiDB import csvSelectionParser, selectionParser
 import RecoLuminosity.LumiDB.lumiQueryAPI as LumiQueryAPI
 
 from pprint import pprint
@@ -81,6 +80,7 @@ if __name__ == '__main__':
     parameters.norm        = options.normfactor
     parameters.lumiversion = options.lumiversion
     parameters.beammode    = options.beammode
+    parameters.xingMinLum  = options.xingMinLum
 
     ## Let's start the fun
     if not options.inputfile and not options.runnumber:
@@ -88,11 +88,11 @@ if __name__ == '__main__':
     lumiXing = False
     if action ==  'lumibylsXing':
         action = 'lumibyls'
-        lumiXing = True
+        parameters.lumiXing = True
         # we can't have lumiXing mode if we're not writing to a CSV
         # file
-        if not options.outputfile:
-            raise RuntimeError, "You must specify an outputt file in 'lumibylsXing' mode"
+        ## if not options.outputfile:
+        ##     raise RuntimeError, "You must specify an outputt file in 'lumibylsXing' mode"
     fileparsingResult = ''
     if not options.runnumber and options.inputfile:
         basename, extension = os.path.splitext (options.inputfile)
@@ -162,22 +162,14 @@ if __name__ == '__main__':
         recordeddata = []
         xingLumiDict = {}
         if options.runnumber:
-            recordeddata.append( LumiQueryAPI.recordedLumiForRun (session, parameters , options.runnumber) )
-            if lumiXing:
-                # don't know if we really need this environment
-                # variable or not. (It works with out it here at FNAL...)
-                # os.environ['CORAL_AUTH_PATH'] = '/afs/cern.ch/cms/DB/lumi'
-                xingLumiDict =  LumiQueryAPI.xingLuminosityForRun (session, options.runnumber, parameters, options.xingMinLum)
+            recordeddata = LumiQueryAPI.recordedLumi (session, parameters , options.runnumber) 
         else:
-            recordeddata =  LumiQueryAPI.recordedLumiForRange (session, parameters, fileparsingResult)
+            recordeddata = LumiQueryAPI.recordedLumi (session, parameters, fileparsingResult)
+        # we got it, now we got to decide what to do with it
         if not options.outputfile:
             LumiQueryAPI.printPerLSLumi (recordeddata, parameters.verbose)
         else:
             todump =  LumiQueryAPI.dumpPerLSLumi (recordeddata)
             todump.insert (0, ['run', 'ls', 'delivered', 'recorded'])
-            if lumiXing:
-                 LumiQueryAPI.mergeXingLumi (todump, xingLumiDict)
             LumiQueryAPI.dumpData (todump, options.outputfile)
-    ## del session
-    ## del svc
     

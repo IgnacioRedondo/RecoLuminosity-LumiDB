@@ -31,13 +31,16 @@ class ParametersObject (object):
         self.lumidb          = 'oracle://cms_orcoff_prod/cms_lumi_prod'
         self.lumisummaryname = 'LUMISUMMARY'
         self.lumidetailname  = 'LUMIDETAIL'
+        self.lumiXing        = False
+        self.xingMinLum      = 1e-4
 
+        
     def defaultfrontierConfigString (self):
         return '''<frontier-connect><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier1.cern.ch:3128"/><proxy url = "http://cmst0frontier2.cern.ch:3128"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier1.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier2.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier3.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier4.cern.ch:8000/FrontierInt"/></frontier-connect>'''
 
 def lslengthsec (numorbit, numbx):
     #print numorbit, numbx
-    l = numorbit*numbx*25e-09
+    l = numorbit * numbx * 25e-09
     return l
 
 def lsBylsLumi (deadtable):
@@ -46,22 +49,25 @@ def lsBylsLumi (deadtable):
     output: {lsnum:[instlumi, recordedlumi]}
     """
     result = {}
-    for myls, d in deadtable.items():
-        lstime = lslengthsec (d[3], 3564)
-        instlumi = d[1] * lstime
-        if float( d[2] ) ==  0.0:
+    for myls, deadArray in deadtable.items():
+        lstime = lslengthsec (deadArray[3], 3564)
+        instlumi = deadArray[1] * lstime
+        if float( deadArray[2] ) ==  0.0:
             deadfrac = 1.0
         else:
-            deadfrac = float (d[0]) / float (d[2])
+            deadfrac = float (deadArray[0]) / float (deadArray[2])
         recordedLumi = instlumi * (1.0 - deadfrac)
-        result[myls] = [instlumi, recordedLumi]
+        myLsList = [instlumi, recordedLumi]
+        if len (deadArray) > 4:
+            myLsList.extend (deadArray[4:])
+        result[myls] = myLsList
     return result
 
 
 def deliveredLumiForRun (dbsession, parameters, runnum):    
     """select sum (INSTLUMI), count (INSTLUMI) from lumisummary where
     runnum = 124025 and lumiversion = '0001'; apply norm factor and ls
-    length in sec on the query result unit E27cm^-2"""    
+    length in sec on the query result unit E27cm^-2 (= 1 / mb)"""    
     #if parameters.verbose:
     #    print 'deliveredLumiForRun : norm : ', parameters.norm, ' : run : ', runnum
     #output ['run', 'totalls', 'delivered', 'beammode']
@@ -118,6 +124,7 @@ def deliveredLumiForRange (dbsession, parameters, fileparsingResult):
     for run in sorted( fileparsingResult.runs() ):
         lumidata.append( deliveredLumiForRun (dbsession, parameters, run) )
     return lumidata
+
 
 def recordedLumiForRun (dbsession, parameters, runnum, lslist = None):
     """
@@ -278,6 +285,9 @@ def recordedLumiForRun (dbsession, parameters, runnum, lslist = None):
         dbsession.transaction().rollback()
         del dbsession
     #print 'before return lumidata ', lumidata
+    if parameters.lumiXing:
+        xingLumiDict =  xingLuminosityForRun (dbsession, runnum, parameters)
+        mergeXingLumi (lumidata, xingLumiDict)
     return lumidata
 
 
@@ -297,6 +307,21 @@ def recordedLumiForRange (dbsession, parameters, fileparsingResult):
     '''in this case, only take run numbers from theinput file'''
     lumidata = []
     for (run, lslist) in sorted (fileparsingResult.runsandls().items() ):
+        #print 'processing run ', run
+        #print 'valid ls list ', lslist
+        lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
+    return lumidata
+
+
+def recordedLumi (dbsession, parameters, inputRange):
+    '''in this case, only take run numbers from theinput file'''
+    lumidata = []
+    # is this a single string?
+    if isinstance (inputRange, str):
+        lumidata.append( recordedLumiForRun (dbsession, parameters, inputRange) )
+        return lumidata
+    # if not, it's one of these dictionary things
+    for (run, lslist) in sorted (inputRange.runsandls().items() ):
         #print 'processing run ', run
         #print 'valid ls list ', lslist
         lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
@@ -435,6 +460,8 @@ def dumpPerLSLumi (lumidata):
                 rowdata += [str (runnumber), str (lsnum), 'N/A', 'N/A']
             else:
                 rowdata += [str (runnumber), str (lsnum), dataperls[0], dataperls[1]]
+            if len (dataperls) > 2:
+                rowdata.extend ( flatten (dataperls[2:]) )
             datatodump.append (rowdata)
     return datatodump
 
@@ -681,7 +708,7 @@ def dumpOverview (delivered, recorded, hltpath = ''):
     return datatable
 
 
-def xingLuminosityForRun (dbsession, runnum, parameters, minLumValue = 1e-3, lumiXingDict = {}):
+def xingLuminosityForRun (dbsession, runnum, parameters, lumiXingDict = {}):
     '''Given a run number and a minimum xing luminosity value,
     returns a dictionary (keyed by (run, lumi section)) where the
     value is a list of tuples of (xingID, xingLum).
@@ -748,7 +775,7 @@ def xingLuminosityForRun (dbsession, runnum, parameters, minLumValue = 1e-3, lum
             xingLum = []
             for index, lum in enumerate (xingArray):
                 lum  *=  parameters.normFactor
-                if lum < minLumValue:
+                if lum < parameters.xingMinLum:
                     continue
                 xingLum.append( (index, lum) )
             lumiXingDict[ (runnum, cmslsnum) ] = xingLum
@@ -773,21 +800,16 @@ def flatten (obj):
     return result    
 
 
-def mergeXingLumi (generalInfo, xingLumiDict):
+def mergeXingLumi (triplet, xingLumiDict):
     '''Given general xing information and a xingLumiDict, the xing
     luminosity information is merged with the general information'''
-    for line in generalInfo:
-        if len (line) < 2:
-            continue
-        try:
-            key = ( int (line[0]), int (line[1]) )
-        except:
-            # if we're here, then these aren't integers so we want to
-            # skip the line
-            continue
+    runNumber = triplet[0]
+    deadTable = triplet[2]
+    for lumi, lumiList in deadTable.iteritems():
+        key = ( int(runNumber), int(lumi) )
         xingLumiValues = xingLumiDict.get (key)
         if xingLumiValues:
-            line.extend( flatten (xingLumiValues) )
+            lumiList.append( flatten (xingLumiValues) )
 
 
 def setupSession (connectString, siteconfpath, debug = False):
