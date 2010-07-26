@@ -32,8 +32,11 @@ class ParametersObject (object):
         self.lumisummaryname = 'LUMISUMMARY'
         self.lumidetailname  = 'LUMIDETAIL'
         self.lumiXing        = False
+        self.lumiSectionLen  = 2**18 * self.NBX * 25e-09
         self.xingMinLum      = 1e-4
-
+        self.minBiasXsec     = 71.3 # unit: mb
+        self.pileupHistName  = 'pileup'
+        self.maxPileupBin    = 30
         
     def defaultfrontierConfigString (self):
         return '''<frontier-connect><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier1.cern.ch:3128"/><proxy url = "http://cmst0frontier2.cern.ch:3128"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier1.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier2.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier3.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier4.cern.ch:8000/FrontierInt"/></frontier-connect>'''
@@ -62,6 +65,39 @@ def lsBylsLumi (deadtable):
             myLsList.extend (deadArray[4:])
         result[myls] = myLsList
     return result
+
+
+def deliveredLumiForRange (dbsession, parameters, inputRange):
+    '''Takes either single run as a string or dictionary of run ranges'''
+    lumidata = []
+    # is this a single string?
+    if isinstance (inputRange, str):
+        lumidata.append( deliveredLumiForRun (dbsession, parameters, inputRange) )
+    else:
+        # if not, it's one of these dictionary things
+        for run in sorted( inputRange.runs() ):
+            if parameters.verbose:
+                print "run", run
+            lumidata.append( deliveredLumiForRun (dbsession, parameters, run) )
+    return lumidata
+
+
+def recordedLumiForRange (dbsession, parameters, inputRange):
+    '''Takes either single run as a string or dictionary of run ranges'''
+    lumidata = []
+    # is this a single string?
+    if isinstance (inputRange, str):
+        lumidata.append( recordedLumiForRun (dbsession, parameters, inputRange) )
+    else:
+        # if not, it's one of these dictionary things
+        oldrun = -1
+        for (run, lslist) in sorted (inputRange.runsandls().items() ):
+            if parameters.verbose and oldrun != run:
+                print "run", run
+                oldrun = run
+            lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
+    return lumidata
+
 
 
 def deliveredLumiForRun (dbsession, parameters, runnum):    
@@ -116,20 +152,6 @@ def deliveredLumiForRun (dbsession, parameters, runnum):
         print str (e)
         dbsession.transaction().rollback()
         del dbsession
-
-
-def deliveredLumiForRange (dbsession, parameters, inputRange):
-    '''Takes either single run as a string or dictionary of run ranges'''
-    lumidata = []
-    # is this a single string?
-    if isinstance (inputRange, str):
-        lumidata.append( deliveredLumiForRun (dbsession, parameters, inputRange) )
-    else:
-        # if not, it's one of these dictionary things
-        for run in sorted( inputRange.runs() ):
-            lumidata.append( deliveredLumiForRun (dbsession, parameters, run) )
-    return lumidata
-
 
 
 def recordedLumiForRun (dbsession, parameters, runnum, lslist = None):
@@ -307,19 +329,6 @@ def filterDeadtable (inTable, lslist):
         if existingLS in lslist:
             result[existingLS] = inTable[existingLS]
     return result
-
-
-def recordedLumiForRange (dbsession, parameters, inputRange):
-    '''Takes either single run as a string or dictionary of run ranges'''
-    lumidata = []
-    # is this a single string?
-    if isinstance (inputRange, str):
-        lumidata.append( recordedLumiForRun (dbsession, parameters, inputRange) )
-    else:
-        # if not, it's one of these dictionary things
-        for (run, lslist) in sorted (inputRange.runsandls().items() ):
-            lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
-    return lumidata
 
 
 def printDeliveredLumi (lumidata, mode):
@@ -837,7 +846,7 @@ def setupSession (connectString, siteconfpath, debug = False):
     session.typeConverter().setCppTypeForSqlType ("unsigned int", "NUMBER (10)")
     session.typeConverter().setCppTypeForSqlType ("unsigned long long", "NUMBER (20)")
     return session, svc
-    
+
 
 ######################################
     
