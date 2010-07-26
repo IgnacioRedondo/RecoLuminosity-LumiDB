@@ -26,11 +26,22 @@ def fillPileupHistogram (deadTable, parameters,
     # we don't need the lumiSection in general, but it's nice to have
     # around for debugging purposes
     for lumiSection, deadArray in sorted (deadTable.iteritems()):
+        if len(deadArray) < 5:
+            # for some reason the xing instantaneous luminosity
+            # information isn't there.  Print a warning and then skip
+            # it:
+            if runNumber:
+                print "No Xing Instantaneous luminosity information for run %d, lumi section %d" \
+                      % (runNumber, lumiSection)
+            else:
+                print "No Xing Instantaneous luminosity information for lumi section %d" \
+                      % lumiSection
+            continue
         livetime = 1
         numerator   = float (deadArray[0])
         denominator = float (deadArray[2])
         if denominator:
-            livetime = 1 - numerator / denominator
+            livetime = 1 - numerator / denominator        
         xingInstLumiArray = deadArray[4]
         # here we only want the instantaneous luminosities and don't
         # care which crosings they fall in.  So we only want the odd 
@@ -110,7 +121,7 @@ if __name__ == '__main__':
         sys.exit()
     if len (args) != 1:
         parser.print_usage()
-        raise RuntimeError, "Exactly one action must be provided"
+        raise RuntimeError, "Exactly one output file must be given"
     output = args[0]
 
     # get database session hooked up

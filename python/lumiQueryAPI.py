@@ -5,6 +5,8 @@ import array
 from RecoLuminosity.LumiDB import argparse, nameDealer, selectionParser, hltTrgSeedMapper, \
      connectstrParser, cacheconfigParser, tablePrinter, csvReporter, csvSelectionParser
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
+from pprint import pprint, pformat
+
 
 '''
 This module defines lowlevel SQL query API for lumiDB 
@@ -87,15 +89,40 @@ def recordedLumiForRange (dbsession, parameters, inputRange):
     lumidata = []
     # is this a single string?
     if isinstance (inputRange, str):
-        lumidata.append( recordedLumiForRun (dbsession, parameters, inputRange) )
+        lumiDataPiece = recordedLumiForRun (dbsession, parameters, inputRange)
+        if parameters.lumiXing:
+            # get the xing information for the run
+            xingLumiDict = xingLuminosityForRun (dbsession, inputRange,
+                                                 parameters)
+            mergeXingLumi (lumiDataPiece, xingLumiDict)
+            lumidata.append (lumiDataPiece)
     else:
-        # if not, it's one of these dictionary things
-        oldrun = -1
+        # we want to collapse the lists so that every run is considered once.
+        runLsDict = {}
+        maxLumiSectionDict = {}
         for (run, lslist) in sorted (inputRange.runsandls().items() ):
-            if parameters.verbose and oldrun != run:
+            maxLumiSectionDict[run] = max ( max (lslist),
+                                            maxLumiSectionDict.get(run,0) )
+            runLsDict.setdefault (run, []).append (lslist)
+        for run, metaLsList in sorted (runLsDict.iteritems()):
+            if parameters.verbose:
                 print "run", run
-                oldrun = run
-            lumidata.append( recordedLumiForRun (dbsession, parameters, run, lslist) )
+            runLumiData = []
+            for lslist in metaLsList:
+                runLumiData.append( recordedLumiForRun (dbsession, parameters,
+                                                        run, lslist) )
+            if parameters.lumiXing:
+                # get the xing information once for the whole run
+                xingLumiDict = xingLuminosityForRun (dbsession, run,
+                                                     parameters,
+                                                     maxLumiSection = \
+                                                     maxLumiSectionDict[run])
+                # merge it with every piece of lumi data for this run
+                for lumiDataPiece in runLumiData:
+                    mergeXingLumi (lumiDataPiece, xingLumiDict)
+                    lumidata.append (lumiDataPiece)
+            else:
+                lumidata.extend( runLumiData )
     return lumidata
 
 
@@ -313,9 +340,9 @@ def recordedLumiForRun (dbsession, parameters, runnum, lslist = None):
         dbsession.transaction().rollback()
         del dbsession
     #print 'before return lumidata ', lumidata
-    if parameters.lumiXing:
-        xingLumiDict =  xingLuminosityForRun (dbsession, runnum, parameters)
-        mergeXingLumi (lumidata, xingLumiDict)
+    ## if parameters.lumiXing:
+    ##     xingLumiDict =  xingLuminosityForRun (dbsession, runnum, parameters)
+    ##     mergeXingLumi (lumidata, xingLumiDict)
     return lumidata
 
 
@@ -711,7 +738,8 @@ def dumpOverview (delivered, recorded, hltpath = ''):
     return datatable
 
 
-def xingLuminosityForRun (dbsession, runnum, parameters, lumiXingDict = {}):
+def xingLuminosityForRun (dbsession, runnum, parameters, lumiXingDict = {},
+                          maxLumiSection = None):
     '''Given a run number and a minimum xing luminosity value,
     returns a dictionary (keyed by (run, lumi section)) where the
     value is a list of tuples of (xingID, xingLum).
@@ -771,6 +799,10 @@ def xingLuminosityForRun (dbsession, runnum, parameters, lumiXingDict = {}):
             algoname    = cursor.currentRow()['algoname'].data()
             bxlumivalue = cursor.currentRow()['bxlumivalue'].data()
             startorbit  = cursor.currentRow()['startorbit'].data()
+            
+            if maxLumiSection and maxLumiSection < cmslsnum:
+                cursor.close()
+                break
             
             xingArray = array.array ('f')
             xingArray.fromstring( bxlumivalue.readline() )
