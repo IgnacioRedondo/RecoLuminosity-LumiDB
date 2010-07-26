@@ -9,7 +9,8 @@ import RecoLuminosity.LumiDB.lumiQueryAPI as LumiQueryAPI
 from pprint import pprint
 
 def fillPileupHistogram (deadTable, parameters,
-                         runNumber = 0, hist = None, lastBinOverflow = True):
+                         runNumber = 0, hist = None, lastBinOverflow = True,
+                         debug = False):
     '''Given a deadtable and run number, will (create if necessary
     and) fill histogram with expected pileup distribution.  If a
     histogram is created, it is owned by the user and is his/her
@@ -22,9 +23,8 @@ def fillPileupHistogram (deadTable, parameters,
         histname = '%s_%s' % (parameters.pileupHistName, runNumber)
         hist = ROOT.TH1F (histname, histname, parameters.maxPileupBin + 1,
                           -0.5, parameters.maxPileupBin + 0.5)
-        upper = maxBin = parameters.maxPileupBin
-    # we don't need the lumiSection in general, but it's nice to have
-    # around for debugging purposes
+        upper  = parameters.maxPileupBin
+        maxBin = parameters.maxPileupBin + 1
     for lumiSection, deadArray in sorted (deadTable.iteritems()):
         if len(deadArray) < 5:
             # for some reason the xing instantaneous luminosity
@@ -45,17 +45,27 @@ def fillPileupHistogram (deadTable, parameters,
         xingInstLumiArray = deadArray[4]
         # here we only want the instantaneous luminosities and don't
         # care which crosings they fall in.  So we only want the odd 
-        instLumiArray = [xingInstLumiArray[index] for index in \
-                         xrange( 1, len (xingInstLumiArray), 2 ) ]
+        instLumiArray = [(xingInstLumiArray[index], xingInstLumiArray[index + 1]) \
+                         for index in xrange( 0, len (xingInstLumiArray), 2 ) ]
         # totalInstLumi = reduce(lambda x, y: x+y, instLumiArray) # not needed
-        for xingInstLumi in instLumiArray:
+        for xing, xingInstLumi in instLumiArray:
             xingIntLumi = xingInstLumi * parameters.lumiSectionLen * livetime
             mean = xingInstLumi * parameters.minBiasXsec
+            if mean > 100:
+                if runNumber:
+                    print "mean number of pileup events > 100 for run %d, lum %d : m %f l %f" % \
+                          (runNumber, lumiSection, mean, xingInstLumi)
+                else:
+                    print "mean number of pileup events > 100 for lum %d: m %f l %f" % \
+                          (lumiSection, mean, xingInstLumi)
             totalProb = 0
             for obs in range (upper + 1):
                 prob = ROOT.TMath.Poisson (obs, mean)
                 totalProb += prob
                 hist.Fill (obs, prob * xingIntLumi)
+            if debug:
+                print "ls", lumiSection, "xing", xing, "inst", xingInstLumi, \
+                      "mean", mean, "totalProb", totalProb, 1 - totalProb
             if lastBinOverflow and totalProb < 1:
                 # put whatever weight is left over into the last bin
                 contents = hist.GetBinContent (maxBin) + \
