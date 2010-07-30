@@ -24,7 +24,9 @@ class ParametersObject (object):
     def __init__ (self):
         self.norm            = 1.0
         self.lumiversion     = '0001'
-        self.NBX             = 3564
+        self.NBX             = 3564  # number beam crossings
+        self.rotationTime    = self.NBX * 25e-09
+        self.lumiSectionLen  = 2**18 * self.rotationTime
         self.normFactor      = 6.37
         self.beammode        = 'stable' #possible choices stable, quiet, either
         self.verbose         = False
@@ -34,11 +36,10 @@ class ParametersObject (object):
         self.lumisummaryname = 'LUMISUMMARY'
         self.lumidetailname  = 'LUMIDETAIL'
         self.lumiXing        = False
-        self.lumiSectionLen  = 2**18 * self.NBX * 25e-09
         self.xingMinLum      = 1e-4
-        self.minBiasXsec     = 71.3 # unit: mb
+        self.minBiasXsec     = 71300 # unit: microbarn
         self.pileupHistName  = 'pileup'
-        self.maxPileupBin    = 30
+        self.maxPileupBin    = 10
         
     def defaultfrontierConfigString (self):
         return '''<frontier-connect><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier1.cern.ch:3128"/><proxy url = "http://cmst0frontier2.cern.ch:3128"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier1.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier2.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier3.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier4.cern.ch:8000/FrontierInt"/></frontier-connect>'''

@@ -9,14 +9,12 @@ import RecoLuminosity.LumiDB.lumiQueryAPI as LumiQueryAPI
 from pprint import pprint
 
 def fillPileupHistogram (deadTable, parameters,
-                         runNumber = 0, hist = None, lastBinOverflow = True,
-                         debug = False):
+                         runNumber = 0, hist = None, debug = False):
     '''Given a deadtable and run number, will (create if necessary
     and) fill histogram with expected pileup distribution.  If a
     histogram is created, it is owned by the user and is his/her
     responsibility to clean up the memory.'''
     if hist:
-        maxBin = hist.GetNbinsX()
         upper = int( hist.GetBinLowEdge(maxBin) + \
                      hist.GetBinWidth(maxBin) + 0.25 )
     else:
@@ -24,12 +22,13 @@ def fillPileupHistogram (deadTable, parameters,
         hist = ROOT.TH1F (histname, histname, parameters.maxPileupBin + 1,
                           -0.5, parameters.maxPileupBin + 0.5)
         upper  = parameters.maxPileupBin
-        maxBin = parameters.maxPileupBin + 1
     for lumiSection, deadArray in sorted (deadTable.iteritems()):
-        if len(deadArray) < 5:
+        if len(deadArray) < 5 :
             # for some reason the xing instantaneous luminosity
             # information isn't there.  Print a warning and then skip
             # it:
+            if parameters.noWarnings:
+                continue
             if runNumber:
                 print "No Xing Instantaneous luminosity information for run %d, lumi section %d" \
                       % (runNumber, lumiSection)
@@ -50,7 +49,8 @@ def fillPileupHistogram (deadTable, parameters,
         # totalInstLumi = reduce(lambda x, y: x+y, instLumiArray) # not needed
         for xing, xingInstLumi in instLumiArray:
             xingIntLumi = xingInstLumi * parameters.lumiSectionLen * livetime
-            mean = xingInstLumi * parameters.minBiasXsec
+            mean = xingInstLumi * parameters.minBiasXsec * \
+                   parameters.rotationTime
             if mean > 100:
                 if runNumber:
                     print "mean number of pileup events > 100 for run %d, lum %d : m %f l %f" % \
@@ -59,18 +59,16 @@ def fillPileupHistogram (deadTable, parameters,
                     print "mean number of pileup events > 100 for lum %d: m %f l %f" % \
                           (lumiSection, mean, xingInstLumi)
             totalProb = 0
-            for obs in range (upper + 1):
+            for obs in range (upper):
                 prob = ROOT.TMath.Poisson (obs, mean)
                 totalProb += prob
                 hist.Fill (obs, prob * xingIntLumi)
             if debug:
                 print "ls", lumiSection, "xing", xing, "inst", xingInstLumi, \
                       "mean", mean, "totalProb", totalProb, 1 - totalProb
-            if lastBinOverflow and totalProb < 1:
-                # put whatever weight is left over into the last bin
-                contents = hist.GetBinContent (maxBin) + \
-                           (1 - totalProb) * xingIntLumi
-                hist.SetBinContent (maxBin, contents)
+                print "  hist mean", hist.GetMean()
+            if totalProb < 1:
+                hist.Fill (obs, (1 - totalProb) * xingIntLumi)
     return hist
     
 
@@ -86,7 +84,7 @@ def fillPileupHistogram (deadTable, parameters,
 if __name__ == '__main__':
     parameters = LumiQueryAPI.ParametersObject()
     beamModeChoices = [ "stable", "quiet", "either"]
-    parser = optparse.OptionParser ("Usage: %%prog [--options] output.root",
+    parser = optparse.OptionParser ("Usage: %prog [--options] output.root",
                                     description = "Script to estimate pileup distribution using xing instantaneous luminosity information and minimum bias cross section.  Output is TH1F stored in root file")
     dbGroup     = optparse.OptionGroup (parser, "Database Options")
     inputGroup  = optparse.OptionGroup (parser, "Input Options")
@@ -120,9 +118,15 @@ if __name__ == '__main__':
                             help = 'Maximum bin in pileup histogram (default %default)')
     pileupGroup.add_option ('--saveRuns', dest='saveRuns', action='store_true',
                             help = 'Save pileup histograms for individual runs')
-    parser.add_option_group (pileupGroup)
-    parser.add_option_group (inputGroup)
+    pileupGroup.add_option ('--debugLumi', dest='debugLumi',
+                            action='store_true',
+                            help = 'Print out debug info for individual lumis')
+    pileupGroup.add_option ('--nowarning', dest = 'nowarning',
+                            action = 'store_true', default = False,
+                            help = 'suppress bad for lumi warnings' )
     parser.add_option_group (dbGroup)
+    parser.add_option_group (inputGroup)
+    parser.add_option_group (pileupGroup)
     # parse arguments
     (options, args) = parser.parse_args()
     import ROOT 
@@ -144,7 +148,7 @@ if __name__ == '__main__':
 
     ## Save what we need in the parameters object
     parameters.verbose        = True
-    parameters.noWarnings     = True
+    parameters.noWarnings     = options.nowarning
     parameters.lumiXing       = True
     parameters.lumiversion    = options.lumiversion
     parameters.beammode       = options.beammode
@@ -185,12 +189,14 @@ if __name__ == '__main__':
         deadTable = runDTarray[2]
         if options.saveRuns:
             hist = fillPileupHistogram (deadTable, parameters,
-                                        runNumber = runNumber)
+                                        runNumber = runNumber,
+                                        debug = options.debugLumi)
             pileupHist.Add (hist)
             histList.append (hist)
         else:
             fillPileupHistogram (deadTable, parameters,
-                                 hist = pileupHist)
+                                 hist = pileupHist,
+                                 debug = options.debugLumi)
     histFile = ROOT.TFile.Open (output, 'recreate')
     if not histFile:
         raise RuntimeError, \
