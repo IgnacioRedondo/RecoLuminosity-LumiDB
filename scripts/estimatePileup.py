@@ -15,6 +15,7 @@ def fillPileupHistogram (deadTable, parameters,
     histogram is created, it is owned by the user and is his/her
     responsibility to clean up the memory.'''
     if hist:
+        maxBin = hist.GetNbinsX()
         upper = int( hist.GetBinLowEdge(maxBin) + \
                      hist.GetBinWidth(maxBin) + 0.25 )
     else:
