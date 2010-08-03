@@ -25,8 +25,7 @@ class ParametersObject (object):
         self.norm            = 1.0
         self.lumiversion     = '0001'
         self.NBX             = 3564  # number beam crossings
-        self.rotationTime    = self.NBX * 25e-09
-        self.lumiSectionLen  = 2**18 * self.rotationTime
+        self.rotationRate    = 11245.613 # for 3.5 TeV Beam energy
         self.normFactor      = 6.37
         self.beammode        = 'stable' #possible choices stable, quiet, either
         self.verbose         = False
@@ -40,6 +39,14 @@ class ParametersObject (object):
         self.minBiasXsec     = 71300 # unit: microbarn
         self.pileupHistName  = 'pileup'
         self.maxPileupBin    = 10
+        self.calculateTimeParameters()
+
+    def calculateTimeParameters (self):
+        '''Given the rotation rate, calculate lumi section length and
+        rotation time.  This should be called if rotationRate is
+        updated.'''
+        self.rotationTime    = 1 / self.rotationRate
+        self.lumiSectionLen  = 2**18 * self.rotationTime
         
     def defaultfrontierConfigString (self):
         return '''<frontier-connect><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier.cern.ch:3128"/><proxy url = "http://cmst0frontier1.cern.ch:3128"/><proxy url = "http://cmst0frontier2.cern.ch:3128"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier1.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier2.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier3.cern.ch:8000/FrontierInt"/><server url = "http://cmsfrontier4.cern.ch:8000/FrontierInt"/></frontier-connect>'''
