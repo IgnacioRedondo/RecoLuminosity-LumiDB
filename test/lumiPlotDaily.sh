@@ -20,8 +20,8 @@ lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir perday >> $
 sleep 1;
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir instpeakvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir totalvsfill >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir totalvsfill --withTextOutput >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -i $operationdir/runlist.txt totalvsrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -i $operationdir/runlist.txt totalvsrun --withTextOutput >> $logfilename 
 date >> $logfilename
 cd $currentdir
