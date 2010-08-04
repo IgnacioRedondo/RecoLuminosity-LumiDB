@@ -14,14 +14,14 @@ cd $workdir
 eval `scramv1 runtime -sh`
 touch $logfilename
 date >> $logfilename
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir totalvstime --dryrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir totalvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir perday  --dryrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir perday >> $logfilename 
 sleep 1;
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir instpeakvstime  --dryrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir instpeakvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir totalvsfill  --dryrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir totalvsfill >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir totalvsrun  --dryrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir totalvsrun >> $logfilename 
 date >> $logfilename
 cd $currentdir
