@@ -14,7 +14,7 @@ cd $workdir
 eval `scramv1 runtime -sh`
 touch $logfilename
 date >> $logfilename
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir totalvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir --withTextOutput totalvstime >> $logfilename 
 sleep 1
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir perday >> $logfilename 
 sleep 1;
