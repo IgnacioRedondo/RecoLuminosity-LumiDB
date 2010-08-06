@@ -16,7 +16,7 @@ touch $logfilename
 date >> $logfilename
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir --withTextOutput totalvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir perday >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir --withTextOutput perday >> $logfilename 
 sleep 1;
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir --withTextOutput instpeakvstime >> $logfilename 
 sleep 1
