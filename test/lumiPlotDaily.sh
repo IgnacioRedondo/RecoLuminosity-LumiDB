@@ -18,15 +18,15 @@ cd $workdir
 eval `scramv1 runtime -sh`
 touch $logfilename
 date >> $logfilename
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation $beamstatus $beamstatus --withTextOutput totalvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation $beamstatus $beamstatus --withTextOutput perday >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput perday >> $logfilename 
 sleep 1;
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir --withTextOutput instpeakvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation $beamstatus $beamstatus --withTextOutput totalvsfill >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvsfill >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation $beamstatus $beamstatus --withTextOutput totalvsrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvsrun >> $logfilename 
 sleep 1
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -i $physicsselectionFile --withTextOutput physicsvstime >> $logfilename
 sleep 1
