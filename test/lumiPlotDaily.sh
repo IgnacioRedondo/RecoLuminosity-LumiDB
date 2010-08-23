@@ -4,6 +4,7 @@ workdir="/build1/zx/cron/CMSSW_3_7_0_pre3"
 authdir="/afs/cern.ch/user/x/xiezhen"
 overviewdir="/afs/cern.ch/cms/lumi/www/plots/overview"
 operationdir="/afs/cern.ch/cms/lumi/www/plots/operation"
+physicsdir="/afs/cern.ch/cms/lumi/www/plots/physicscertified"
 logpath="/afs/cern.ch/cms/lumi"
 logname="lumiPlotDaily.log"
 logfilename="$logpath/$logname"
@@ -28,7 +29,7 @@ lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenerg
 sleep 1
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvsrun >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -i $physicsselectionFile --withTextOutput physicsvstime >> $logfilename
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput physicsvstime >> $logfilename
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -i $physicsselectionFile --withTextOutput physicsperday >> $logfilename
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput physicsperday >> $logfilename
 cd $currentdir
