@@ -11,7 +11,7 @@ logfilename="$logpath/$logname"
 dbConnectionString="oracle://cms_orcoff_prod/cms_lumi_prod"
 physicsselectionFile="/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions10/7TeV/StreamExpress/goodrunlist_json.txt"
 beamenergy="3.5e03"
-beamstatus="STABLE BEAMS"
+beamstatus="stable"
 beamfluctuation="0.2e03"
 
 source /afs/cern.ch/cms/cmsset_default.sh;
