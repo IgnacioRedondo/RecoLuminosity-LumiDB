@@ -12,22 +12,22 @@ dbConnectionString="oracle://cms_orcoff_prod/cms_lumi_prod"
 physicsselectionFile="/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions10/7TeV/StreamExpress/goodrunlist_json.txt"
 beamenergy="3.5e03"
 beamstatus="stable"
-beamfluctuation="0.2e03"
+beamfluctuation="0.1"
 
 source /afs/cern.ch/cms/cmsset_default.sh;
 cd $workdir
 eval `scramv1 runtime -sh`
 touch $logfilename
 date >> $logfilename
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamstatus $beamstatus --withTextOutput totalvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput perday >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamstatus $beamstatus --withTextOutput perday >> $logfilename 
 sleep 1;
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir --withTextOutput instpeakvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvsfill >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamstatus $beamstatus --withTextOutput totalvsfill >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamenergy $beamenergy -beamfluctuation $beamfluctuation -beamstatus $beamstatus --withTextOutput totalvsrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamstatus $beamstatus --withTextOutput totalvsrun >> $logfilename 
 sleep 1
 lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput physicsvstime >> $logfilename
 sleep 1
