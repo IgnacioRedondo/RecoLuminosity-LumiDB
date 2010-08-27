@@ -21,23 +21,23 @@ cd $workdir
 eval `scramv1 runtime -sh`
 touch $logfilename
 date >> $logfilename
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamstatus $beamstatus --withTextOutput --annotateboundary --dryrun totalvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamstatus $beamstatus --withTextOutput --annotateboundary totalvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $publicresultdir -beamstatus $beamstatus --withTextOutput --dryrun totalvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $publicresultdir -beamstatus $beamstatus --withTextOutput totalvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamstatus $beamstatus --withTextOutput --annotateboundary --dryrun perday >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $overviewdir -beamstatus $beamstatus --withTextOutput --annotateboundary perday >> $logfilename 
 sleep 1;
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $publicresultdir -beamstatus $beamstatus --withTextOutput --dryrun perday >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $publicresultdir -beamstatus $beamstatus --withTextOutput perday >> $logfilename 
 sleep 1;
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir --withTextOutput --annotateboundary --dryrun instpeakvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir --withTextOutput --annotateboundary instpeakvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $publicresultdir --withTextOutput --dryrun instpeakvstime >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $publicresultdir --withTextOutput instpeakvstime >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamstatus $beamstatus --withTextOutput --dryrun totalvsfill >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamstatus $beamstatus --withTextOutput totalvsfill >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamstatus $beamstatus --withTextOutput --dryrun totalvsrun >> $logfilename 
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $operationdir -beamstatus $beamstatus --withTextOutput totalvsrun >> $logfilename 
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput --dryrun physicsvstime >> $logfilename
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput physicsvstime >> $logfilename
 sleep 1
-lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput --dryrun physicsperday >> $logfilename
+lumiPlotFiller.py -c $dbConnectionString -P $authdir -o $physicsdir -i $physicsselectionFile --withTextOutput physicsperday >> $logfilename
 cd $currentdir
