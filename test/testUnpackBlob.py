@@ -55,13 +55,15 @@ def beamIntensityForRun(dbsession,c,runnum):
                 bb2.fromstring(beamintensityblob2.readline())
                 result.append((startorbit,cmslsnum,bxidx,bb1,bb2))
         sorted(result,key=lambda x:x[0])
-        print result
+
         for perlsdata in result:
             print perlsdata[1]
             bb1=perlsdata[3]
             bb2=perlsdata[4]
             for index,bxidxvalue in enumerate(perlsdata[2]):
-                print "  %2d,%.3e,%.3e"%(bxidxvalue,bb1[index],bb2[index])
+                if bb1[index]!=0 and bb2[index]!=0:
+                    lhcbucket=bxidxvalue*10+1
+                    print "  %2d,%.3e,%.3e"%(lhcbucket,bb1[index],bb2[index])
         del query
         dbsession.transaction().commit()
     except Exception,e:
@@ -142,7 +144,7 @@ def main():
     session.typeConverter().setCppTypeForSqlType("unsigned long long","NUMBER(20)")
     msg=coral.MessageStream('')
     msg.setMsgVerbosity(coral.message_Level_Error)
-    runnum=146315
+    runnum=144114
     ##here arg 4 is default to ['OCC1'], if you want to see all the algorithms do
     ##  detailForRun(session,c,runnum,['OCC1','OCC2','ET']) then modify detailForRun adding an outer loop on algos argument. I'm lazy
     #detailForRun(session,c,runnum)
