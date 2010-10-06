@@ -225,7 +225,7 @@ def getSpecificLumi(dbsession,c,fillnum):
     fillbypos={}#{bxidx:(lstime,lumi,lumierror,specificlumi,specificlumierror)}
     #'referencetime=time.mktime(datetime.datetime(2009,12,31,23,0,0).timetuple())
     #referencetime=time.mktime(datetime.datetime(2010,1,1,0,0,0).timetuple())
-    referencetime=1262300400
+    referencetime=1262300400-7232
     #for i in range(3564):
     #    fillbypos[i]=[]
     for runnum,starttime in runtimesInFill.items():
@@ -253,6 +253,35 @@ def getSpecificLumi(dbsession,c,fillnum):
                             fillbypos[bxidx].append((lstimestamp-referencetime,lumi,lumierror,beam1intensity,beam2intensity,speclumi[0],speclumi[1]))
     return fillbypos
 
+def toscreen(fillnum,filldata):
+    ipnumber=5
+    print 'fill ',fillnum
+    for cmsbxidx,perbxdata in filldata.items():
+        lhcbucket=0
+        if cmsbxidx!=0:
+            lhcbucket=(cmsbxidx-1)*10+1
+        a=sorted(perbxdata,key=lambda x:x[0])
+        for perlsdata in a:
+            if perlsdata[-2]!=0 and perlsdata[-1]!=0 and perlsdata[1]!=0:
+                print '%d\t%d\t%d\t%e\t%e\t%e\t%e'%(int(ipnumber),lhcbucket,int(perlsdata[0]),perlsdata[1],perlsdata[2],perlsdata[-2],perlsdata[-1])
+                
+def tofile(fillnum,filldata,outdir):
+    ipnumber=5
+    for cmsbxidx,perbxdata in filldata.items():
+        lhcbucket=0
+        if cmsbxidx!=0:
+            lhcbucket=(cmsbxidx-1)*10+1
+        a=sorted(perbxdata,key=lambda x:x[0])
+        lscounter=0
+        filename=str(fillnum)+'_lumi_'+str(lhcbucket)+'_CMS.txt'
+        for perlsdata in a:
+            if perlsdata[-2]!=0 and perlsdata[-1]!=0 and perlsdata[1]!=0:
+                if lscounter==0:
+                    f=open(os.path.join(outdir,filename),'w')
+                print >>f, '%d\t%d\t%d\t%e\t%e\t%e\t%e\n'%(int(ipnumber),int(fillnum),int(perlsdata[0]),perlsdata[1],perlsdata[2],perlsdata[-2],perlsdata[-1])
+                lscounter+=1
+        f.close()
+        
 def main():
     c=constants()
     os.environ['CORAL_AUTH_PATH']='/afs/cern.ch/user/x/xiezhen'
@@ -262,15 +291,10 @@ def main():
     session.typeConverter().setCppTypeForSqlType("unsigned long long","NUMBER(20)")
     msg=coral.MessageStream('')
     msg.setMsgVerbosity(coral.message_Level_Error)
+    outdir='testspecout'
     fillnum=1369
     filldata=getSpecificLumi(session,c,fillnum)
-    for cmsbxidx,perbxdata in filldata.items():
-        lhcbucket=0
-        if cmsbxidx!=0:
-            lhcbucket=(cmsbxidx-1)*10+1
-        a=sorted(perbxdata,key=lambda x:x[0])
-        for perlsdata in a:
-            if perlsdata[-2]!=0 and perlsdata[-1]!=0 and perlsdata[1]!=0:
-                print lhcbucket,perlsdata[0],perlsdata[1],perlsdata[2],perlsdata[-2],perlsdata[-1]
+    #toscreen(fillnum,filldata)
+    tofile(fillnum,filldata,outdir)
 if __name__=='__main__':
     main()
