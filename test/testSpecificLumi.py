@@ -177,7 +177,7 @@ def detailForRun(dbsession,c,runnum):
         query.addToOutputList('d.BXLUMIERROR','bxlumierror')
         query.addToOutputList('d.BXLUMIQUALITY','bxlumiquality')
         query.setCondition('s.RUNNUM=:runnum and d.ALGONAME=:algoname and s.LUMISUMMARY_ID=d.LUMISUMMARY_ID',detailCondition)
-        query.addToOrderList('s.STARTORBIT')
+        #query.addToOrderList('s.STARTORBIT')
         query.defineOutput(detailOutput)
         cursor=query.execute()
         count=0
@@ -192,11 +192,13 @@ def detailForRun(dbsession,c,runnum):
             bxlumierrorArray=array.array('f')
             bxlumierrorArray.fromstring(bxlumierror.readline())
             xingLum=[]
+            #apply selection criteria
+            maxlumi=max(bxlumivalueArray)*c.normfactor
             for index,lum in enumerate(bxlumivalueArray):
                 lum *= c.normfactor
                 lumierror = bxlumierrorArray[index]*c.normfactor
                 #print index,lum,lumierror,c.normfactor
-                if lum < c.xingMinLum:
+                if lum<max(c.xingMinLum,maxlumi*0.2): 
                     continue
                 xingLum.append( (index,lum,lumierror) )
             if len(xingLum)!=0:
@@ -250,7 +252,7 @@ def getSpecificLumi(dbsession,c,fillnum):
                             beam1intensity=beamintensitybx[1]
                             beam2intensity=beamintensitybx[2]
                             speclumi=calculateSpecificLumi(lumi,lumierror,beam1intensity,0.0,beam2intensity,0.0)
-                            fillbypos[bxidx].append((lstimestamp-referencetime,lumi,lumierror,beam1intensity,beam2intensity,speclumi[0],speclumi[1]))
+                            fillbypos[bxidx].append([lstimestamp-referencetime,lumi,lumierror,beam1intensity,beam2intensity,speclumi[0],speclumi[1]])
     return fillbypos
 
 def toscreen(fillnum,filldata):
@@ -266,6 +268,8 @@ def toscreen(fillnum,filldata):
                 print '%d\t%d\t%d\t%e\t%e\t%e\t%e'%(int(ipnumber),lhcbucket,int(perlsdata[0]),perlsdata[1],perlsdata[2],perlsdata[-2],perlsdata[-1])
                 
 def tofile(fillnum,filldata,outdir):
+    timedict={}#{lstime:[[lumi,lumierr,speclumi,speclumierr]]}
+
     ipnumber=5
     for cmsbxidx,perbxdata in filldata.items():
         lhcbucket=0
@@ -275,13 +279,33 @@ def tofile(fillnum,filldata,outdir):
         lscounter=0
         filename=str(fillnum)+'_lumi_'+str(lhcbucket)+'_CMS.txt'
         for perlsdata in a:
-            if perlsdata[-2]!=0 and perlsdata[-1]!=0 and perlsdata[1]!=0:
+            if perlsdata[-2]>0 and perlsdata[-1]>0 and perlsdata[1]>0:
                 if lscounter==0:
                     f=open(os.path.join(outdir,filename),'w')
                 print >>f, '%d\t%d\t%d\t%e\t%e\t%e\t%e\n'%(int(ipnumber),int(fillnum),int(perlsdata[0]),perlsdata[1],perlsdata[2],perlsdata[-2],perlsdata[-1])
+                if not timedict.has_key(int(perlsdata[0])):
+                    timedict[int(perlsdata[0])]=[]
+                timedict[int(perlsdata[0])].append([perlsdata[1],perlsdata[2],perlsdata[-2],perlsdata[-1]])
                 lscounter+=1
         f.close()
-        
+        summaryfilename=str(fillnum)+'_lumi_CMS.txt'
+        f=open(os.path.join(outdir,summaryfilename),'w')
+        lstimes=timedict.keys()
+        lstimes.sort()
+        for lstime in lstimes:
+            allvalues=timedict[lstime]
+            transposedvalues=CommonUtil.transposed(allvalues,0.0)
+            lumivals=transposedvalues[0]
+            lumitot=sum(lumivals)
+            lumierrs=transposedvalues[1]
+            lumierrortot=math.sqrt(sum(map(lambda x:x**2,lumierrs)))
+            specificvals=transposedvalues[2]
+            specificavg=sum(specificvals)/float(len(specificvals))#avg spec lumi
+            specificerrs=transposedvalues[3]
+            specifictoterr=math.sqrt(sum(map(lambda x:x**2,specificerrs)))
+            specificerravg=specifictoterr/float(len(specificvals))
+            print >>f,'%d\t%d\t%d\t%e\t%e\t%e\t%e\n'%(int(ipnumber),int(fillnum),lstime,lumitot,lumierrortot,specificavg,specificerravg)
+        f.close()
 def main():
     c=constants()
     os.environ['CORAL_AUTH_PATH']='/afs/cern.ch/user/x/xiezhen'
@@ -294,6 +318,7 @@ def main():
     outdir='testspecout'
     fillnum=1369
     filldata=getSpecificLumi(session,c,fillnum)
+    
     #toscreen(fillnum,filldata)
     tofile(fillnum,filldata,outdir)
 if __name__=='__main__':
