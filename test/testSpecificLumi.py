@@ -124,8 +124,6 @@ def beamIntensityForRun(dbsession,c,runnum):
                         b1intensity=bb1[index]
                         b2intensity=bb2[index]
                         result[startorbit].append((bxidxvalue,b1intensity,b2intensity))
-            else:
-                print ' bxindexblob is null'
         del query
         dbsession.transaction().commit()
         #queryresult=sorted(queryresult,key=lambda x:x[0])
