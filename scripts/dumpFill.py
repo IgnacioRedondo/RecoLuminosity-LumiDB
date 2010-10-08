@@ -15,7 +15,7 @@ from RecoLuminosity.LumiDB import argparse,lumiQueryAPI
 #
 allfillname='allfills.txt'
 
-def tofiles(allfills,runsperfill,outdir):
+def tofiles(allfills,runsperfill,runtimes,outdir):
     f=open(os.path.join(outdir,allfillname),'w')
     for fill in allfills:
         print >>f,'%d'%(fill)
@@ -25,7 +25,7 @@ def tofiles(allfills,runsperfill,outdir):
         if len(runs)!=0:
             f=open(os.path.join(outdir,filename),'w')
             for run in runs:
-                print >>f,'%d'%(run)
+                print >>f,'%d,%s'%(run,runtimes[run])
             f.close()
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),description = "Dump Fill",formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -58,6 +58,14 @@ if __name__ == '__main__':
         q=session.nominalSchema().newQuery()
         runsperfill=lumiQueryAPI.runsByfillrange(q,min(allfills),max(allfills))
         del q
+        runs=runsperfill.values()#list of lists
+        allruns=[item for sublist in runs for item in sublist]
+        allruns.sort()
+        runtimes={}
+        for run in allruns:
+            q=session.nominalSchema().newQuery()
+            runtimes[run]=lumiQueryAPI.runsummaryByrun(q,run)[3]
+            del q
     session.transaction().commit()
     #print runsperfill
-    tofiles(allfills,runsperfill,options.outputdir)
+    tofiles(allfills,runsperfill,runtimes,options.outputdir)
