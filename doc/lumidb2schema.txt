@@ -1,78 +1,67 @@
-schema:
-
-1. 
-create table lumiglobaltag( 
-      tagname string PK,
-      luminame   string not null
-      trgname    string 
-      hltname    string
-      normname   string
-)
-2.
-create table revision(
-     revisionid uint64 PK,
-     branchid uint32 not null,
+1.          
+create table revisions(
+     revision_id uint64 PK,
+     branch_id uint64 not null,
      name string,
      comment string,
      ctime   timestamp
 )
-3.
-create table revision_id(     #id helper table
+create table revisions_id(     #id helper table
      nextid uint64 PK
 )
-create index rev_branchid_idx on revision(branchid)
+create index revisions_branchid_idx on revision(branchid)
 
-4.
-create table luminorm_entry(   #versionable entity helper table
-     entryid uint64, PK
-     revisionid uint64 not null references revision(revisionid),
-     name string
-)
-5.
-create table luminorm(
-     luminormid  uint32 PK
-     revisionid  uint64 not null references revision(revisionid),
-     entryid    uint64 not null references entry(entryid),
+2.
+create table luminorms(
+     luminorm_id  uint64 PK
+     entry_id    uint64 not null references luminorms_entries(entry_id),
      defaultnorm  float not null,
      norm_1       float,
      energy_1     float,
      norm_2       float,
-     energy_2     float,
-     minrun       uint32,
-     maxrun       uint32
+     energy_2     float
 )
-6.
-create table luminorm_id(          #id helper table
+create table luminorms_entries(   #versionable entity helper table
+     entry_id uint64 PK,
+     revision_id uint64 not null references revisions(revision_id),
+     name string
+)
+create table luminorms_id(          #id helper table
      nextid uint64 PK
 )
-7.
-create table luminorm_entry_id(    #id helper table
+create table luminorms_entries_id(    #id helper table
      nextid uint64 PK
 )
-8.
-create table lumidata_entry(       #versionable entity table
-     lumidataid  uint64 PK,
-     revisionid  uint64 not null references revision(revisionid),
-     entryid     uint64 not null 
+create table luminorms_rev(   
+    luminorm_id uint64 not null references luminorms(luminorm_id),
+    revision_id uint64 not null references revisions(revision_id) 
 )
-9.
+3.
 create table lumidata(             #verionable data table
-     lumidataid uint64 PK,
-     revisionid uint64 not null references revision(revisionid) ,
-     entryid    uint64 not null references lumientry(entryid),
-     source     string
+     lumidata_id uint64 PK,
+     entry_id    uint64 not null references lumidata_entries(entry_id),
+     source     string,
+     runnum     uint32
 )
-10.
 create table lumidata_id(          #id helper table
      nextid uint64 PK
 )
-11.
-create table lumidata_entry_id(    #id helper table
+create table lumidata_entries(       #versionable entity table
+     entry_id     uint64 not null   ,
+     revision_id  uint64 not null references revision(revision_id)
+)
+create table lumidata_rev(   
+    lumidata_id uint64 not null references lumidata(lumidata_id),
+    revision_id uint64 not null references revision(revision_id) 
+)
+constraint lumidata_rev_uc unique(lumidata_id,revision_id)
+create table lumidata_entries_id(   
      nextid uint64 PK
 )
-12.
+
+4.
 create table cmsrunsummary(        #data table
-     runnum uint32 PK,
+     runnum uint64 PK,
      hltkey string not null,
      l1key  string,
      fillnum uint32,
@@ -80,107 +69,110 @@ create table cmsrunsummary(        #data table
      starttime   timestamp(6),
      stoptime    timestamp(6)
 )
-13. 
-create table lumilssummary(         #data table
-     lumilssummaryid uint64 PK,
-     lumidataid  uint64 not null refrences lumidata(lumidata_id),
+5. 
+create table lumisummary(         #data table
+     lumidata_id  uint64 not null refrences lumidata(lumidata_id),
+     runnum      uint32,  (redundant)
      cmslsnum    uint32,
      lumilsnum   uint32,
      cmsalive    uint16,
      instlumi     float,
      instlumierror  float,
-     instlumiquality  uint16,
+     instlumiquality  short,
      beamstatus   string,
      beamenergy float,
      cmsbxindexblob blob,
      beamintensityblob_1 blob,
      beamintesnsityblob_2 blob,
-     norbit       uint32,
+     numorbit       uint32,
      startorbit   uint32
 )
-14.
-create table lumilsdetail(           #data table
-     lumilsdetailid  uint64 PK,
-     lumidataid  uint64 not null references lumidata(lumidataid),
+6.
+create table lumidetail(           #data table
+     lumidata_id  uint64 not null references lumidata(lumidata_id),
+     runnum       uint32, (redundant)
      cmslsnum     uint32,
      algoname     string,
      bxlumivalue  blob,
-     bxlumierr    blob,
+     bxlumierror    blob,
      bxlumiquality blob
 )
-15.
-create table trgdata_entry(          #versionable entity table
-     trgdataid uint64 PK,
-     revisionid uint64 not null references revision(revisionid) ,
-     entryid    uint64 not null
-     source     string
+7.
+create table trgdata(                #verionable data table
+     trgdata_id uint64 PK,
+     entry_id  uint64 not null references trgdata_entries(entry_id),
+     source string,
+     runnum   uint32,
+     bitzeroname string,
+     bitnameblob blob
 )
-16.
+create table trgdata_rev(   
+    trgdata_id uint64 not null references trgdata(trgdata_id),
+    revision_id uint64 not null references revisions(revision_id) 
+)
+constraint trgdata_rev_uc unique(trgdata_id,revision_id)
+create table trgdata_entries(       
+     entry_id    uint64 not null	     ,
+     revision_id uint64 not null references revisions(revision_id) 
+)
 create table trgdata_id(             #id helper table
      nextid uint64 PK
 )
-17.
-create table trgdata_entry_id(       #id helper table
+create table trgdata_entries_id(       #id helper table
      nextid uint64 PK
 )
-18.
-create table trgdata(                #verionable data table
-     trgdataid uint64 PK,
-     revisionid uint64 not null references revision(revisionid) ,
-     entryid  uint64 not null references trgdata_entry(entryid),
-     runnum   uint32
-)
-19.
-create table trglssummary(          #data table
-     trglssummaryid uint64 PK,
-     trgdataid uint64 not null references trgdata(trgdataid),
+8.
+create table trg(          #data table
+     trgdata_id uint64 not null references trgdata(trgdata_id),
+     runnum    uint32,   (redundant)
      cmslsnum  uint32,
-     deadtimecount    uint32,
+     deadtimecount uint32,
      bitzerocount uint32,
      bitzeroprescale uint32,
      pescalesblob   blob,
-     bitcountblob   blob
+     trgcountblob   blob
 )
-20.
-create table hltdata_entry(         #versionable entity table
-     hltdataid uint64 PK,
-     revisionid uint64 not null references revision(revisionid) ,
-     entryid    uint64 not null,
-     source     string
-)
-21.
-create table hltdata_id(            #id helper table
-     nextid uint64 PK
-)
-22.
-create table hltdata_entry_id(      #id helper table
-     nextid uint64 PK
-)
-23.
+9.
 create table hltdata(                #verionable data table
-    hltdataid uint64 PK,
-    revisionid uint64 not null references revision(revisionid) ,
-    entryid    uint64 not null references hltdata_entry(entryid),
+    hltdata_id uint64 PK,	     
+    entry_id    uint64 not null references hltdata_entries(entry_id),
     runnum    uint32,
-    hltpathblob blob
+    source    string,
+    npath    uint32,
+    pathnameblob blob
 )
-24.
-create table hltlssummary(           #data table
-   hltlssummaryid uint64 PK,
-   hltdataid uint64 not null references hltdata(hltdataid),
+create table hltdata_entries(       
+     entry_id    uint64 PK,
+     revision_id uint64 not null references revisions(revision_id) ,
+)
+create table hltdata_id(         
+     nextid uint64 PK
+)
+create table hltdata_entries_id(     
+     nextid uint64 PK
+)
+create table hltdata_rev(   
+    hltdata_id uint64 not null references hltdata(hltdata_id),
+    revision_id uint64 not null references revisions(revision_id) 
+)
+constraint hltdata_rev_uc unique(hltdataid,revision_id)
+10.
+create table hlt(         
+   hltdata_id uint64 not null references hltdata(hltdata_id),
+   runnum   uint32 not null,
    cmslsnum uint32 not null,
    prescaleblob blob,
    countblob    blob,
    acceptblob     blob
 )
-25.
-create table trghltmap(            #data table
+11.
+create table trghltmap(           
    hltkey string not null,
    hltpathname string not null,
    l1seed      string not null
 )
-26.
-create table lumivalidation(        #data table
+12.
+create table lumivalidation(      
    runnum uint32 not null,
    cmslsnum uint32 not null,
    flag string,
@@ -194,10 +186,7 @@ lumiNorm describe -name a
 lumiNorm list --verbose
 lumiNorm modify -name a -normbyenergy "[{energy1:norm1},{energy2:norm2}]" -minrun 1234  -maxrun 6789 -m comment
 
-lumiDataTag create -datatype 'lumi,trg or hlt' -name tagname -m comment
-lumiDataTag copy -datatype 'lumi' -oldname -newname -m comment  
-lumiDataTag list -datatype 'lumi' --verbose
+lumiTagCommit tagname -m comment 
+lumiTagCopy -sourcetag a -desttag b -m comment  
+lumiTagDescribe tagname -datatype 'lumi,trg,hlt,norm' --verbose
 
-lumiGlobalTag create -name global -luminame a -normname b -trgname c -hltname d -m comment
-lumiGlobalTag list --verbose
-lumiGlobalTag describe -name
