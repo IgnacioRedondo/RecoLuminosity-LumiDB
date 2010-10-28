@@ -122,11 +122,11 @@ create table trgdata_entries_id(       #id helper table
      nextid uint64 PK
 )
 8.
-create table trg(          #data table
+create table lstrg(          #data table
      trgdata_id uint64 not null references trgdata(trgdata_id),
      runnum    uint32,   (redundant)
      cmslsnum  uint32,
-     deadtimecount uint32,
+     deadtimecount uint64,
      bitzerocount uint32,
      bitzeroprescale uint32,
      pescalesblob   blob,
@@ -157,12 +157,12 @@ create table hltdata_rev(
 )
 constraint hltdata_rev_uc unique(hltdataid,revision_id)
 10.
-create table hlt(         
+create table lshlt(         
    hltdata_id uint64 not null references hltdata(hltdata_id),
    runnum   uint32 not null,
    cmslsnum uint32 not null,
    prescaleblob blob,
-   countblob    blob,
+   hltcountblob    blob,
    acceptblob     blob
 )
 11.
