@@ -142,6 +142,18 @@ def unpackBlobtoArray(iblob,itemtypecode):
     result=array.array(itemtypecode)
     result.fromstring(iblob.readline())
     return result
+
+def packListstrtoCLOB(iListstr,separator=','):
+    '''
+    pack list of string of comma separated large string CLOB
+    '''
+    return separator.join(iListstr)
+
+def unpackCLOBtoListstr(iStr,separator=','):
+    '''
+    unpack a large string to list of string
+    '''
+    return [i.strip() for i in iStr.strip().split(separator)]
     
 if __name__=='__main__':
     a=[1,2,3,4,5]
@@ -179,4 +191,5 @@ if __name__=='__main__':
     b=array.array('f')
     myblob=packArraytoBlob(b)
     print myblob.size()
-
+    a=['aa_f', 'bb', 'dfc']
+    print packListstrtoCLOB(a)
