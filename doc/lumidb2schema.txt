@@ -104,7 +104,7 @@ create table trgdata(                #verionable data table
      source string,
      runnum   uint32,
      bitzeroname string,
-     bitnameblob blob
+     bitnameclob clob
 )
 create table trgdata_rev(   
     trgdata_id uint64 not null references trgdata(trgdata_id),
@@ -139,7 +139,7 @@ create table hltdata(                #verionable data table
     runnum    uint32,
     source    string,
     npath    uint32,
-    pathnameblob blob
+    pathnameclob clob
 )
 create table hltdata_entries(       
      entry_id    uint64 PK,
