@@ -82,6 +82,15 @@ class dbUtil(object):
             editor.insertRow( inputData )
         except Exception, e:
             raise Exception, 'dbUtil.insertOneRow:'+str(e)
+
+    def singleUpdate( self,tableName,setClause,updateCondition,inputData):
+        try:
+            dataEditor=self.__schema.tableHandle(tableName).dataEditor()
+            n=dataEditor.updateRows(setClause,updateCondition,inputData)
+            return n
+        except Exception, e:
+            raise RuntimeError('dbUtil.updateOneRow:'+str(e))
+    
     def updateRows( self,tableName,updateAction,updateCondition,bindvarDef,bulkinput):
         '''
         update rows, note update must be ordered
@@ -89,7 +98,7 @@ class dbUtil(object):
            tableName, string
            updateAction,string  e.g. flag=:newflag
            conditionstring, string ,e.g. runnum=:runnum and cmslsnum=:cmslsnum
-           bindvarDef,[('newflag':'string'),('runnum','unsigned int'),('cmslsnum','unsigned int')]
+           bindvarDef,[('newflag','string'),('runnum','unsigned int'),('cmslsnum','unsigned int')]
            bulkinput,[[('newflag','GOOD'),('runnum',1234),('cmslsnum',1)],[]]
         '''
         try:
@@ -116,7 +125,7 @@ class dbUtil(object):
         try:
             dataEditor=self.__schema.tableHandle(tableName).dataEditor()
             insertdata=coral.AttributeList()
-            for (columnname,columntype) in tabrowDef:
+            for (columnname,columntype) in tabrowDef.items():
                 insertdata.extend(columnname,columntype)                
             bulkOperation=dataEditor.bulkInsert(insertdata,len(bulkinput))
             for valuelist in bulkinput:
