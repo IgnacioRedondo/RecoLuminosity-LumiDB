@@ -168,19 +168,25 @@ class dbUtil(object):
         except Exception, e:
             raise Exception, str(e)
 
-    def createTable( self,description,withIdTable=False):
+    def createTable( self,description,withIdTable=False,withEntryTables=False,withRevMapTable=False):
         """
         Create table if non-existing, create Id table if required
         """
         try:
-          tableHandle=self.__schema.createTable(description)
-          tableHandle.privilegeManager().grantToPublic(coral.privilege_Select)
-          if withIdTable is True:
+            tableHandle=self.__schema.createTable(description)
             tableName=tableHandle.description().name()
-            self.createIDTable(tableName,True)
+            tableHandle.privilegeManager().grantToPublic(coral.privilege_Select)
+            if withIdTable is True:
+                self.createIDTable(tableName,True)
+            if withEntryTables is True:
+                entrytableName=nameDealer.entryTableName(tableName)
+                self.createEntryTable(tableName,True)
+                self.createIDTable(entrytableName,True)
+            if withRevMapTable is True:
+                self.createRevMapTable(tableName,True)
         except Exception, e:
-          raise Exception, str(e)
-        
+            raise RuntimeError('dbUtil.createTable'+str(e))
+
     def tableExists( self,tableName ):
         """
         Tell whether table exists
@@ -217,7 +223,53 @@ class dbUtil(object):
           inputData[ nameDealer.idTableColumnDefinition()[0] ].setData(0)
           editor.insertRow( inputData )
         except Exception, e:
-          raise Exception, str(e)
-
+          raise RuntimeError('dbUtil.createIDTable'+str(e))
+      
+    def createEntryTable( self, tableName, deleteOld=True ):
+        """
+        Create Entry table  for the given table.\n
+        Input: name of the table which needs new associated id table
+        Output: name of the id table created
+        """
+        try:
+          entrytableName=nameDealer.entryTableName(tableName)
+          if deleteOld is True:
+            self.__schema.dropIfExistsTable(entrytableName)
+          else:
+            if self.__schema.existsTable(entrytableName):
+               print 'table '+entrytableName+' exists, do nothing'
+               return
+          description = coral.TableDescription()
+          description.setName( entrytableName )
+          description.insertColumn( 'ENTRY_ID' ,'unsigned long long')
+          description.insertColumn( 'REVISION_ID' ,'unsigned long long')
+          tableHandle=self.__schema.createTable( description )
+          tableHandle.privilegeManager().grantToPublic(coral.privilege_Select)
+        except Exception, e:
+          raise RuntimeError(' dbUtil.createEntryTable '+str(e))
+      
+    def createRevMapTable( self, tableName, deleteOld=True ):
+        """
+        Create Rev table  for the given table.\n
+        Input: name of the table
+        Output: name of the id table 
+        """
+        try:
+          revmaptableName=nameDealer.revmapTableName(tableName)
+          if deleteOld is True:
+            self.__schema.dropIfExistsTable(revmaptableName)
+          else:
+            if self.__schema.existsTable(revmaptableName):
+               print 'table '+revmaptableName+' exists, do nothing'
+               return
+          description = coral.TableDescription()
+          description.setName( revmaptableName )
+          description.insertColumn( 'DATA_ID','unsigned long long')
+          description.insertColumn( 'REVISION_ID' ,'unsigned long long')
+          tableHandle=self.__schema.createTable( description )
+          tableHandle.privilegeManager().grantToPublic(coral.privilege_Select)
+        except Exception, e:
+          raise RuntimeError(' dbUtil.createRevMapTable '+str(e))     
+      
 if __name__ == "__main__":
     pass

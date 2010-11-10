@@ -38,6 +38,12 @@ def idTableName( dataTableName ):
 def idTableColumnDefinition():
 	return ('NEXTID','unsigned long long')
 
+def revmapTableName( dataTableName ):
+       return dataTableName+'_REV'
+
+def entryTableName( dataTableName ):
+       return dataTableName+'_ENTRIES'
+
 if __name__ == "__main__":
     pass
 

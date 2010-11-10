@@ -6,8 +6,8 @@ from RecoLuminosity.LumiDB import argparse,idDealer,CommonUtil,dbUtil
 
 class newSchemaNames():
     def __init__(self):
-        self.revisiontable='REVISIONS'
-        self.luminormtable='LUMINORMS'
+        self.revisionstable='REVISIONS'
+        self.luminormstable='LUMINORMS'
         self.lumidatatable='LUMIDATA'
         self.lumisummarytable='LUMISUMMARY'
         self.runsummarytable='CMSRUNSUMMARY'
@@ -58,28 +58,57 @@ def createNewTables(dbsession):
         dbsession.typeConverter().setSqlTypeForCppType('NUMBER(20)','unsigned long long')
         schema=dbsession.nominalSchema()
         db=dbUtil.dbUtil(schema)
+        
+        print 'creating revisions table'
+        revisionsTab=coral.TableDescription()
+        revisionsTab.setName( n.revisionstable )
+        revisionsTab.insertColumn( 'REVISION_ID','unsigned long long')
+        revisionsTab.insertColumn( 'BRANCH_ID','unsigned long long')
+        revisionsTab.insertColumn( 'NAME', 'string')
+        revisionsTab.insertColumn( 'COMMENT', 'string')
+        revisionsTab.insertColumn( 'CTIME', 'time stamp',6)
+        revisionsTab.setPrimaryKey( 'REVISION_ID' )
+        db.createTable(revisionsTab,withIdTable=True)
+        
+        print 'creating luminorms table'
+        luminormsTab=coral.TableDescription()
+        luminormsTab.setName( n.luminormstable )
+        luminormsTab.insertColumn( 'LUMINORM_ID','unsigned long long')
+        luminormsTab.insertColumn( 'ENTRY_ID','unsigned long long')
+        luminormsTab.insertColumn( 'DEFAULTNORM', 'float')
+        luminormsTab.insertColumn( 'NORM_1', 'float')
+        luminormsTab.insertColumn( 'ENERGY_1', 'float')
+        luminormsTab.insertColumn( 'NORM_2', 'float')
+        luminormsTab.insertColumn( 'ENERGY_2', 'float')
+        luminormsTab.setPrimaryKey( 'LUMINORM_ID' )
+        db.createTable(luminormsTab,withIdTable=True,withEntryTables=True,withRevMapTable=True)
+
+        print 'creating lumidata table'
         lumidataTab=coral.TableDescription()
         lumidataTab.setName( n.lumidatatable )
-        lumidataTab.insertColumn( 'LUMIDATA_ID','unsigned long long')
+        lumidataTab.insertColumn( 'DATA_ID','unsigned long long')
         lumidataTab.insertColumn( 'ENTRY_ID','unsigned long long')
         lumidataTab.insertColumn( 'SOURCE', 'string')
         lumidataTab.insertColumn( 'RUNNUM', 'unsigned int')
-        lumidataTab.setPrimaryKey( 'LUMIDATA_ID' )
-        db.createTable(lumidataTab,withIdTable=True)
+        lumidataTab.setPrimaryKey( 'DATA_ID' )
+        db.createTable(lumidataTab,withIdTable=True,withEntryTables=True,withRevMapTable=True)
+
+        print 'creating trgdata table'
         trgdataTab=coral.TableDescription()
         trgdataTab.setName( n.trgdatatable )
-        trgdataTab.insertColumn( 'TRGDATA_ID','unsigned long long')
+        trgdataTab.insertColumn( 'DATA_ID','unsigned long long')
         trgdataTab.insertColumn( 'ENTRY_ID','unsigned long long')
         trgdataTab.insertColumn( 'SOURCE', 'string')
         trgdataTab.insertColumn( 'RUNNUM', 'unsigned int')
         trgdataTab.insertColumn( 'BITZERONAME', 'string')
         trgdataTab.insertColumn( 'BITNAMECLOB', 'string',6000)
-        trgdataTab.setPrimaryKey( 'TRGDATA_ID' )
-        db.createTable(trgdataTab,withIdTable=True)
-        
+        trgdataTab.setPrimaryKey( 'DATA_ID' )
+        db.createTable(trgdataTab,withIdTable=True,withEntryTables=True,withRevMapTable=True)
+
+        print 'creating lstrg table'
         lstrgTab=coral.TableDescription()
         lstrgTab.setName( n.lstrgtable )
-        lstrgTab.insertColumn( 'TRGDATA_ID','unsigned long long')
+        lstrgTab.insertColumn( 'DATA_ID','unsigned long long')
         lstrgTab.insertColumn( 'RUNNUM', 'unsigned int')
         lstrgTab.insertColumn( 'CMSLSNUM', 'unsigned int')
         lstrgTab.insertColumn( 'DEADTIMECOUNT', 'unsigned long long')
@@ -89,21 +118,23 @@ def createNewTables(dbsession):
         lstrgTab.insertColumn( 'PRESCALEBLOB', 'blob')
         lstrgTab.insertColumn( 'TRGCOUNTBLOB', 'blob')
         db.createTable(lstrgTab,withIdTable=False)
-        
+
+        print 'creating hltdata table'
         hltdataTab=coral.TableDescription()
         hltdataTab.setName( n.hltdatatable )
-        hltdataTab.insertColumn( 'HLTDATA_ID','unsigned long long')
+        hltdataTab.insertColumn( 'DATA_ID','unsigned long long')
         hltdataTab.insertColumn( 'ENTRY_ID','unsigned long long')
         hltdataTab.insertColumn( 'RUNNUM', 'unsigned int')
         hltdataTab.insertColumn( 'SOURCE', 'string')
         hltdataTab.insertColumn( 'NPATH', 'unsigned int')
         hltdataTab.insertColumn( 'PATHNAMECLOB', 'string',6000)
-        hltdataTab.setPrimaryKey( 'HLTDATA_ID' )
-        db.createTable(hltdataTab,withIdTable=True)
+        hltdataTab.setPrimaryKey( 'DATA_ID' )
+        db.createTable(hltdataTab,withIdTable=True,withEntryTables=True,withRevMapTable=True)
 
+        print 'create lshlt table'
         lshltTab=coral.TableDescription()
         lshltTab.setName( n.lshlttable )
-        lshltTab.insertColumn( 'HLTDATA_ID','unsigned long long')
+        lshltTab.insertColumn( 'DATA_ID','unsigned long long')
         lshltTab.insertColumn( 'RUNNUM', 'unsigned int')
         lshltTab.insertColumn( 'CMSLSNUM', 'unsigned int')
         lshltTab.insertColumn( 'PRESCALEBLOB', 'blob')
@@ -115,7 +146,7 @@ def createNewTables(dbsession):
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.createNewTables:'+str(e))
+        raise RuntimeError(' migrateSchema.createNewTables: '+str(e))
     
 
 def modifyOldTables(dbsession):
@@ -130,16 +161,16 @@ def modifyOldTables(dbsession):
         dbsession.typeConverter().setCppTypeForSqlType('unsigned int','NUMBER(10)')
         dbsession.typeConverter().setCppTypeForSqlType('unsigned long long','NUMBER(20)')
         tableHandle=dbsession.nominalSchema().tableHandle(n.lumisummarytable)
-        tableHandle.schemaEditor().insertColumn('LUMIDATA_ID','unsigned long long')
+        tableHandle.schemaEditor().insertColumn('DATA_ID','unsigned long long')
         tableHandle=dbsession.nominalSchema().tableHandle(n.lumidetailtable)
-        tableHandle.schemaEditor().insertColumn('LUMIDATA_ID','unsigned long long')
+        tableHandle.schemaEditor().insertColumn('DATA_ID','unsigned long long')
         tableHandle.schemaEditor().insertColumn('RUNNUM','unsigned int')
         tableHandle.schemaEditor().insertColumn('CMSLSNUM','unsigned int')
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.modifyOldTables:'+str(e))
+        raise RuntimeError(' migrateSchema.modifyOldTables: '+str(e))
     
 def dropNewTables(dbsession):
     n=newSchemaNames()
@@ -147,19 +178,39 @@ def dropNewTables(dbsession):
         dbsession.transaction().start(False)
         schema=dbsession.nominalSchema()
         db=dbUtil.dbUtil(schema)
+        db.dropTable( n.revisionstable )
+        
         db.dropTable( n.lumidatatable )
         db.dropTable( n.lumidatatable+'_ID' )
+        db.dropTable( n.lumidatatable+'_ENTRIES' )
+        db.dropTable( n.lumidatatable+'_ENTRIES_ID' )
+        db.dropTable( n.lumidatatable+'_REV' )
+        
+        db.dropTable( n.luminormstable )
+        db.dropTable( n.luminormstable+'_ID' )
+        db.dropTable( n.luminormstable+'_ENTRIES' )
+        db.dropTable( n.luminormstable+'_ENTRIES_ID' )
+        db.dropTable( n.luminormstable+'_REV' )
+        
         db.dropTable( n.trgdatatable )
         db.dropTable( n.trgdatatable+'_ID' )
+        db.dropTable( n.trgdatatable+'_ENTRIES' )
+        db.dropTable( n.trgdatatable+'_ENTRIES_ID' )
+        db.dropTable( n.trgdatatable+'_REV' )
+        
         db.dropTable( n.hltdatatable )
         db.dropTable( n.hltdatatable+'_ID' )
+        db.dropTable( n.hltdatatable+'_ENTRIES' )
+        db.dropTable( n.hltdatatable+'_ENTRIES_ID' )
+        db.dropTable( n.hltdatatable+'_REV' )
+        
         db.dropTable( n.lstrgtable )
         db.dropTable( n.lshlttable )
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.dropNewTables:'+str(e))
+        raise RuntimeError(' migrateSchema.dropNewTables: '+str(e))
     
 def restoreOldTables(dbsession):
     n=newSchemaNames()
@@ -168,16 +219,16 @@ def restoreOldTables(dbsession):
         schema=dbsession.nominalSchema()
         dbsession.transaction().start(False)
         tableHandle=dbsession.nominalSchema().tableHandle(n.lumisummarytable)
-        tableHandle.schemaEditor().dropColumn('LUMIDATA_ID')
+        tableHandle.schemaEditor().dropColumn('DATA_ID')
         tableHandle=dbsession.nominalSchema().tableHandle(n.lumidetailtable)
-        tableHandle.schemaEditor().dropColumn('LUMIDATA_ID')
+        tableHandle.schemaEditor().dropColumn('DATA_ID')
         tableHandle.schemaEditor().dropColumn('RUNNUM')
         tableHandle.schemaEditor().dropColumn('CMSLSNUM')
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.restoreOldTables:'+str(e))
+        raise RuntimeError(' migrateSchema.restoreOldTables: '+str(e))
     
 def createNewSchema(dbsession):
     '''
@@ -316,7 +367,7 @@ def getOldTrgData(dbsession,runnum):
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.getOldTrgData:'+str(e))
+        raise RuntimeError(' migrateSchema.getOldTrgData: '+str(e))
     
 def transfertrgData(dbsession,runnumber,trgrawdata):
     '''
@@ -332,11 +383,11 @@ def transfertrgData(dbsession,runnumber,trgrawdata):
         iddealer=idDealer.idDealer(dbsession.nominalSchema())
         iddealer.generateNextIDForTable(n.trgdatatable)
         trgdata_id=iddealer.getIDforTable(n.trgdatatable)
-        tabrowDefDict={'TRGDATA_ID':'unsigned long long','RUNNUM':'unsigned int','BITZERONAME':'string','BITNAMECLOB':'string'}
-        tabrowValueDict={'TRGDATA_ID':trgdata_id,'RUNNUM':int(runnumber),'BITZERONAME':bitzeroname,'BITNAMECLOB':trgrawdata[0]}
+        tabrowDefDict={'DATA_ID':'unsigned long long','RUNNUM':'unsigned int','BITZERONAME':'string','BITNAMECLOB':'string'}
+        tabrowValueDict={'DATA_ID':trgdata_id,'RUNNUM':int(runnumber),'BITZERONAME':bitzeroname,'BITNAMECLOB':trgrawdata[0]}
         db=dbUtil.dbUtil(dbsession.nominalSchema())
         db.insertOneRow(n.trgdatatable,tabrowDefDict,tabrowValueDict)
-        lstrgDefDict={'TRGDATA_ID':'unsigned long long','RUNNUM':'unsigned int','CMSLSNUM':'unsigned int','DEADTIMECOUNT':'unsigned long long','BITZEROCOUNT':'unsigned int','BITZEROPRESCALE':'unsigned int','PRESCALEBLOB':'blob','TRGCOUNTBLOB':'blob'}
+        lstrgDefDict={'DATA_ID':'unsigned long long','RUNNUM':'unsigned int','CMSLSNUM':'unsigned int','DEADTIMECOUNT':'unsigned long long','BITZEROCOUNT':'unsigned int','BITZEROPRESCALE':'unsigned int','PRESCALEBLOB':'blob','TRGCOUNTBLOB':'blob'}
         for cmslsnum,perlstrg in perlsrawdatadict.items():
             deadtimecount=perlstrg[0]
             bitzeroname=perlstrg[1]
@@ -344,13 +395,13 @@ def transfertrgData(dbsession,runnumber,trgrawdata):
             bitzeroprescale=perlstrg[3]
             trgcountblob=perlstrg[4]
             trgprescaleblob=perlstrg[5]
-            bulkvalues.append([('TRGDATA_ID',trgdata_id),('RUNNUM',runnumber),('CMSLSNUM',cmslsnum),('DEADTIMECOUNT',deadtimecount),('BITZEROCOUNT',bitzerocount),('BITZEROPRESCALE',bitzeroprescale),('PRESCALEBLOB',trgprescaleblob),('TRGCOUNTBLOB',trgcountblob)])
+            bulkvalues.append([('DATA_ID',trgdata_id),('RUNNUM',runnumber),('CMSLSNUM',cmslsnum),('DEADTIMECOUNT',deadtimecount),('BITZEROCOUNT',bitzerocount),('BITZEROPRESCALE',bitzeroprescale),('PRESCALEBLOB',trgprescaleblob),('TRGCOUNTBLOB',trgcountblob)])
         db.bulkInsert(n.lstrgtable,lstrgDefDict,bulkvalues)
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.transfertrgData:'+str(e))
+        raise RuntimeError(' migrateSchema.transfertrgData: '+str(e))
 
 def transferhltData(dbsession,runnumber,hltrawdata):
     '''
@@ -367,22 +418,22 @@ def transferhltData(dbsession,runnumber,hltrawdata):
         iddealer=idDealer.idDealer(dbsession.nominalSchema())
         iddealer.generateNextIDForTable(n.hltdatatable)
         hltdata_id=iddealer.getIDforTable(n.hltdatatable)
-        tabrowDefDict={'HLTDATA_ID':'unsigned long long','RUNNUM':'unsigned int','NPATH':'unsigned int','PATHNAMECLOB':'string'}
-        tabrowValueDict={'HLTDATA_ID':hltdata_id,'RUNNUM':int(runnumber),'NPATH':npath,'PATHNAMECLOB':pathnames}
+        tabrowDefDict={'DATA_ID':'unsigned long long','RUNNUM':'unsigned int','NPATH':'unsigned int','PATHNAMECLOB':'string'}
+        tabrowValueDict={'DATA_ID':hltdata_id,'RUNNUM':int(runnumber),'NPATH':npath,'PATHNAMECLOB':pathnames}
         db=dbUtil.dbUtil(dbsession.nominalSchema())
         db.insertOneRow(n.hltdatatable,tabrowDefDict,tabrowValueDict)
-        lshltDefDict={'HLTDATA_ID':'unsigned long long','RUNNUM':'unsigned int','CMSLSNUM':'unsigned int','PRESCALEBLOB':'blob','HLTCOUNTBLOB':'blob','HLTACCEPTBLOB':'blob'}
+        lshltDefDict={'DATA_ID':'unsigned long long','RUNNUM':'unsigned int','CMSLSNUM':'unsigned int','PRESCALEBLOB':'blob','HLTCOUNTBLOB':'blob','HLTACCEPTBLOB':'blob'}
         for cmslsnum,perlshlt in perlsrawdatadict.items():
             inputcountblob=perlshlt[0]
             acceptcountblob=perlshlt[1]
             prescaleblob=perlshlt[2]
-            bulkvalues.append([('HLTDATA_ID',hltdata_id),('RUNNUM',runnumber),('CMSLSNUM',cmslsnum),('PRESCALEBLOB',prescaleblob),('HLTCOUNTBLOB',inputcountblob),('HLTACCEPTBLOB',acceptcountblob),('PRESCALEBLOB',prescaleblob)])
+            bulkvalues.append([('DATA_ID',hltdata_id),('RUNNUM',runnumber),('CMSLSNUM',cmslsnum),('PRESCALEBLOB',prescaleblob),('HLTCOUNTBLOB',inputcountblob),('HLTACCEPTBLOB',acceptcountblob),('PRESCALEBLOB',prescaleblob)])
         db.bulkInsert(n.lshlttable,lshltDefDict,bulkvalues)
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.transferhltData:'+str(e))
+        raise RuntimeError(' migrateSchema.transferhltData: '+str(e))
     
 def transferLumiData(dbsession,runnum):
     '''
@@ -425,40 +476,39 @@ def transferLumiData(dbsession,runnum):
         lumidata_id=iddealer.getIDforTable(n.lumidatatable)
         #insert in lumidata table
         print 'insert in lumidata table'
-        tabrowDefDict={'LUMIDATA_ID':'unsigned long long','RUNNUM':'unsigned int'}
-        tabrowValueDict={'LUMIDATA_ID':lumidata_id,'RUNNUM':int(runnum)}
+        tabrowDefDict={'DATA_ID':'unsigned long long','RUNNUM':'unsigned int'}
+        tabrowValueDict={'DATA_ID':lumidata_id,'RUNNUM':int(runnum)}
         db=dbUtil.dbUtil(dbsession.nominalSchema())
         db.insertOneRow(n.lumidatatable,tabrowDefDict,tabrowValueDict)
         
         #update in lumisummary table
         print 'insert in lumisummary table'
-        #updateAction='LUMIDATA_ID=:lumidata_id'
-        setClause='LUMIDATA_ID=:lumidata_id'
+        setClause='DATA_ID=:data_id'
         updateCondition='RUNNUM=:runnum'
         updateData=coral.AttributeList()
-        updateData.extend('lumidata_id','unsigned long long')
+        updateData.extend('data_id','unsigned long long')
         updateData.extend('runnum','unsigned int')
-        updateData['lumidata_id'].setData(lumidata_id)
+        updateData['data_id'].setData(lumidata_id)
         updateData['runnum'].setData(int(runnum))
         nrows=db.singleUpdate(n.lumisummarytable,setClause,updateCondition,updateData)
         #updates in lumidetail table
-        print 'update to lumidata_id,lumisummary_id,cmslsnum ',lumidata_id,lumisummary_id,cmslsnum
-        updateAction='LUMIDATA_ID=:lumidata_id,RUNNUM=:runnum,CMSLSNUM=:cmslsnum'
+        print 'update to data_id,lumisummary_id,cmslsnum ',lumidata_id,lumisummary_id,cmslsnum
+        updateAction='DATA_ID=:data_id,RUNNUM=:runnum,CMSLSNUM=:cmslsnum'
         updateCondition='LUMISUMMARY_ID=:lumisummary_id'
         bindvarDef=[]
-        bindvarDef.append(('lumidata_id','unsigned long long'))
+        bindvarDef.append(('data_id','unsigned long long'))
         bindvarDef.append(('runnum','unsigned int'))
         bindvarDef.append(('cmslsnum','unsigned int'))
         bindvarDef.append(('lumisummary_id','unsigned long long'))
         inputData=[]
         for (lumisummary_id,cmslsnum) in lumisummarydata:
-            inputData.append([('lumidata_id',lumidata_id),('runnum',int(runnum)),('cmslsnum',cmslsnum),('lumisummary_id',lumisummary_id)])
+            inputData.append([('data_id',lumidata_id),('runnum',int(runnum)),('cmslsnum',cmslsnum),('lumisummary_id',lumisummary_id)])
         db.updateRows(n.lumidetailtable,updateAction,updateCondition,bindvarDef,inputData)
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise RuntimeError('migrateSchema.transferLumiData:'+str(e))
+        raise RuntimeError(' migrateSchema.transferLumiData: '+str(e))
     return lumidata_id
 
 def getOldHLTData(dbsession,runnum):
@@ -546,7 +596,7 @@ def getOldHLTData(dbsession,runnum):
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
-        raise Exception,'migrateSchema.getOldTrgData:'+str(e)
+        raise Exception,' migrateSchema.getOldTrgData: '+str(e)
     return [pathnames,databuffer]
 
 def main():
