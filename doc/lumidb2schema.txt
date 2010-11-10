@@ -129,6 +129,7 @@ create table lstrg(          #data table
      deadtimecount uint64,
      bitzerocount uint32,
      bitzeroprescale uint32,
+     deadfrac float,
      pescalesblob   blob,
      trgcountblob   blob
 )
