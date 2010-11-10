@@ -252,6 +252,7 @@ def getOldTrgData(dbsession,runnum):
         prescaleArray=array.array('l')
         counter=0
         previouscmslsnum=0
+        cmslsnum=-1
         while cursor.next():
             cmslsnum=cursor.currentRow()['cmslsnum'].data()
             bitnum=cursor.currentRow()['bitnum'].data()
@@ -274,11 +275,13 @@ def getOldTrgData(dbsession,runnum):
             trgcountArray.append(trgcount)
             prescaleArray.append(prescale)
             counter+=1
-        bitnames=','.join(bitnameList)
-        trgcountBlob=CommonUtil.packArraytoBlob(trgcountArray)
-        prescaleBlob=CommonUtil.packArraytoBlob(prescaleArray)
-        databuffer[cmslsnum].append(trgcountBlob)
-        databuffer[cmslsnum].append(prescaleBlob)
+        if cmslsnum>0:
+            bitnames=','.join(bitnameList)
+            trgcountBlob=CommonUtil.packArraytoBlob(trgcountArray)
+            prescaleBlob=CommonUtil.packArraytoBlob(prescaleArray)
+
+            databuffer[cmslsnum].append(trgcountBlob)
+            databuffer[cmslsnum].append(prescaleBlob)
         #print CommonUtil.unpackBlobtoArray(databuffer[377][4],'l')
         del qHandle
         dbsession.transaction().commit()
@@ -315,9 +318,8 @@ def transfertrgData(dbsession,runnumber,trgrawdata):
             trgcountblob=perlstrg[4]
             trgprescaleblob=perlstrg[5]
             bulkvalues.append([('TRGDATA_ID',trgdata_id),('RUNNUM',runnumber),('CMSLSNUM',cmslsnum),('DEADTIMECOUNT',deadtimecount),('BITZEROCOUNT',bitzerocount),('BITZEROPRESCALE',bitzeroprescale),('PRESCALEBLOB',trgprescaleblob),('TRGCOUNTBLOB',trgcountblob)])
-
         db.bulkInsert(n.lstrgtable,lstrgDefDict,bulkvalues)
-        dbsession.transaction().rollback()
+        dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
@@ -349,7 +351,7 @@ def transferhltData(dbsession,runnumber,hltrawdata):
             prescaleblob=perlshlt[2]
             bulkvalues.append([('HLTDATA_ID',hltdata_id),('RUNNUM',runnumber),('CMSLSNUM',cmslsnum),('PRESCALEBLOB',prescaleblob),('HLTCOUNTBLOB',inputcountblob),('HLTACCEPTBLOB',acceptcountblob),('PRESCALEBLOB',prescaleblob)])
         db.bulkInsert(n.lshlttable,lshltDefDict,bulkvalues)
-        dbsession.transaction().rollback()
+        dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
@@ -357,6 +359,7 @@ def transferhltData(dbsession,runnumber,hltrawdata):
     
 def transferLumiData(dbsession,runnum):
     '''
+    select LUMISUMMARY_ID as lumisummary_id,CMSLSNUM as cmslsnum from LUMISUMMARY where RUNNUM=:runnum order by cmslsnum
     generate new lumidata_id for lumidata
     insert into lumidata_id , runnum into lumidata
     insert into lumidata_id into lumisummary
@@ -388,7 +391,6 @@ def transferLumiData(dbsession,runnum):
             lumisummarydata.append((lumisummary_id,cmslsnum))
         del qHandle
         dbsession.transaction().commit()
-        #print lumisummarydata
         
         dbsession.transaction().start(False)
         iddealer=idDealer.idDealer(dbsession.nominalSchema())
@@ -403,15 +405,18 @@ def transferLumiData(dbsession,runnum):
         
         #update in lumisummary table
         print 'insert in lumisummary table'
-        updateAction='LUMIDATA_ID=:lumidata_id'
+        #updateAction='LUMIDATA_ID=:lumidata_id'
+        setClause='LUMIDATA_ID=:lumidata_id'
         updateCondition='RUNNUM=:runnum'
-        bindvarDef=[('lumidata_id','unsigned long long'),('runnum','unsigned int')]
-        bulkinput=[[('lumidata_id',lumidata_id),('runnum',int(runnum))]]
-        db.updateRows(m.lumisummarytable,updateAction,updateCondition,bindvarDef,bulkinput)
-
+        updateData=coral.AttributeList()
+        updateData.extend('lumidata_id','unsigned long long')
+        updateData.extend('runnum','unsigned int')
+        updateData['lumidata_id'].setData(lumidata_id)
+        updateData['runnum'].setData(int(runnum))
+        nrows=db.singleUpdate(n.lumisummarytable,setClause,updateCondition,updateData)
         #updates in lumidetail table
-        print 'insert in lumidetail table'
         for (lumisummary_id,cmslsnum) in lumisummarydata:
+            print 'update to lumidata_id,lumisummary_id,cmslsnum ',lumidata_id,lumisummary_id,cmslsnum
             updateAction='LUMIDATA_ID=:lumidata_id,RUNNUM=:runnum,CMSLSNUM=:cmslsnum'
             updateCondition='LUMISUMMARY_ID=:lumisummary_id'
             inputData=coral.AttributeList()
@@ -423,8 +428,9 @@ def transferLumiData(dbsession,runnum):
             inputData['runnum'].setData(int(runnum))
             inputData['cmslsnum'].setData(cmslsnum)
             inputData['lumisummary_id'].setData(lumisummary_id)           
-            nupdates=db.singleUpdate(m.lumidetailtable,updateAction,updateCondition,inputData)
-        dbsession.transaction().rollback()
+            nupdates=db.singleUpdate(n.lumidetailtable,updateAction,updateCondition,inputData)
+            print 'nupdates ',nupdates
+        dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
@@ -441,6 +447,7 @@ def getOldHLTData(dbsession,runnum):
     databuffer={} #{cmslsnum:[inputcountBlob,acceptcountBlob,prescaleBlob]}
     dbsession.typeConverter().setCppTypeForSqlType('unsigned int','NUMBER(10)')
     dbsession.typeConverter().setCppTypeForSqlType('unsigned long long','NUMBER(20)')
+    pathnames=''
     try:
         npath=0
         dbsession.transaction().start(True)
@@ -526,6 +533,7 @@ def main():
     parser.add_argument('--debug',dest='debug',action='store_true',help='debug')
     args=parser.parse_args()
     runnumber=int(args.runnumber)
+    print 'processing run ',runnumber
     os.environ['CORAL_AUTH_PATH']=args.authpath
     svc=coral.ConnectionService()
     dbsession=svc.connect(args.connect,accessMode=coral.access_Update)
@@ -538,7 +546,9 @@ def main():
     else:
         print 'is new schema'
         dropNewSchema(dbsession)
+        print 'creating new schema'
         createNewSchema(dbsession)
+        print 'done'
     trgresult=getOldTrgData(dbsession,runnumber)
     hltresult=getOldHLTData(dbsession,runnumber)
     transferLumiData(dbsession,runnumber)
