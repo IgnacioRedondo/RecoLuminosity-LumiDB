@@ -415,21 +415,18 @@ def transferLumiData(dbsession,runnum):
         updateData['runnum'].setData(int(runnum))
         nrows=db.singleUpdate(n.lumisummarytable,setClause,updateCondition,updateData)
         #updates in lumidetail table
+        print 'update to lumidata_id,lumisummary_id,cmslsnum ',lumidata_id,lumisummary_id,cmslsnum
+        updateAction='LUMIDATA_ID=:lumidata_id,RUNNUM=:runnum,CMSLSNUM=:cmslsnum'
+        updateCondition='LUMISUMMARY_ID=:lumisummary_id'
+        bindvarDef=[]
+        bindvarDef.append(('lumidata_id','unsigned long long'))
+        bindvarDef.append(('runnum','unsigned int'))
+        bindvarDef.append(('cmslsnum','unsigned int'))
+        bindvarDef.append(('lumisummary_id','unsigned long long'))
+        inputData=[]
         for (lumisummary_id,cmslsnum) in lumisummarydata:
-            print 'update to lumidata_id,lumisummary_id,cmslsnum ',lumidata_id,lumisummary_id,cmslsnum
-            updateAction='LUMIDATA_ID=:lumidata_id,RUNNUM=:runnum,CMSLSNUM=:cmslsnum'
-            updateCondition='LUMISUMMARY_ID=:lumisummary_id'
-            inputData=coral.AttributeList()
-            inputData.extend('lumidata_id','unsigned long long')
-            inputData.extend('runnum','unsigned int')
-            inputData.extend('cmslsnum','unsigned int')
-            inputData.extend('lumisummary_id','unsigned long long')
-            inputData['lumidata_id'].setData(lumidata_id)
-            inputData['runnum'].setData(int(runnum))
-            inputData['cmslsnum'].setData(cmslsnum)
-            inputData['lumisummary_id'].setData(lumisummary_id)           
-            nupdates=db.singleUpdate(n.lumidetailtable,updateAction,updateCondition,inputData)
-            print 'nupdates ',nupdates
+            inputData.append([('lumidata_id',lumidata_id),('runnum',int(runnum)),('cmslsnum',cmslsnum),('lumisummary_id',lumisummary_id)])
+        db.updateRows(n.lumidetailtable,updateAction,updateCondition,bindvarDef,inputData)
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
