@@ -164,7 +164,7 @@ create table lshlt(
    cmslsnum uint32 not null,
    prescaleblob blob,
    hltcountblob    blob,
-   acceptblob     blob
+   hltacceptblob     blob
 )
 11.
 create table trghltmap(           

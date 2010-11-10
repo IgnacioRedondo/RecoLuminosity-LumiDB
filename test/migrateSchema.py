@@ -76,6 +76,20 @@ def createNewTables(dbsession):
         trgdataTab.insertColumn( 'BITNAMECLOB', 'string',6000)
         trgdataTab.setPrimaryKey( 'TRGDATA_ID' )
         db.createTable(trgdataTab,withIdTable=True)
+        
+        lstrgTab=coral.TableDescription()
+        lstrgTab.setName( n.lstrgtable )
+        lstrgTab.insertColumn( 'TRGDATA_ID','unsigned long long')
+        lstrgTab.insertColumn( 'RUNNUM', 'unsigned int')
+        lstrgTab.insertColumn( 'CMSLSNUM', 'unsigned int')
+        lstrgTab.insertColumn( 'DEADTIMECOUNT', 'unsigned long long')
+        lstrgTab.insertColumn( 'BITZEROCOUNT', 'unsigned int')
+        lstrgTab.insertColumn( 'BITZEROPRESCALE', 'unsigned int')
+        lstrgTab.insertColumn( 'DEADFRAC', 'float')
+        lstrgTab.insertColumn( 'PRESCALEBLOB', 'blob')
+        lstrgTab.insertColumn( 'TRGCOUNTBLOB', 'blob')
+        db.createTable(lstrgTab,withIdTable=False)
+        
         hltdataTab=coral.TableDescription()
         hltdataTab.setName( n.hltdatatable )
         hltdataTab.insertColumn( 'HLTDATA_ID','unsigned long long')
@@ -86,6 +100,17 @@ def createNewTables(dbsession):
         hltdataTab.insertColumn( 'PATHNAMECLOB', 'string',6000)
         hltdataTab.setPrimaryKey( 'HLTDATA_ID' )
         db.createTable(hltdataTab,withIdTable=True)
+
+        lshltTab=coral.TableDescription()
+        lshltTab.setName( n.lshlttable )
+        lshltTab.insertColumn( 'HLTDATA_ID','unsigned long long')
+        lshltTab.insertColumn( 'RUNNUM', 'unsigned int')
+        lshltTab.insertColumn( 'CMSLSNUM', 'unsigned int')
+        lshltTab.insertColumn( 'PRESCALEBLOB', 'blob')
+        lshltTab.insertColumn( 'HLTCOUNTBLOB', 'blob')
+        lshltTab.insertColumn( 'HLTACCEPTBLOB', 'blob')
+        db.createTable(lshltTab,withIdTable=False)
+        
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
@@ -128,6 +153,8 @@ def dropNewTables(dbsession):
         db.dropTable( n.trgdatatable+'_ID' )
         db.dropTable( n.hltdatatable )
         db.dropTable( n.hltdatatable+'_ID' )
+        db.dropTable( n.lstrgtable )
+        db.dropTable( n.lshlttable )
         dbsession.transaction().commit()
     except Exception,e :
         dbsession.transaction().rollback()
