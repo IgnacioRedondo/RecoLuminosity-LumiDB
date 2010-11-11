@@ -23,8 +23,7 @@ create table luminorms(
 )
 create table luminorms_entries(   #versionable entity helper table
      entry_id uint64 PK,
-     revision_id uint64 not null references revisions(revision_id),
-     name string
+     revision_id uint64 not null references revisions(revision_id)
 )
 create table luminorms_id(          #id helper table
      nextid uint64 PK
@@ -33,12 +32,12 @@ create table luminorms_entries_id(    #id helper table
      nextid uint64 PK
 )
 create table luminorms_rev(   
-    luminorm_id uint64 not null references luminorms(luminorm_id),
+    data_id uint64 not null references luminorms(data_id),
     revision_id uint64 not null references revisions(revision_id) 
 )
 3.
 create table lumidata(             #verionable data table
-     lumidata_id uint64 PK,
+     data_id uint64 PK,
      entry_id    uint64 not null references lumidata_entries(entry_id),
      source     string,
      runnum     uint32
@@ -51,10 +50,10 @@ create table lumidata_entries(       #versionable entity table
      revision_id  uint64 not null references revision(revision_id)
 )
 create table lumidata_rev(   
-    lumidata_id uint64 not null references lumidata(lumidata_id),
+    data_id uint64 not null references lumidata(data_id),
     revision_id uint64 not null references revision(revision_id) 
 )
-constraint lumidata_rev_uc unique(lumidata_id,revision_id)
+constraint lumidata_rev_uc unique(data_id,revision_id)
 create table lumidata_entries_id(   
      nextid uint64 PK
 )
@@ -71,7 +70,7 @@ create table cmsrunsummary(        #data table
 )
 5. 
 create table lumisummary(         #data table
-     lumidata_id  uint64 not null refrences lumidata(lumidata_id),
+     lumidata_id  uint64 not null refrences lumidata(data_id),
      runnum      uint32,  (redundant)
      cmslsnum    uint32,
      lumilsnum   uint32,
@@ -89,7 +88,7 @@ create table lumisummary(         #data table
 )
 6.
 create table lumidetail(           #data table
-     lumidata_id  uint64 not null references lumidata(lumidata_id),
+     lumidata_id  uint64 not null references lumidata(data_id),
      runnum       uint32, (redundant)
      cmslsnum     uint32,
      algoname     string,
@@ -99,7 +98,7 @@ create table lumidetail(           #data table
 )
 7.
 create table trgdata(                #verionable data table
-     trgdata_id uint64 PK,
+     data_id uint64 PK,
      entry_id  uint64 not null references trgdata_entries(entry_id),
      source string,
      runnum   uint32,
@@ -107,10 +106,10 @@ create table trgdata(                #verionable data table
      bitnameclob clob
 )
 create table trgdata_rev(   
-    trgdata_id uint64 not null references trgdata(trgdata_id),
+    data_id uint64 not null references trgdata(data_id),
     revision_id uint64 not null references revisions(revision_id) 
 )
-constraint trgdata_rev_uc unique(trgdata_id,revision_id)
+constraint trgdata_rev_uc unique(data_id,revision_id)
 create table trgdata_entries(       
      entry_id    uint64 not null	     ,
      revision_id uint64 not null references revisions(revision_id) 
@@ -123,7 +122,7 @@ create table trgdata_entries_id(       #id helper table
 )
 8.
 create table lstrg(          #data table
-     trgdata_id uint64 not null references trgdata(trgdata_id),
+     data_id uint64 not null references trgdata(data_id),
      runnum    uint32,   (redundant)
      cmslsnum  uint32,
      deadtimecount uint64,
@@ -134,8 +133,8 @@ create table lstrg(          #data table
      trgcountblob   blob
 )
 9.
-create table hltdata(                #verionable data table
-    hltdata_id uint64 PK,	     
+create table hltdata(                #vesionable data table
+    data_id uint64 PK,	     
     entry_id    uint64 not null references hltdata_entries(entry_id),
     runnum    uint32,
     source    string,
@@ -153,13 +152,13 @@ create table hltdata_entries_id(
      nextid uint64 PK
 )
 create table hltdata_rev(   
-    hltdata_id uint64 not null references hltdata(hltdata_id),
+    data_id uint64 not null references hltdata(data_id),
     revision_id uint64 not null references revisions(revision_id) 
 )
-constraint hltdata_rev_uc unique(hltdataid,revision_id)
+constraint hltdata_rev_uc unique(dataid,revision_id)
 10.
 create table lshlt(         
-   hltdata_id uint64 not null references hltdata(hltdata_id),
+   data_id uint64 not null references hltdata(data_id),
    runnum   uint32 not null,
    cmslsnum uint32 not null,
    prescaleblob blob,
