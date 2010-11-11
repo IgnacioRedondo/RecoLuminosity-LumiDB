@@ -16,7 +16,8 @@ def lumisummaryTableName():
 
 def lumidetailTableName():
 	return 'LUMIDETAIL'
- 
+def luminormTableName():
+       return 'LUMINORMS'
 def trgdataTableName():
        return 'TRGDATA'
 

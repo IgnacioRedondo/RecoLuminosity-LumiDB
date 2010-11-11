@@ -49,7 +49,7 @@ def isOldSchema(dbsession):
 def createNewTables(dbsession):
     '''
     create new tables if not exist
-    revisions,revisions_id,luminorms,luminorms_entries,luminorms_id,
+    revisions,revisions_id,luminorms,luminorms_entries,luminorms_entries_id,
     '''
     n=newSchemaNames()
     try:        
@@ -73,14 +73,14 @@ def createNewTables(dbsession):
         print 'creating luminorms table'
         luminormsTab=coral.TableDescription()
         luminormsTab.setName( n.luminormstable )
-        luminormsTab.insertColumn( 'LUMINORM_ID','unsigned long long')
+        luminormsTab.insertColumn( 'DATA_ID','unsigned long long')
         luminormsTab.insertColumn( 'ENTRY_ID','unsigned long long')
         luminormsTab.insertColumn( 'DEFAULTNORM', 'float')
         luminormsTab.insertColumn( 'NORM_1', 'float')
         luminormsTab.insertColumn( 'ENERGY_1', 'float')
         luminormsTab.insertColumn( 'NORM_2', 'float')
         luminormsTab.insertColumn( 'ENERGY_2', 'float')
-        luminormsTab.setPrimaryKey( 'LUMINORM_ID' )
+        luminormsTab.setPrimaryKey( 'DATA_ID' )
         db.createTable(luminormsTab,withIdTable=True,withEntryTables=True,withRevMapTable=True)
 
         print 'creating lumidata table'
@@ -525,6 +525,98 @@ def addRevision(schema,datatableName,revision_id,data_id,branch_id=0,name='',com
     tabrowValueDict['DATA_ID']=data_id
     db.insertOneRow(revtableName,tabrowDefDict,tabrowValueDict)
 
+def createNewBranch(schema,name,comment='',parentname=None):
+    '''
+    create a new branch under given parentbranch
+    if parentname=None, create branch under root,branch_id=0
+    select revision_id from revisions where name=:parentname
+    insert into revisions(revision_id,branch_id,name) values()
+    '''
+    parentrevision_id=None
+    if parentname is None:
+        parentrevision_id=0
+    else:
+        try:
+            qHandle=schema.newQuery()
+            qHandle.addToTableList( nameDealer.revisionTableName() )
+            qHandle.addToOutputList('REVISION_ID','revision_id')
+            qCondition=coral.AttributeList()
+            qCondition.extend('parentname','string')
+            qCondition['parentname'].setData(parentname)
+            qResult=coral.AttributeList()
+            qResult.extend('revision_id','unsigned long long')
+            qHandle.defineOutput(qResult)
+            qHandle.setCondition('NAME=:parentname',qCondition)
+            cursor=qHandle.execute()
+            while cursor.next():
+                parentrevision_id=cursor.currentRow()['revision_id'].data()
+            del qHandle
+        except Exception,er:
+            raise RuntimeError(' migrateSchema.createNewBranch: '+str(er))
+    if parentrevision_id is None:
+        raise RuntimeError(' migrateSchema.createNewBranch: non-existing parent node '+parentname)
+    
+    iddealer=idDealer.idDealer(schema)
+    revision_id=iddealer.generateNextIDForTable( nameDealer.revisionTableName() )
+    db=dbUtil.dbUtil(schema)
+    tabrowDefDict={}
+    tabrowDefDict['REVISION_ID']='unsigned long long'
+    tabrowDefDict['BRANCH_ID']='unsigned long long'
+    tabrowDefDict['NAME']='string'
+    tabrowDefDict['COMMENT']='string'
+    tabrowDefDict['CTIME']='time stamp'
+    tabrowValueDict={}
+    tabrowValueDict['REVISION_ID']=revision_id
+    tabrowValueDict['BRANCH_ID']=parentrevision_id
+    tabrowValueDict['NAME']=name
+    tabrowValueDict['COMMENT']=comment
+    tabrowValueDict['CTIME']=coral.TimeStamp()
+    db.insertOneRow(nameDealer.revisionTableName(),tabrowDefDict, tabrowValueDict )
+    return revision_id
+
+def getBranchByName(schema,branchName):
+    '''
+    select branch_id from revisions where name=:branchName
+    '''
+    try:
+         qHandle=schema.newQuery()
+         qHandle.addToTableList( nameDealer.revisionTableName() )
+         qHandle.addToOutputList('BRANCH_ID','branch_id')
+         qCondition=coral.AttributeList()
+         qCondition.extend('name','string')
+         qCondition['name'].setData(branchName)
+         qResult=coral.AttributeList()
+         qResult.extend('branch_id','unsigned long long')
+         qHandle.defineOutput(qResult)
+         qHandle.setCondition('NAME=:name',qCondition)
+         cursor=qHandle.execute()
+         while cursor.next():
+             branch_id=cursor.currentRow()['branch_id'].data()
+         del qHandle
+         return branch_id
+    except Exception,e :
+        raise RuntimeError(' migrateSchema.getBranchByName: '+str(e))
+    
+def createLumiNorm(dbsession,name,inputdata,branchName='LUMINORM'):
+    '''
+    add new lumi norm entry
+    inputdata={'defaultnorm':defaultnorm,'norm_1':norm_1,'energy_1':energy_1,'norm_2':norm_2,'energy_2':energy_2}
+    '''
+    try:
+        dbsession.transaction().start(False)
+        db=dbUtil.dbUtil(dbsession.nominalSchema())
+        branch_id=getBranchByName(dbsession.nominalSchema(),branchName)
+        (revision_id,entry_id,data_id)=bookNewEntry(dbsession.nominalSchema(),nameDealer.luminormTableName())
+        tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','DEFAULTNORM':'float','NORM_1':'float','ENERGY_1':'float','NORM_2':'float','ENERGY_2':'float'}
+        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'DEFAULTNORM':inputdata['DEFAULTNORM'],'NORM_1':inputdata['NORM_1'],'ENERGY_1':inputdata['ENERGY_1'],'NORM_2':inputdata['NORM_2'],'ENERGY_2':inputdata['ENERGY_2']}
+        db.insertOneRow(nameDealer.luminormTableName(),tabrowDefDict,tabrowValueDict)
+        addEntry(dbsession.nominalSchema(),nameDealer.luminormTableName(),revision_id,entry_id,data_id,branch_id=branch_id)
+    except Exception,e :
+        dbsession.transaction().rollback()
+        del dbsession
+        raise RuntimeError(' migrateSchema.createLumiNorm: '+str(e))
+    return data_id
+
 def transferLumiData(dbsession,runnum):
     '''
     select LUMISUMMARY_ID as lumisummary_id,CMSLSNUM as cmslsnum from LUMISUMMARY where RUNNUM=:runnum order by cmslsnum
@@ -715,6 +807,15 @@ def main():
         print 'creating new schema'
         createNewSchema(dbsession)
         print 'done'
+    dbsession.transaction().start(False)
+    createNewBranch(dbsession.nominalSchema(),'TRUNK',comment='root',parentname=None)
+    createNewBranch(dbsession.nominalSchema(),'LUMIDATA',comment='root of lumidata',parentname='TRUNK')
+    createNewBranch(dbsession.nominalSchema(),'LUMINORM',comment='root of luminorm',parentname='TRUNK')
+    createNewBranch(dbsession.nominalSchema(),'TRGDATA',comment='root of trgdata',parentname='TRUNK')
+    createNewBranch(dbsession.nominalSchema(),'HLTDATA',comment='root of hltdata',parentname='TRUNK')
+    dbsession.transaction().commit()
+    normdef={'DEFAULTNORM':6.37,'NORM_1':6.37,'ENERGY_1':3.5e03,'NORM_2':1.625,'ENERGY_2':0.9e03}
+    createLumiNorm(dbsession,'pp2010',normdef,branchName='LUMINORM')
     trgresult=getOldTrgData(dbsession,runnumber)
     hltresult=getOldHLTData(dbsession,runnumber)
     transferLumiData(dbsession,runnumber)   

@@ -13,7 +13,7 @@ create index revisions_branchid_idx on revision(branchid)
 
 2.
 create table luminorms(
-     luminorm_id  uint64 PK
+     data_id  uint64 PK
      entry_id    uint64 not null references luminorms_entries(entry_id),
      defaultnorm  float not null,
      norm_1       float,
