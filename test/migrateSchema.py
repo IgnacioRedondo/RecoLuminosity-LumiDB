@@ -33,7 +33,53 @@ class oldSchemaNames(object):
         self.trgtable='TRG'
         self.hlttable='HLT'
         self.trghltmaptable='TRGHLTMAP'
-        
+
+def intlistToRange(mylist):
+    '''
+    [1,2,3,4,5] ->[(1,5)]
+    [1] ->[(1,1)]
+    [1,2,3,5,6,7,8,9,13,15] - >[(1,3),(5,9),(13,13),(15,15)]
+    '''
+    result=[]
+    low=mylist[0]
+    high=x.low
+    for i,j in CommonUtil.pairwise(mylist):
+        if i+1==j:
+            x.high=j
+        else:
+            if j is None:
+                result.append((low,i))
+                break
+            high=i
+            result.append((low,high))
+            low=j
+    return result
+
+def getBranchRangeById(schema,mybranch_id)
+    '''
+    select revision_id from revisions where branch_id=:branch_id 
+    '''
+    result=[]
+    mylist=[]
+    dbsession.transaction().start(True)
+    qHandle=dbsession.nominalSchema().newQuery()
+    qHandle.addToTableList(nameDealer.revisiontableName())
+    qHandle.addToOutputList('REVISION_ID','revision_id')
+    qCondition=coral.AttributeList()
+    qCondition.extend('branch_id','unsigned long long')
+    qCondition['branch_id'].setData(mybranch_id)
+    qResult=coral.AttributeList()
+    qResult.extend('revision_id','unsigned long long')
+    qHandle.defineOutput(qResult)
+    qHandle.setCondition('BRANCH_ID=:branch_id',qCondition)
+    cursor=qHandle.execute()
+    while cursor.next():
+        revision_id=cursor.currentRow()['revision_id'].data()
+        mylist.append(revision_id)
+    del qHandle
+    result=intlistToRange(mylist)
+    return result
+
 def isOldSchema(dbsession):
     '''
     if there is no lumidata table, then it is old schema
@@ -535,6 +581,7 @@ def createNewBranch(schema,name,comment='',parentname=None):
     parentrevision_id=None
     if parentname is None:
         parentrevision_id=0
+        revision_id=0
     else:
         try:
             qHandle=schema.newQuery()
@@ -551,13 +598,13 @@ def createNewBranch(schema,name,comment='',parentname=None):
             while cursor.next():
                 parentrevision_id=cursor.currentRow()['revision_id'].data()
             del qHandle
+            iddealer=idDealer.idDealer(schema)
+            revision_id=iddealer.generateNextIDForTable( nameDealer.revisionTableName() )
         except Exception,er:
             raise RuntimeError(' migrateSchema.createNewBranch: '+str(er))
     if parentrevision_id is None:
         raise RuntimeError(' migrateSchema.createNewBranch: non-existing parent node '+parentname)
-    
-    iddealer=idDealer.idDealer(schema)
-    revision_id=iddealer.generateNextIDForTable( nameDealer.revisionTableName() )
+        
     db=dbUtil.dbUtil(schema)
     tabrowDefDict={}
     tabrowDefDict['REVISION_ID']='unsigned long long'
@@ -581,19 +628,22 @@ def getBranchByName(schema,branchName):
     try:
          qHandle=schema.newQuery()
          qHandle.addToTableList( nameDealer.revisionTableName() )
+         qHandle.addToOutputList('REVISION_ID','revision_id')
          qHandle.addToOutputList('BRANCH_ID','branch_id')
          qCondition=coral.AttributeList()
          qCondition.extend('name','string')
          qCondition['name'].setData(branchName)
          qResult=coral.AttributeList()
+         qResult.extend('revision_id','unsigned long long')
          qResult.extend('branch_id','unsigned long long')
          qHandle.defineOutput(qResult)
          qHandle.setCondition('NAME=:name',qCondition)
          cursor=qHandle.execute()
          while cursor.next():
+             revision_id=cursor.currentRow()['revision_id'].data()
              branch_id=cursor.currentRow()['branch_id'].data()
          del qHandle
-         return branch_id
+         return (revision_id,branch_id)
     except Exception,e :
         raise RuntimeError(' migrateSchema.getBranchByName: '+str(e))
     
@@ -605,12 +655,12 @@ def createLumiNorm(dbsession,name,inputdata,branchName='LUMINORM'):
     try:
         dbsession.transaction().start(False)
         db=dbUtil.dbUtil(dbsession.nominalSchema())
-        branch_id=getBranchByName(dbsession.nominalSchema(),branchName)
+        (parentrevision_id,parentbranch_id)=getBranchByName(dbsession.nominalSchema(),branchName)
         (revision_id,entry_id,data_id)=bookNewEntry(dbsession.nominalSchema(),nameDealer.luminormTableName())
         tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','DEFAULTNORM':'float','NORM_1':'float','ENERGY_1':'float','NORM_2':'float','ENERGY_2':'float'}
         tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'DEFAULTNORM':inputdata['DEFAULTNORM'],'NORM_1':inputdata['NORM_1'],'ENERGY_1':inputdata['ENERGY_1'],'NORM_2':inputdata['NORM_2'],'ENERGY_2':inputdata['ENERGY_2']}
         db.insertOneRow(nameDealer.luminormTableName(),tabrowDefDict,tabrowValueDict)
-        addEntry(dbsession.nominalSchema(),nameDealer.luminormTableName(),revision_id,entry_id,data_id,branch_id=branch_id)
+        addEntry(dbsession.nominalSchema(),nameDealer.luminormTableName(),revision_id,entry_id,data_id,branch_id=parentrevision_id)
     except Exception,e :
         dbsession.transaction().rollback()
         del dbsession
