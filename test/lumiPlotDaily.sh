@@ -1,6 +1,6 @@
 #!/bin/sh
 currendir=`pwd`
-workdir="/build1/zx/cron/CMSSW_3_7_0_pre3"
+workdir="/build1/zx/cron/CMSSW_3_11_0_"
 #workdir="/afs/cern.ch/user/x/xiezhen/w1/lumidist/CMSSW_3_7_0_pre3"
 authdir="/afs/cern.ch/user/x/xiezhen"
 overviewdir="/afs/cern.ch/cms/lumi/www/plots/overview"
