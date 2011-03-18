@@ -1,10 +1,10 @@
 #!/bin/sh
 currendir=`pwd`
-workdir="/build1/zx/cron/CMSSW_3_7_0_pre3"
+workdir="/build1/zx/cron/CMSSW_3_11_0"
 authdir="/afs/cern.ch/user/x/xiezhen"
 operationdir="/afs/cern.ch/cms/lumi/www/plots/operation"
 logpath="/afs/cern.ch/cms/lumi"
-logname="lumiPlotWeekly.log"
+logname="lumiPlotWeekly-2011.log"
 logfilename="$logpath/$logname"
 dbConnectionString="oracle://cms_orcoff_prod/cms_lumi_prod"
 
