@@ -1,5 +1,6 @@
 #!/bin/sh
 currendir=`pwd`
+sarch="slc5_ia32_gcc434"
 workdir="/build1/zx/cron/CMSSW_3_11_0"
 authdir="/afs/cern.ch/user/x/xiezhen"
 overviewdir="/afs/cern.ch/cms/lumi/www/plots/overview"
@@ -18,6 +19,7 @@ beamstatus="stable"
 
 source /afs/cern.ch/cms/cmsset_default.sh;
 cd $workdir
+export SCRAM_ARCH="$sarch";
 eval `scramv1 runtime -sh`
 touch $logfilename
 date >> $logfilename
