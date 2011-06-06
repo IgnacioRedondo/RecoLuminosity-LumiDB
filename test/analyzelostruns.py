@@ -1,5 +1,5 @@
 import csv,os,sys,coral,array
-from RecoLuminosity.LumiDB import CommonUtil,idDealer,dbUtil
+from RecoLuminosity.LumiDB import CommonUtil,idDealer,dbUtil,dataDML
 conn='oracle://cms_orcoff_prep/cms_lumi_dev_offline'
 beamenergy=3.5e03
 beamstatus='STABLE BEAMS'
@@ -52,6 +52,40 @@ def insertLumiSummarydata(dbsession,runnumber,perlsrawdata):
     #print 'summaryidlsmap ',summaryidlsmap
     #return summaryidlsmap
     
+def insertLumiSummaryv2(dbsession,runnumber,perlsrawdata):
+    '''
+    input: perlsrawdata {cmslsnum:instlumi}
+    update lumisummaryv2 set () where runnum=:runnumber
+    '''
+    data_id=0
+    summaryidlsmap={}
+    dataDef=[]
+    dataDef.append(('DATA_ID','unsigned long long'))
+    dataDef.append(('RUNNUM','unsigned int'))
+    dataDef.append(('CMSLSNUM','unsigned int'))
+    dataDef.append(('LUMILSNUM','unsigned int'))
+    dataDef.append(('INSTLUMI','float'))
+    dataDef.append(('INSTLUMIERROR','float'))
+    dataDef.append(('INSTLUMIQUALITY','short'))
+    dataDef.append(('BEAMSTATUS','string'))
+    dataDef.append(('BEAMENERGY','float'))    
+    dataDef.append(('NUMORBIT','unsigned int'))
+    dataDef.append(('STARTORBIT','unsigned int'))
+        
+    perlsiData=[]
+    dbsession.transaction().start(False)
+    schema=dbsession.nominalSchema()
+    db=dbUtil.dbUtil(schema)
+    data_id=dataDML.guessLumiDataIdByRun(schema,int(runnumber))
+    for (lumilsnum,instlumi) in perlsrawdata:
+        mystartorbit=startorbit+numorbit*(lumilsnum-1)
+        myinstlumi=instlumi/float(6370)
+        perlsiData.append([('DATA_ID',data_id),('RUNNUM',int(runnumber)),('CMSLSNUM',cmslsnum),('LUMILSNUM',int(lumilsnum)),('INSTLUMI',myinstlumi),('INSTLUMIERROR',0.0),('INSTLUMIQUALITY',1),('BEAMSTATUS',beamstatus),('BEAMENERGY',beamenergy),('NUMORBIT',numorbit),('STARTORBIT',mystartorbit)])
+    print 'lumisummaryv2 to insert : ',perlsiData
+    db.bulkInsert('LUMISUMMARYV2',dataDef,perlsiData)
+    dbsession.transaction().commit()
+
+    
 def parseLSFile(ifilename):
     result=[]
     try:
@@ -80,7 +114,10 @@ def main(*args):
     os.environ['CORAL_AUTH_PATH']='/afs/cern.ch/user/x/xiezhen'
     svc = coral.ConnectionService()
     dbsession=svc.connect(conn,accessMode=coral.access_Update)
-    insertLumiSummarydata(dbsession,runnum,perlsrawdata)
+    if args[2] and args[2]=='--v2':
+        insertLumiSummaryv2(dbsession,runnum,perlsrawdata)
+    else:
+        insertLumiSummarydata(dbsession,runnum,perlsrawdata)
     del dbsession
     del svc
 if __name__=='__main__':
