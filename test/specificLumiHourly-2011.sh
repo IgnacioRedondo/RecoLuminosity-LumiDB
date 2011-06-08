@@ -15,4 +15,6 @@ touch "$logpath/specificLumiHourly-2011.log"
 date >> "$logpath/specificLumiHourly-2011.log"
 specificLumi-2011.py -c $dbConnectionString -P $authdir -i $indir -o $outdir >> "$logpath/specificLumiHourly-2011.log" ;
 date >> "$logpath/specificLumiHourly-2011.log"
+touch "$logpath/checklumi.log"
+python $workdir/src/RecoLuminosity/LumiDB/test/checklumi.py >> "$logpath/checklumi.log"
 cd $currentdir
