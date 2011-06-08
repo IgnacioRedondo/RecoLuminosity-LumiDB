@@ -15,7 +15,10 @@ runincsv=[]
 runinmap=[]
 
 totdeliv=0.
-
+print "######### checking lumi ################################################"
+print LUMICSV
+print LPCFILES
+print "########################################################################"
 lumi=open(LUMICSV,'r')
 for line in lumi.readlines():
     linesplit=line.split(',')
