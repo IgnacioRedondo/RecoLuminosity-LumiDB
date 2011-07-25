@@ -1,12 +1,12 @@
 import csv,os,sys,coral,array
 from RecoLuminosity.LumiDB import CommonUtil,idDealer,dbUtil
-ilsfilename='Run148829-ls.txt'
-ibunchfilename='Run148829-bunch.txt'
-conn='oracle://cms_orcoff_prep/cms_lumi_prod'
+ilsfilename='Run170901-ls.txt'
+ibunchfilename='Run170901-bunch.txt'
+runnum=170901
+conn='oracle://cms_orcoff_prep/cms_lumi_dev_offline'
 beamenergy=3.5e03
 beamstatus='STABLE BEAMS'
 beamintensity=0
-runnum=148829
 lumiversion='0001'
 dtnorm=1.0
 lhcnorm=1.0
@@ -82,7 +82,6 @@ def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):
         for cmslsnum,instlumi in perlsrawdata.items():
             lumisummary_id=summaryidlsmap[cmslsnum]
             lumidetail_id=iddealer.generateNextIDForTable('LUMIDETAIL')
-            print 'cmslsnum ',lumidetail_id,lumisummary_id
             bxdataocc1=array.array('f')
             bxdataocc2=array.array('f')
             bxdataet=array.array('f')
@@ -136,17 +135,24 @@ def parseLSFile(ifilename):
     
 def main(*args):
     perlsrawdata=parseLSFile(ilsfilename)
-    #print perlsrawdata
+    print perlsrawdata
     perbunchrawdata=parsebunchFile(ibunchfilename)
-    #print perbunchrawdata
+    print sum(perbunchrawdata.values())
     msg=coral.MessageStream('')
     msg.setMsgVerbosity(coral.message_Level_Error)
     os.environ['CORAL_AUTH_PATH']='/afs/cern.ch/user/x/xiezhen'
     svc = coral.ConnectionService()
     dbsession=svc.connect(conn,accessMode=coral.access_Update)
-    summaryidlsmap=insertLumiSummarydata(dbsession,perlsrawdata)
-    insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap)
+    print len(args)
+    if len(args)>1 and args[1]=='--v2':
+        insertLumischemaV2(dbsession,runnum,perlsrawdata,perbunchrawdata)
+    else:
+        summaryidlsmap=insertLumiSummarydata(dbsession,perlsrawdata)
+        insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap)
     del dbsession
     del svc
+#
+#change valriables ilsfilename,ibunchfilename,runnum
+#
 if __name__=='__main__':
     sys.exit(main(*sys.argv))
