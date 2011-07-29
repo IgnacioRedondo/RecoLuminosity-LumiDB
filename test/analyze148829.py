@@ -1,12 +1,11 @@
 import csv,os,sys,coral,array
-from RecoLuminosity.LumiDB import CommonUtil,idDealer,dbUtil
-ilsfilename='Run170901-ls.txt'
-ibunchfilename='Run170901-bunch.txt'
-runnum=170901
+from RecoLuminosity.LumiDB import CommonUtil,idDealer,dbUtil,dataDML,revisionDML
+ilsfilename='Run170896-ls.txt'
+ibunchfilename='Run170896-bunch.txt'
+runnum=170896
 conn='oracle://cms_orcoff_prep/cms_lumi_dev_offline'
 beamenergy=3.5e03
 beamstatus='STABLE BEAMS'
-beamintensity=0
 lumiversion='0001'
 dtnorm=1.0
 lhcnorm=1.0
@@ -25,6 +24,59 @@ def convertlist(l):
         idx=int(l[i])
         val=float(l[i+1])
         yield (idx,val)
+
+def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata):
+    '''
+    input:
+    lumirundata[datasource]
+    perlsrawdata: {cmslsnum:instlumi}
+    perbunchrawdata: {bxidx:lumifraction}
+
+    lumilsdata {lumilsnum:[cmslsnum,instlumi,instlumierror,instlumiquality,beamstatus,beamenergy,numorbit,startorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxlumivalue_occ1,bxlumierror_occ1,bxlumiquality_occ1,bxlumivalue_occ2,bxlumierror_occ2,bxlumiquality_occ2,bxlumivalue_et,bxlumierror_et,bxlumiquality_et]}
+    '''
+    branchrevision_id=3#databranch_id
+    branchinfo=(branchrevision_id,'DATA')
+    lumirundata=[datasource]
+    lumilsdata={}
+    for cmslsnum,instlumi in perlsrawdata.items():
+        mystartorbit=startorbit+numorbit*(cmslsnum-1)
+        bxdataArray=array.array('f')
+        bxerrorArray=array.array('f')
+        bxqualityArray=array.array('h')
+        cmsbxindexArray=array.array('h')
+        beam1intensityArray=array.array('f')
+        beam2intensityArray=array.array('f')
+        for bxidx in range(1,3565):
+            lumifraction=0.0
+            if perbunchrawdata.has_key(bxidx):
+                lumifraction=perbunchrawdata[bxidx]
+            bxlumivalue=float(instlumi*lumifraction)/float(bunchnorm)
+            bxdataArray.append(bxlumivalue)
+            beam1intensityArray.append(9124580336.0)
+            beam1intensityArray.append(8932813306.0)
+            cmsbxindexArray.append(bxidx)
+            bxqualityArray.append(1)
+            bxerrorArray.append(0.0)           
+        bxdataocc1blob=CommonUtil.packArraytoBlob(bxdataArray)
+        bxdataocc2blob=CommonUtil.packArraytoBlob(bxdataArray)
+        bxdataetblob=CommonUtil.packArraytoBlob(bxdataArray)
+        bxerrorocc1blob=CommonUtil.packArraytoBlob(bxerrorArray)
+        bxerrorocc2blob=CommonUtil.packArraytoBlob(bxerrorArray)
+        bxerroretblob=CommonUtil.packArraytoBlob(bxerrorArray)
+        bxqualityocc1blob=CommonUtil.packArraytoBlob(bxqualityArray)
+        bxqualityocc2blob=CommonUtil.packArraytoBlob(bxqualityArray)
+        bxqualityetblob=CommonUtil.packArraytoBlob(bxqualityArray)         
+        cmsbxindexblob=CommonUtil.packArraytoBlob(cmsbxindexArray)
+        beam1intensityblob=CommonUtil.packArraytoBlob(beam1intensityArray)
+        beam2intensityblob=CommonUtil.packArraytoBlob(beam2intensityArray)
+        perlsdata=[cmslsnum,float(instlumi)/float(6370),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
+        lumilsdata[cmslsnum]=perlsdata
+    print lumilsdata
+    dbsession.transaction().start(False)
+    (revision_id,entry_id,data_id)=dataDML.addLumiRunDataToBranch(dbsession.nominalSchema(),runnum,lumirundata,branchinfo)
+    dataDML.bulkInsertLumiLSSummary(dbsession,runnum,data_id,lumilsdata)
+    dbsession.transaction().commit()
+    
 def insertLumiSummarydata(dbsession,perlsrawdata):
     '''
     input: perlsrawdata {cmslsnum:instlumi}
@@ -106,6 +158,9 @@ def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):
     return 
 
 def parsebunchFile(ifilename):
+    '''
+    perbunchrawdata :{bunchidx:lumifraction}
+    '''
     perbunchdata={}
     result=[]
     try:
@@ -145,7 +200,7 @@ def main(*args):
     dbsession=svc.connect(conn,accessMode=coral.access_Update)
     print len(args)
     if len(args)>1 and args[1]=='--v2':
-        insertLumischemaV2(dbsession,runnum,perlsrawdata,perbunchrawdata)
+        insertLumischemaV2(dbsession,runnum,ilsfilename,perlsrawdata,perbunchrawdata)
     else:
         summaryidlsmap=insertLumiSummarydata(dbsession,perlsrawdata)
         insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap)
