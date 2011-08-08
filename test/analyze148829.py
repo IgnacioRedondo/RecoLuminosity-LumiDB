@@ -134,9 +134,7 @@ def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):
         for cmslsnum,instlumi in perlsrawdata.items():
             lumisummary_id=summaryidlsmap[cmslsnum]
             lumidetail_id=iddealer.generateNextIDForTable('LUMIDETAIL')
-            bxdataocc1=array.array('f')
-            bxdataocc2=array.array('f')
-            bxdataet=array.array('f')
+            bxdata=array.array('f')
             bxerror=array.array('f')
             bxquality=array.array('h')
             for bxidx in range(1,3565):
@@ -144,16 +142,12 @@ def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):
                 if perbunchrawdata.has_key(bxidx):
                     lumifraction=perbunchrawdata[bxidx]
                 bxlumivalue=float(instlumi*lumifraction)/float(bunchnorm)
-                bxdataocc1.append(bxlumivalue)
-                bxdataocc2.append(bxlumivalue)
-                bxdataet.append(bxlumivalue)
-            bxdataocc1Blob=CommonUtil.packArraytoBlob(bxdataocc1)
-            bxdataocc2Blob=CommonUtil.packArraytoBlob(bxdataocc2)
-            bxdataetBlob=CommonUtil.packArraytoBlob(bxdataet)
+                bxdata.append(bxlumivalue)
+            bxdataBlob=CommonUtil.packArraytoBlob(bxdata)
+            bxerrorBlob=CommonUtil.packArraytoBlob(bxerror)
             bxqualityBlob=CommonUtil.packArraytoBlob(bxquality)
-            perbunchiData.append([('LUMISUMMARY_ID',lumisummary_id),('LUMIDETAIL_ID',lumidetail_id),('BXLUMIVALUE',bxdataocc1Blob),('BXLUMIERROR',bxdataocc2Blob),('BXLUMIQUALITY',bxqualityBlob),('ALGONAME',algoname)])
+            perbunchiData.append([('LUMISUMMARY_ID',lumisummary_id),('LUMIDETAIL_ID',lumidetail_id),('BXLUMIVALUE',bxdataBlob),('BXLUMIERROR',bxerrorBlob),('BXLUMIQUALITY',bxqualityBlob),('ALGONAME',algoname)])
     db.bulkInsert('LUMIDETAIL',dataDef,perbunchiData)
-    print perbunchiData
     dbsession.transaction().commit()
     return 
 
