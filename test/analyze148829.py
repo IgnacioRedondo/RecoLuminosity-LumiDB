@@ -1,8 +1,8 @@
 import csv,os,sys,coral,array
 from RecoLuminosity.LumiDB import CommonUtil,idDealer,dbUtil,dataDML,revisionDML
-ilsfilename='Run170896-ls.txt'
-ibunchfilename='Run170896-bunch.txt'
-runnum=170896
+ilsfilename='/build/zx/patch/Run170899-ls.txt'
+ibunchfilename='/build/zx/patch/Run170899-bunch.txt'
+runnum=170899
 conn='oracle://cms_orcoff_prep/cms_lumi_dev_offline'
 beamenergy=3.5e03
 beamstatus='STABLE BEAMS'
@@ -117,7 +117,7 @@ def insertLumiSummarydata(dbsession,perlsrawdata):
     print 'summaryidlsmap ',summaryidlsmap
     return summaryidlsmap
     
-def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):
+def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):               
     dataDef=[]
     dataDef.append(('LUMISUMMARY_ID','unsigned long long'))
     dataDef.append(('LUMIDETAIL_ID','unsigned long long'))
@@ -143,6 +143,8 @@ def insertLumiDetaildata(dbsession,perlsrawdata,perbunchrawdata,summaryidlsmap):
                     lumifraction=perbunchrawdata[bxidx]
                 bxlumivalue=float(instlumi*lumifraction)/float(bunchnorm)
                 bxdata.append(bxlumivalue)
+                bxerror.append(0.0)
+                bxquality.append(1)
             bxdataBlob=CommonUtil.packArraytoBlob(bxdata)
             bxerrorBlob=CommonUtil.packArraytoBlob(bxerror)
             bxqualityBlob=CommonUtil.packArraytoBlob(bxquality)
