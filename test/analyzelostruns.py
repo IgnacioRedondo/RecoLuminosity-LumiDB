@@ -25,7 +25,7 @@ def convertlist(l):
         val=float(l[i+1])
         yield (idx,val)
 
-def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,deliveredonlu=False):
+def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,deliveredonly=False):
     '''
     input:
     lumirundata[datasource]
@@ -40,35 +40,48 @@ def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,
     lumilsdata={}
     for cmslsnum,instlumi in perlsrawdata.items():
         mystartorbit=startorbit+numorbit*(cmslsnum-1)
-        bxdataArray=array.array('f')
-        bxerrorArray=array.array('f')
-        bxqualityArray=array.array('h')
-        cmsbxindexArray=array.array('h')
-        beam1intensityArray=array.array('f')
-        beam2intensityArray=array.array('f')
-        for bxidx in range(1,3565):
-            lumifraction=0.0
-            if perbunchrawdata.has_key(bxidx):
-                lumifraction=perbunchrawdata[bxidx]
-            bxlumivalue=float(instlumi*lumifraction)/float(bunchnorm)
-            bxdataArray.append(bxlumivalue)
-            beam1intensityArray.append(9124580336.0)
-            beam1intensityArray.append(8932813306.0)
-            cmsbxindexArray.append(bxidx)
-            bxqualityArray.append(1)
-            bxerrorArray.append(0.0)           
-        bxdataocc1blob=CommonUtil.packArraytoBlob(bxdataArray)
-        bxdataocc2blob=CommonUtil.packArraytoBlob(bxdataArray)
-        bxdataetblob=CommonUtil.packArraytoBlob(bxdataArray)
-        bxerrorocc1blob=CommonUtil.packArraytoBlob(bxerrorArray)
-        bxerrorocc2blob=CommonUtil.packArraytoBlob(bxerrorArray)
-        bxerroretblob=CommonUtil.packArraytoBlob(bxerrorArray)
-        bxqualityocc1blob=CommonUtil.packArraytoBlob(bxqualityArray)
-        bxqualityocc2blob=CommonUtil.packArraytoBlob(bxqualityArray)
-        bxqualityetblob=CommonUtil.packArraytoBlob(bxqualityArray)         
-        cmsbxindexblob=CommonUtil.packArraytoBlob(cmsbxindexArray)
-        beam1intensityblob=CommonUtil.packArraytoBlob(beam1intensityArray)
-        beam2intensityblob=CommonUtil.packArraytoBlob(beam2intensityArray)
+        bxdataocc1blob=None
+        bxdataocc2blob=None
+        bxdataetblob=None
+        bxerrorocc1blob=None
+        bxerrorocc2blob=None
+        bxerroretblob=None
+        bxqualityocc1blob=None
+        bxqualityocc2blob=None
+        bxqualityetblob=None
+        cmsbxindexblob=None
+        beam1intensityblob=None
+        beam2intensityblob=None
+        if perbunchrawdata:
+            bxdataArray=array.array('f')
+            bxerrorArray=array.array('f')
+            bxqualityArray=array.array('h')
+            cmsbxindexArray=array.array('h')
+            beam1intensityArray=array.array('f')
+            beam2intensityArray=array.array('f')
+            for bxidx in range(1,3565):
+                lumifraction=0.0
+                if perbunchrawdata.has_key(bxidx):
+                    lumifraction=perbunchrawdata[bxidx]
+                bxlumivalue=float(instlumi*lumifraction)/float(bunchnorm)
+                bxdataArray.append(bxlumivalue)
+                beam1intensityArray.append(9124580336.0)
+                beam1intensityArray.append(8932813306.0)
+                cmsbxindexArray.append(bxidx)
+                bxqualityArray.append(1)
+                bxerrorArray.append(0.0)           
+            bxdataocc1blob=CommonUtil.packArraytoBlob(bxdataArray)
+            bxdataocc2blob=CommonUtil.packArraytoBlob(bxdataArray)
+            bxdataetblob=CommonUtil.packArraytoBlob(bxdataArray)
+            bxerrorocc1blob=CommonUtil.packArraytoBlob(bxerrorArray)
+            bxerrorocc2blob=CommonUtil.packArraytoBlob(bxerrorArray)
+            bxerroretblob=CommonUtil.packArraytoBlob(bxerrorArray)
+            bxqualityocc1blob=CommonUtil.packArraytoBlob(bxqualityArray)
+            bxqualityocc2blob=CommonUtil.packArraytoBlob(bxqualityArray)
+            bxqualityetblob=CommonUtil.packArraytoBlob(bxqualityArray)         
+            cmsbxindexblob=CommonUtil.packArraytoBlob(cmsbxindexArray)
+            beam1intensityblob=CommonUtil.packArraytoBlob(beam1intensityArray)
+            beam2intensityblob=CommonUtil.packArraytoBlob(beam2intensityArray)
         if deliveredonly:
             perlsdata=[0,float(instlumi)/float(6370),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
         else:
