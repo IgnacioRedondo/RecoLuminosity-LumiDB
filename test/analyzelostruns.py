@@ -1,10 +1,5 @@
 import csv,os,sys,coral,array
 from RecoLuminosity.LumiDB import argparse,sessionManager,CommonUtil,idDealer,dbUtil,dataDML,revisionDML
-#ilsfilename='fill2000patch/Run172516-ls.txt'
-#ibunchfilename='Run172516-bunch.txt'
-#ibunchfilename=None
-#runnum=172516
-#conn='oracle://cms_orcoff_prep/cms_lumi_dev_offline'
 beamenergy=3.5e03
 beamstatus='STABLE BEAMS'
 lumiversion='0001'
@@ -38,6 +33,10 @@ def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,
     branchinfo=(branchrevision_id,'DATA')
     lumirundata=[datasource]
     lumilsdata={}
+    dbsession.transaction().start(True)
+    oldlumidataid=dataDML.guessLumiDataIdByRun(dbsession.nominalSchema(),runnum)
+    dbsession.transaction().commit()
+
     for cmslsnum,instlumi in perlsrawdata.items():
         mystartorbit=startorbit+numorbit*(cmslsnum-1)
         bxdataocc1blob=None
@@ -87,9 +86,27 @@ def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,
         else:
             perlsdata=[cmslsnum,float(instlumi)/float(6370),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
         lumilsdata[cmslsnum]=perlsdata
-    print lumilsdata
+    print 'toinsert from scratch',lumilsdata
+    
     dbsession.transaction().start(False)
     (revision_id,entry_id,data_id)=dataDML.addLumiRunDataToBranch(dbsession.nominalSchema(),runnum,lumirundata,branchinfo)
+    newlumilsnumMin=min(lumilsdata.keys())
+    newlumilsnumMax=max(lumilsdata.keys())
+    #update id of existing to new
+    #update lumisummaryv2 set DATA_ID=:data_id where DATA_ID=:oldid and lumilsnum<newlumilsnumMin or lumilsnum>newlumilsnumMax
+    #lumidataid is not None  update lumilsdata set lumidataid=:newlumidataid where runnum=:run a
+    inputData=coral.AttributeList()
+    inputData.extend('dataid','unsigned long long')
+    inputData.extend('oldid','unsigned long long')
+    inputData.extend('lumilsnumMin','unsigned int')
+    inputData.extend('lumilsnumMax','unsigned int')
+    inputData['dataid'].setData( data_id )
+    inputData['oldid'].setData( oldlumidataid )
+    inputData['lumilsnumMin'].setData( newlumilsnumMin )
+    inputData['lumilsnumMax'].setData( newlumilsnumMax )
+    db=dbUtil.dbUtil(dbsession.nominalSchema())
+    db.singleUpdate('LUMISUMMARYV2','DATA_ID=:dataid','DATA_ID=:oldid AND LUMILSNUM<:lumilsnumMin OR lumilsnum>:lumilsnumMax',inputData)
+    print 'to update existing id ',oldlumidataid,' outside region ',newlumilsnumMin,' , ',newlumilsnumMax
     dataDML.bulkInsertLumiLSSummary(dbsession,runnum,data_id,lumilsdata)
     dbsession.transaction().commit()
     
