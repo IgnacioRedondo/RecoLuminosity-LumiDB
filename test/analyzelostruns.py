@@ -8,7 +8,8 @@ lhcnorm=1.0
 numorbit=262144
 startorbit=0
 lslength=23.357
-bunchnorm=6.37
+norm=2.21
+bunchnorm=2.21e-03
 beam1intensity=9124580336.0
 beam2intensity=8932813306.0
 
@@ -82,9 +83,9 @@ def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,
             beam1intensityblob=CommonUtil.packArraytoBlob(beam1intensityArray)
             beam2intensityblob=CommonUtil.packArraytoBlob(beam2intensityArray)
         if deliveredonly:
-            perlsdata=[0,float(instlumi)/float(6370),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
+            perlsdata=[0,float(instlumi)/float(norm),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
         else:
-            perlsdata=[cmslsnum,float(instlumi)/float(6370),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
+            perlsdata=[cmslsnum,float(instlumi)/float(norm),0.0,1,'STABLE BEAMS',beamenergy,numorbit,mystartorbit,cmsbxindexblob,beam1intensityblob,beam2intensityblob,bxdataocc1blob,bxerrorocc1blob,bxqualityocc1blob,bxdataocc2blob,bxerrorocc2blob,bxqualityocc2blob,bxdataetblob,bxerroretblob,bxqualityetblob]
         lumilsdata[cmslsnum]=perlsdata
     print 'toinsert from scratch',lumilsdata
     
@@ -105,7 +106,7 @@ def insertLumischemaV2(dbsession,runnum,datasource,perlsrawdata,perbunchrawdata,
     inputData['lumilsnumMin'].setData( newlumilsnumMin )
     inputData['lumilsnumMax'].setData( newlumilsnumMax )
     db=dbUtil.dbUtil(dbsession.nominalSchema())
-    db.singleUpdate('LUMISUMMARYV2','DATA_ID=:dataid','DATA_ID=:oldid AND LUMILSNUM<:lumilsnumMin OR lumilsnum>:lumilsnumMax',inputData)
+    db.singleUpdate('LUMISUMMARYV2','DATA_ID=:dataid','DATA_ID=:oldid AND (LUMILSNUM<:lumilsnumMin OR lumilsnum>:lumilsnumMax)',inputData)
     print 'to update existing id ',oldlumidataid,' outside region ',newlumilsnumMin,' , ',newlumilsnumMax
     dataDML.bulkInsertLumiLSSummary(dbsession,runnum,data_id,lumilsdata)
     dbsession.transaction().commit()
@@ -115,6 +116,7 @@ def insertLumiSummarydata(dbsession,runnum,perlsrawdata,deliveredonly=False):
     input: perlsrawdata {cmslsnum:instlumi}
     insert into lumisummary(lumisummary_id,runnum,cmslsnum,lumilsnum,lumiversion,dtnorm,lhcnorm,instlumi,instlumierror,instlumiquality,cmsalive,startorbit,numorbit,lumisectionquality,beamenergy,beamstatus) values()
     '''
+    print 'processing run ',runnum
     summaryidlsmap={}
     dataDef=[]
     dataDef.append(('LUMISUMMARY_ID','unsigned long long'))
@@ -217,7 +219,8 @@ def parseLSFile(ifilename):
             row=[x for x in row if len(x)>0]
             result+=row
         for i in convertlist(result):
-            perlsdata[i[0]]=i[1]/float(lslength)
+            #perlsdata[i[0]]=i[1]/float(lslength)
+            perlsdata[i[0]]=i[1]
         return perlsdata
     except Exception,e:
         raise RuntimeError(str(e))
