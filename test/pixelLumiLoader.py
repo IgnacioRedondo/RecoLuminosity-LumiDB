@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os,sys,time,json
-from RecoLuminosity.LumiDB import sessionManager,argparse,nameDealer,revisionDML,dataDML,generateDummyData
+from RecoLuminosity.LumiDB import sessionManager,argparse,nameDealer,revisionDML,dataDML
 
 def generateLumiRundata(filename,nominalegev,runlist):
     '''
@@ -35,7 +35,7 @@ def inversem2toinverseub(i):
     input: number in m-2
     output: number in /ub
     '''
-    return float(i)*(10e-34)
+    return float(i)*(1.0e-34)
 def toinstlumi(i):
     '''
     input: luminosity integrated in ls
