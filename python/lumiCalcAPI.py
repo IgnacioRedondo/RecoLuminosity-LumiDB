@@ -114,7 +114,7 @@ def beamForRange(schema,inputRange,withBeamIntensity=False,minIntensity=0.1):
         if lslist is not None and len(lslist)==0:
             result[run]=[]#if no LS is selected for a run
             continue
-        lumidataid=dataDML.guessLumiDataIdByRun(schema,run)
+        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,nameDealer.lumidataTableName(),branchName=datatag)
         if lumidataid is None:
             result[run]=None
             continue #run non exist
@@ -227,7 +227,7 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
                 result[run].append(lsdata)
     return result
 
-def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,datatag=None):
+def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,datatag='DATA'):
     '''
     DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
     lumi raw data. beofore normalization and time integral
@@ -254,7 +254,7 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
             result[run]=None
             continue
         runstarttimeStr=runsummary[6]
-        lumidataid=dataDML.guessLumiDataIdByRun(schema,run)
+        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,nameDealer.lumidataTableName(),branchName='PIXELLUMI')
         if lumidataid is None: #if run not found in lumidata
             result[run]=None
             continue
@@ -411,7 +411,7 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
             del perlsdata[:]
     return result
          
-def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,norm=None,datatag=None,finecorrections=None,driftcorrections=None,usecorrectionv2=False):
+def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,norm=None,datatag='DATA',finecorrections=None,driftcorrections=None,usecorrectionv2=False):
     '''
     delivered lumi (including calibration,time integral)
     input:
@@ -425,7 +425,7 @@ def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=N
            xingMinLum: cut on bx lumi value (optional)
            withBeamIntensity: get beam intensity info (optional)
            norm: norm factor name to use: if float, apply directly, if str search norm by name (optional)
-           datatag: data version
+           datatag: data version or branch name
     output:
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8)]}
            avg lumi unit: 1/ub
@@ -487,7 +487,7 @@ def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=N
             del perlsdata[:]
     return result
                        
-def lumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,norm=None,datatag=None,finecorrections=None,driftcorrections=None,usecorrectionv2=False):
+def lumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,norm=None,datatag='DATA',finecorrections=None,driftcorrections=None,usecorrectionv2=False):
     '''
     delivered/recorded lumi
     input:
@@ -528,7 +528,7 @@ def lumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withB
         startTimeStr=cmsrunsummary[6]
         lumidataid=None
         trgdataid=None
-        lumidataid=dataDML.guessLumiDataIdByRun(schema,run)
+        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,nameDealer.lumidataTableName(),branchName=datatag)
         if lumidataid is None :
             result[run]=None
             continue
