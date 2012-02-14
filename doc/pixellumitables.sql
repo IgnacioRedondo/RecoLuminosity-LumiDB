@@ -1,5 +1,4 @@
 /*=========================PIXELLUMIDATA=======================*/
-begin execute immediate 'drop table PIXELLUMIDATA';exception when others then null;end;
 CREATE TABLE "PIXELLUMIDATA"
 (	"DATA_ID" NUMBER(20,0),
 	"ENTRY_ID" NUMBER(20,0),
@@ -17,7 +16,6 @@ PARTITION THEREST VALUES LESS THAN(MAXVALUE)
 ;
 GRANT SELECT ON "PIXELLUMIDATA" TO PUBLIC;
 /*=========================PIXELLUMIDATA_ID=======================*/
-begin execute immediate 'drop table PIXELLUMIDATA_ID';exception when others then null;end;
 CREATE TABLE "PIXELLUMIDATA_ID"
 (	"NEXTID" NUMBER(20,0),
 	 CONSTRAINT "PIXELLUMIDATA_ID_PK" PRIMARY KEY ("NEXTID")
@@ -25,7 +23,6 @@ CREATE TABLE "PIXELLUMIDATA_ID"
 INSERT INTO "PIXELLUMIDATA_ID"("NEXTID") VALUES(0);
 GRANT SELECT ON "PIXELLUMIDATA_ID" TO PUBLIC;
 /*=========================PIXELLUMIDATA_ENTRIES=======================*/
-begin execute immediate 'drop table PIXELLUMIDATA_ENTRIES';exception when others then null;end;
 CREATE TABLE "PIXELLUMIDATA_ENTRIES"
 (	"ENTRY_ID" NUMBER(20,0),
 	"REVISION_ID" NUMBER(20,0),
@@ -34,7 +31,6 @@ CREATE TABLE "PIXELLUMIDATA_ENTRIES"
 );
 GRANT SELECT ON "PIXELLUMIDATA_ENTRIES" TO PUBLIC;
 /*=========================PIXELLUMIDATA_ENTRIES_ID=======================*/
-begin execute immediate 'drop table PIXELLUMIDATA_ENTRIES_ID';exception when others then null;end;
 CREATE TABLE "PIXELLUMIDATA_ENTRIES_ID"
 (	"NEXTID" NUMBER(20,0),
 	 CONSTRAINT "PIXELLUMIDATA_ENTRIES_ID_PK" PRIMARY KEY ("NEXTID")
@@ -42,7 +38,6 @@ CREATE TABLE "PIXELLUMIDATA_ENTRIES_ID"
 INSERT INTO "PIXELLUMIDATA_ENTRIES_ID"("NEXTID") VALUES(0);
 GRANT SELECT ON "PIXELLUMIDATA_ENTRIES_ID" TO PUBLIC;
 /*=========================PIXELLUMIDATA_REV=======================*/
-begin execute immediate 'drop table PIXELLUMIDATA_REV';exception when others then null;end;
 CREATE TABLE "PIXELLUMIDATA_REV"
 (	"DATA_ID" NUMBER(20,0),
 	"REVISION_ID" NUMBER(20,0),
@@ -50,7 +45,6 @@ CREATE TABLE "PIXELLUMIDATA_REV"
 );
 GRANT SELECT ON "PIXELLUMIDATA_REV" TO PUBLIC;
 /*=========================PIXELLUMISUMMARYV2=======================*/
-begin execute immediate 'drop table PIXELLUMISUMMARYV2';exception when others then null;end;
 CREATE TABLE "PIXELLUMISUMMARYV2"
 (	"DATA_ID" NUMBER(20,0),
 	"RUNNUM" NUMBER(10,0),
