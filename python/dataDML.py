@@ -160,15 +160,21 @@ def fillrunMap(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=Non
     del qHandle
     return result
     
-def runList(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True):
+def runList(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,lumitype=None):
     '''
     select runnum,starttime from cmsrunsummary r,lumidata l,trgdata t,hltdata h where r.runnum=l.runnum and l.runnum=t.runnum and t.runnum=h.runnum and r.fillnum=:fillnum and r.runnum>:runmin and r.runnum<:runmax and r.amodetag=:amodetag and regexp_like(r.l1key,:l1keypattern) and regexp_like(hltkey,:hltkeypattern) and l.nominalEnergy>=:nominalEnergy*(1-energyFlut) and l.nominalEnergy<=:nominalEnergy*(1+energyFlut)
     '''
+    if lumitype not in ['HF','PIXEL']:
+        raise ValueError('unknown lumitype '+lumitype)
+    lumitableName=''
+    if lumitype=='HF':
+        lumitableName=nameDealer.lumidataTableName()
+        
     result=[]
     timelesslist=[]
     qHandle=schema.newQuery()
     r=nameDealer.cmsrunsummaryTableName()
-    l=nameDealer.lumidataTableName()
+    l=lumitableName
     t=nameDealer.trgdataTableName()
     h=nameDealer.hltdataTableName()
     lute=lumiTime.lumiTime()
@@ -566,14 +572,16 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
 #    t1=time.time()
 #    print 'trgLSById time ',t1-t0
     return (runnum,result)
-def lumiRunById(schema,dataid):
+def lumiRunById(schema,dataid,tableName=None):
     '''
     result [runnum(0),datasource(1),nominalegev(2)]
     '''
     result=[]
     qHandle=schema.newQuery()
+    if tableName is None:
+        tableName=nameDealer.lumidataTableName()        
     try:
-        qHandle.addToTableList(nameDealer.lumidataTableName())
+        qHandle.addToTableList(tableName)
         qHandle.addToOutputList('RUNNUM','runnum')
         qHandle.addToOutputList('SOURCE','datasource')
         qHandle.addToOutputList('NOMINALEGEV','nominalegev')
@@ -598,7 +606,7 @@ def lumiRunById(schema,dataid):
         raise    
     del qHandle
     return result
-def lumiLSById(schema,dataid,beamstatus=None,withBXInfo=False,bxAlgo='OCC1',withBeamIntensity=False):
+def lumiLSById(schema,dataid,beamstatus=None,withBXInfo=False,bxAlgo='OCC1',withBeamIntensity=False,tableName=None):
     '''    
     result (runnum,{lumilsnum,[cmslsnum(0),instlumi(1),instlumierr(2),instlumiqlty(3),beamstatus(4),beamenergy(5),numorbit(6),startorbit(7),(bxvalueArray,bxerrArray)(8),(bxindexArray,beam1intensityArray,beam2intensityArray)(9)]})
     '''
@@ -610,7 +618,10 @@ def lumiLSById(schema,dataid,beamstatus=None,withBXInfo=False,bxAlgo='OCC1',with
     if beamstatus and beamstatus not in ['STABLE BEAMS',]:
         raise ValueError('unknown beam status '+beamstatus)
     try:
-        lls=nameDealer.lumisummaryv2TableName()
+        if tableName is None:
+            lls=nameDealer.lumisummaryv2TableName()
+        else:
+            lls=tableName
         qHandle.addToTableList(lls)
         qHandle.addToOutputList('RUNNUM','runnum')
         qHandle.addToOutputList('LUMILSNUM','lumilsnum')
@@ -1021,7 +1032,7 @@ def hltLSById(schema,dataid,hltpathname=None,hltpathpattern=None,withL1Pass=Fals
     #print 'tot hltLSById time ',t1-t0
     return (runnum,result)
 
-def guessLumiDataIdByRunInBranch(schema,runnum,tablename,branchName='DATA'):
+def guessLumiDataIdByRunInBranch(schema,runnum,tablename,branchName):
     revlist=revisionDML.revisionsInBranchName(schema,branchName)
     lumientry_id=revisionDML.entryInBranch(schema,tablename,str(runnum),branchName)
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,lumientry_id,revlist)
@@ -1056,6 +1067,12 @@ def guessLumiDataIdByRun(schema,runnum):
         result=max(lumiids)
         return result
 
+def guessTrgDataIdByRunInBranch(schema,runnum,tablename,branchName):    
+    revlist=revisionDML.revisionsInBranchName(schema,branchName)
+    trgentry_id=revisionDML.entryInBranch(schema,tablename,str(runnum),branchName)
+    latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,trgentry_id,revlist)
+    return latestrevision
+
 def guessTrgDataIdByRun(schema,runnum):
     result=None
     trgids=[]
@@ -1083,6 +1100,12 @@ def guessTrgDataIdByRun(schema,runnum):
         return max(trgids)
     else:
         return result
+
+def guessHltDataIdByRunInBranch(schema,runnum,tablename,branchName):    
+    revlist=revisionDML.revisionsInBranchName(schema,branchName)
+    hltentry_id=revisionDML.entryInBranch(schema,tablename,str(runnum),branchName)
+    latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,hltentry_id,revlist)
+    return latestrevision
 
 def guessHltDataIdByRun(schema,runnum):
     result=None
@@ -1337,34 +1360,40 @@ def addNormToBranch(schema,normname,amodetag,norm1,egev1,optionalnormdata,branch
         return (revision_id,entry_id,data_id)
     except :
         raise
-def addLumiRunDataToBranch(schema,runnumber,lumirundata,branchinfo):
+    
+def addLumiRunDataToBranch(schema,runnumber,lumirundata,branchinfo,tableName):
     '''
     input:
           lumirundata [datasource,nominalenergy]
           branchinfo (branch_id,branch_name)
+          tableName lumiruntablename
     output:
           (revision_id,entry_id,data_id)
     '''
     try:
-         datasource=lumirundata[0]
-         nominalegev=3500.0
-         if len(lumirundata)>1:
-             nominalenergy=lumirundata[1]
-         entry_id=revisionDML.entryInBranch(schema,nameDealer.lumidataTableName(),str(runnumber),branchinfo[1])
-         if entry_id is None:
-             (revision_id,entry_id,data_id)=revisionDML.bookNewEntry(schema,nameDealer.lumidataTableName())
-             entryinfo=(revision_id,entry_id,str(runnumber),data_id)
-             revisionDML.addEntry(schema,nameDealer.lumidataTableName(),entryinfo,branchinfo)
-         else:
-             (revision_id,data_id)=revisionDML.bookNewRevision( schema,nameDealer.lumidataTableName() )
-             revisionDML.addRevision(schema,nameDealer.lumidataTableName(),(revision_id,data_id),branchinfo)
-         tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','RUNNUM':'unsigned int','SOURCE':'string','NOMINALEGEV':'float'}
-         tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':str(runnumber),'RUNNUM':int(runnumber),'SOURCE':datasource,'NOMINALEGEV':nominalegev}
-         db=dbUtil.dbUtil(schema)
-         db.insertOneRow(nameDealer.lumidataTableName(),tabrowDefDict,tabrowValueDict)
-         return (revision_id,entry_id,data_id)
+        print 'tableName ',tableName
+        datasource=lumirundata[0]
+        nominalegev=3500.0
+        if len(lumirundata)>1:
+            nominalenergy=lumirundata[1]
+        entry_id=revisionDML.entryInBranch(schema,tableName,str(runnumber),branchinfo[1])
+        print 'entry_id ',entry_id
+        if entry_id is None:
+            (revision_id,entry_id,data_id)=revisionDML.bookNewEntry(schema,tableName)
+            entryinfo=(revision_id,entry_id,str(runnumber),data_id)
+            revisionDML.addEntry(schema,tableName,entryinfo,branchinfo)
+        else:
+            (revision_id,data_id)=revisionDML.bookNewRevision(schema,tableName)
+            print 'revision_id,data_id ',revision_id,data_id
+            revisionDML.addRevision(schema,tableName,(revision_id,data_id),branchinfo)
+        tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','RUNNUM':'unsigned int','SOURCE':'string','NOMINALEGEV':'float'}
+        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':str(runnumber),'RUNNUM':int(runnumber),'SOURCE':datasource,'NOMINALEGEV':nominalegev}
+        db=dbUtil.dbUtil(schema)
+        db.insertOneRow(tableName,tabrowDefDict,tabrowValueDict)
+        return (revision_id,entry_id,data_id)
     except :
         raise
+
 def addTrgRunDataToBranch(schema,runnumber,trgrundata,branchinfo):
     '''
     input:
@@ -1403,7 +1432,7 @@ def addHLTRunDataToBranch(schema,runnumber,hltrundata,branchinfo):
          pathnames=hltrundata[0]
          datasource=hltrundata[1]
          npath=len(pathnames.split(','))
-         entry_id=revisionDML.entryInBranch(schema,nameDealer.lumidataTableName(),str(runnumber),branchinfo[1])
+         entry_id=revisionDML.entryInBranch(schema,nameDealer.hltdataTableName(),str(runnumber),branchinfo[1])
          if entry_id is None:
              (revision_id,entry_id,data_id)=revisionDML.bookNewEntry(schema,nameDealer.hltdataTableName())
              entryinfo=(revision_id,entry_id,str(runnumber),data_id)
@@ -1568,12 +1597,16 @@ def bulkInsertHltLSData(session,runnumber,data_id,hltlsdata,bulksize=500):
         print 'error in bulkInsertHltLSData'
         raise 
     
-def bulkInsertLumiLSSummary(session,runnumber,data_id,lumilsdata,bulksize=500,withDetails=True):
+def bulkInsertLumiLSSummary(session,runnumber,data_id,lumilsdata,tableName,bulksize=500,withDetails=True):
     '''
     input:
           lumilsdata {lumilsnum:[cmslsnum,instlumi,instlumierror,instlumiquality,beamstatus,beamenergy,numorbit,startorbit,cmsbxindexblob,beam1intensity,beam2intensity,bxlumivalue_occ1,bxlumierror_occ1,bxlumiquality_occ1,bxlumivalue_occ2,bxlumierror_occ2,bxlumiquality_occ2,bxlumivalue_et,bxlumierror_et,bxlumiquality_et]}
     '''
-    lslumiDefDict=[('DATA_ID','unsigned long long'),('RUNNUM','unsigned int'),('LUMILSNUM','unsigned int'),('CMSLSNUM','unsigned int'),('INSTLUMI','float'),('INSTLUMIERROR','float'),('INSTLUMIQUALITY','short'),('BEAMSTATUS','string'),('BEAMENERGY','float'),('NUMORBIT','unsigned int'),('STARTORBIT','unsigned int'),('CMSBXINDEXBLOB','blob'),('BEAMINTENSITYBLOB_1','blob'),('BEAMINTENSITYBLOB_2','blob'),('BXLUMIVALUE_OCC1','blob'),('BXLUMIERROR_OCC1','blob'),('BXLUMIQUALITY_OCC1','blob'),('BXLUMIVALUE_OCC2','blob'),('BXLUMIERROR_OCC2','blob'),('BXLUMIQUALITY_OCC2','blob'),('BXLUMIVALUE_ET','blob'),('BXLUMIERROR_ET','blob'),('BXLUMIQUALITY_ET','blob')]
+    lslumiDefDict=[]
+    if withDetails:
+        lslumiDefDict=[('DATA_ID','unsigned long long'),('RUNNUM','unsigned int'),('LUMILSNUM','unsigned int'),('CMSLSNUM','unsigned int'),('INSTLUMI','float'),('INSTLUMIERROR','float'),('INSTLUMIQUALITY','short'),('BEAMSTATUS','string'),('BEAMENERGY','float'),('NUMORBIT','unsigned int'),('STARTORBIT','unsigned int'),('CMSBXINDEXBLOB','blob'),('BEAMINTENSITYBLOB_1','blob'),('BEAMINTENSITYBLOB_2','blob'),('BXLUMIVALUE_OCC1','blob'),('BXLUMIERROR_OCC1','blob'),('BXLUMIQUALITY_OCC1','blob'),('BXLUMIVALUE_OCC2','blob'),('BXLUMIERROR_OCC2','blob'),('BXLUMIQUALITY_OCC2','blob'),('BXLUMIVALUE_ET','blob'),('BXLUMIERROR_ET','blob'),('BXLUMIQUALITY_ET','blob')]
+    else:
+        lslumiDefDict=[('DATA_ID','unsigned long long'),('RUNNUM','unsigned int'),('LUMILSNUM','unsigned int'),('CMSLSNUM','unsigned int'),('INSTLUMI','float'),('INSTLUMIERROR','float'),('INSTLUMIQUALITY','short'),('BEAMSTATUS','string'),('BEAMENERGY','float'),('NUMORBIT','unsigned int'),('STARTORBIT','unsigned int')]
     print 'total number of lumi rows ',len(lumilsdata)
     try:
         committedrows=0
@@ -1610,7 +1643,7 @@ def bulkInsertLumiLSSummary(session,runnumber,data_id,lumilsdata,bulksize=500,wi
                 print 'committing lumi in LS chunck ',nrows
                 db=dbUtil.dbUtil(session.nominalSchema())
                 session.transaction().start(False)
-                db.bulkInsert(nameDealer.lumisummaryv2TableName(),lslumiDefDict,bulkvalues)
+                db.bulkInsert(tableName,lslumiDefDict,bulkvalues)
                 session.transaction().commit()
                 nrows=0
                 bulkvalues=[]
@@ -1618,7 +1651,7 @@ def bulkInsertLumiLSSummary(session,runnumber,data_id,lumilsdata,bulksize=500,wi
                 print 'committing lumi at the end '
                 db=dbUtil.dbUtil(session.nominalSchema())
                 session.transaction().start(False)
-                db.bulkInsert(nameDealer.lumisummaryv2TableName(),lslumiDefDict,bulkvalues)
+                db.bulkInsert(tableName,lslumiDefDict,bulkvalues)
                 session.transaction().commit()
     except :
         raise
