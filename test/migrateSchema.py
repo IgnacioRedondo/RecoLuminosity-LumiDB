@@ -48,14 +48,14 @@ def main():
         branchrevision_id=DATABRANCH_ID
         #print 'data branchid ',branchrevision_id
         #dataDML.insertRunSummaryData(destsession.nominalSchema(),runnumber,[l1key,amodetag,egev,sequence,hltkey,fillnum,starttime,stoptime],complementalOnly=False)
-        (lumirevid,lumientryid,lumidataid)=dataDML.addLumiRunDataToBranch(destsession.nominalSchema(),runnumber,[args.lumisource],(branchrevision_id,'DATA'))
+        (lumirevid,lumientryid,lumidataid)=dataDML.addLumiRunDataToBranch(destsession.nominalSchema(),runnumber,[args.lumisource],(branchrevision_id,'DATA'),nameDealer.pixellumidataTableName())
         bitzeroname=bitnames.split(',')[0]
         trgrundata=[args.lumisource,bitzeroname,bitnames]
         (trgrevid,trgentryid,trgdataid)=dataDML.addTrgRunDataToBranch(destsession.nominalSchema(),runnumber,trgrundata,(branchrevision_id,'DATA'))
         hltrundata=[pathnames,args.lumisource]
         (hltrevid,hltentryid,hltdataid)=dataDML.addHLTRunDataToBranch(destsession.nominalSchema(),runnumber,hltrundata,(branchrevision_id,'DATA'))
         destsession.transaction().commit()
-        dataDML.bulkInsertLumiLSSummary(destsession,runnumber,lumidataid,lumidata,500)
+        dataDML.bulkInsertLumiLSSummary(destsession,runnumber,lumidataid,nameDealer.lumisummaryv2TableName(),lumidata,500)
         #
         dataDML.bulkInsertTrgLSData(destsession,runnumber,trgdataid,trglsdata,500)
         dataDML.bulkInsertHltLSData(destsession,runnumber,hltdataid,hltlsdata,500)
