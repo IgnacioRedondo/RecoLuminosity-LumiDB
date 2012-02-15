@@ -240,7 +240,7 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
                 result[run].append(lsdata)
     return result
 
-def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,tableName=None,branchName=None):
+def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',branchName=None):
     '''
     DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
     lumi raw data. beofore normalization and time integral
@@ -256,10 +256,17 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10)]}}
            lumi unit: HZ/ub
     '''
-    if tableName is None:
-        tableName=nameDealer.lumidataTableName()
-    #if branchName is None:
-    #    branchName='DATA'
+    if lumitype not in ['HF','PIXEL']:
+        raise ValueError('unknown lumitype '+lumitype)
+    lumitableName=''
+    lumilstableName=''
+    if lumitype=='HF':
+        lumitableName=nameDealer.lumidataTableName()
+        lumilstableName=nameDealer.lumisummaryv2TableName()
+    else:
+        lumitableName=nameDealer.pixellumidataTableName()
+        lumilstableName=nameDealer.pixellumisummaryv2TableName()
+        
     result={}
     for run in inputRange.keys():
         lslist=inputRange[run]
@@ -271,11 +278,11 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
             result[run]=None
             continue
         runstarttimeStr=runsummary[6]
-        lumidataid=dataDML.guessLumiDataIdByRun(schema,run,tableName)
+        lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
         if lumidataid is None: #if run not found in lumidata
             result[run]=None
             continue
-        (lumirunnum,perlsresult)=dataDML.lumiLSById(schema,lumidataid,beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity)
+        (lumirunnum,perlsresult)=dataDML.lumiLSById(schema,lumidataid,beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,tableName=lumilstableName)
         lsresult=[]
         c=lumiTime.lumiTime()
         for lumilsnum in perlsresult.keys():
@@ -353,15 +360,6 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),calibratedlumi(5),calibratedlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10)]}}
            lumi unit: HZ/ub
     '''
-    if lumitype not in ['HF','PIXEL']:
-        raise ValueError('unknown lumitype '+lumitype)
-    if branchName is None:
-        branchName='DATA'
-    lumitableName=''
-    if lumitype=='HF':
-        lumitableName=nameDealer.lumidataTableName()
-    else:
-        lumitableName=nameDealer.pixellumidataTableName()
     result = {}
     normval=None
     perbunchnormval=None
@@ -371,7 +369,7 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
     elif amodetag and egev:
         normval=_decidenormFromContex(schema,amodetag,egev)
         perbunchnormval=float(normval)/float(1000)
-    instresult=instLumiForRange(schema,inputRange,beamstatusfilter=beamstatus,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,tableName=lumitableName,branchName=branchName)
+    instresult=instLumiForRange(schema,inputRange,beamstatusfilter=beamstatus,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,branchName=branchName)
     for run,perrundata in instresult.items():
         if perrundata is None:
             result[run]=None
@@ -457,16 +455,6 @@ def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=N
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8)]}
            avg lumi unit: 1/ub
     '''
-    if lumitype not in ['HF','PIXEL']:
-        raise ValueError('unknown lumitype '+lumitype)
-    if branchName is None:
-        branchName='DATA'
-    lumitableName=''
-    if lumitype=='HF':
-        lumitableName=nameDealer.lumidataTableName()
-    else:
-        lumitableName=nameDealer.pixellumidataTableName()
-        
     result = {}
     normval=None
     perbunchnormval=None
@@ -476,7 +464,7 @@ def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=N
     elif amodetag and egev:
         normval=_decidenormFromContext(schema,amodetag,egev)
         perbunchnormval=float(normval)/float(1000)
-    instresult=instLumiForRange(schema,inputRange,beamstatusfilter=beamstatus,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,tableName=lumitableName,branchName=branchName)
+    instresult=instLumiForRange(schema,inputRange,beamstatusfilter=beamstatus,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,branchName=branchName)
     #instLumiForRange should have aleady handled the selection,unpackblob    
     for run,perrundata in instresult.items():
         if perrundata is None:

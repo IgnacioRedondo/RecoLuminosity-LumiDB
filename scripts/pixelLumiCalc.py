@@ -146,7 +146,7 @@ if __name__ == '__main__':
         
     if options.action == 'delivered':
         session.transaction().start(True)
-        result=lumiCalcAPI.deliveredLumiForRange(session.nominalSchema(),irunlsdict,amodetag=None,egev=None,beamstatus=None,norm=1.0,finecorrections=None,driftcorrections=None,usecorrectionv2=False,tableName=nameDealer.pixellumidataTableName(),branchName='DATA')
+        result=lumiCalcAPI.deliveredLumiForRange(session.nominalSchema(),irunlsdict,amodetag=None,egev=None,beamstatus=None,norm=1.0,finecorrections=None,driftcorrections=None,usecorrectionv2=False,lumitype='PIXEL',branchName='DATA')
         session.transaction().commit()
         if not options.outputfile:
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
