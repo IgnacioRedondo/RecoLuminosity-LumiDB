@@ -1038,14 +1038,17 @@ def guessLumiDataIdByRunInBranch(schema,runnum,tablename,branchName):
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,lumientry_id,revlist)
     return latestrevision
 
-def guessLumiDataIdByRun(schema,runnum):
+def guessLumiDataIdByRun(schema,runnum,tablename,revfilter=None):
+    '''
+    select max data_id of the given run. In current design, it's the most recent data of the run
+    '''
     result=None
     lumiids=[]
     qHandle=schema.newQuery()
     try:
-        qHandle.addToTableList(nameDealer.lumidataTableName())
+        qHandle.addToTableList(tablename)
         qHandle.addToOutputList('DATA_ID','lumidataid')
-        qConditionStr='RUNNUM=:runnum '
+        qConditionStr='RUNNUM=:runnum'
         qCondition=coral.AttributeList()
         qCondition.extend('runnum','unsigned int')
         qCondition['runnum'].setData(runnum)
@@ -1073,14 +1076,17 @@ def guessTrgDataIdByRunInBranch(schema,runnum,tablename,branchName):
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,trgentry_id,revlist)
     return latestrevision
 
-def guessTrgDataIdByRun(schema,runnum):
+def guessTrgDataIdByRun(schema,runnum,revfilter=None):
+    '''
+    select max data_id of the given run. In current design, it's the most recent data of the run
+    '''
     result=None
     trgids=[]
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList(nameDealer.trgdataTableName())
         qHandle.addToOutputList('DATA_ID','trgdataid')
-        qConditionStr='RUNNUM=:runnum '
+        qConditionStr='RUNNUM=:runnum'
         qCondition=coral.AttributeList()
         qCondition.extend('runnum','unsigned int')
         qCondition['runnum'].setData(runnum)
@@ -1107,7 +1113,10 @@ def guessHltDataIdByRunInBranch(schema,runnum,tablename,branchName):
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,hltentry_id,revlist)
     return latestrevision
 
-def guessHltDataIdByRun(schema,runnum):
+def guessHltDataIdByRun(schema,runnum,revfilter=None):
+    '''
+    select max data_id of the given run. In current design, it's the most recent data of the run
+    '''
     result=None
     hltids=[]
     qHandle=schema.newQuery()
@@ -1134,48 +1143,50 @@ def guessHltDataIdByRun(schema,runnum):
         return max(hltids)
     else:
         return result
-def guessAllDataIdByRun(schema,runnum):
-    '''
-    get dataids by runnumber, if there are duplicates, pick max(dataid).Bypass full version lookups
-    result (lumidataid(0),trgdataid(1),hltdataid(2)) 
-    '''
-    lumiids=[]
-    trgids=[]
-    hltids=[]
-    qHandle=schema.newQuery()
-    try:
-        qHandle.addToTableList(nameDealer.lumidataTableName(),'l')
-        qHandle.addToTableList(nameDealer.trgdataTableName(),'t')
-        qHandle.addToTableList(nameDealer.hltdataTableName(),'h')
-        qHandle.addToOutputList('l.DATA_ID','lumidataid')
-        qHandle.addToOutputList('t.DATA_ID','trgdataid')
-        qHandle.addToOutputList('h.DATA_ID','hltdataid')
-        qConditionStr='l.RUNNUM=t.RUNNUM and t.RUNNUM=h.RUNNUM and l.RUNNUM=:runnum '
-        qCondition=coral.AttributeList()
-        qCondition.extend('runnum','unsigned int')
-        qCondition['runnum'].setData(runnum)
-        qResult=coral.AttributeList()
-        qResult.extend('lumidataid','unsigned long long')
-        qResult.extend('trgdataid','unsigned long long')
-        qResult.extend('hltdataid','unsigned long long')
-        qHandle.defineOutput(qResult)
-        qHandle.setCondition(qConditionStr,qCondition)
-        cursor=qHandle.execute()
-        while cursor.next():
-            lumidataid=cursor.currentRow()['lumidataid'].data()
-            trgdataid=cursor.currentRow()['trgdataid'].data()
-            hltdataid=cursor.currentRow()['hltdataid'].data()
-            lumiids.append(lumidataid)
-            trgids.append(trgdataid)
-            hltids.append(hltdataid)
-    except :
-        del qHandle
-        raise 
-    del qHandle
-    if len(lumiids)>0 and len(trgids)>0 and len(hltids)>0:
-        return (max(lumiids),max(trgids),max(hltids))
-    else:
-        return (None,None,None)
+        
+#def guessAllDataIdByRun(schema,runnum):
+#    '''
+#    get dataids by runnumber, if there are duplicates, pick max(dataid).Bypass full version lookups
+#    result (lumidataid(0),trgdataid(1),hltdataid(2)) 
+#    '''
+#    lumiids=[]
+#    trgids=[]
+#    hltids=[]
+#    qHandle=schema.newQuery()
+#    try:
+#        qHandle.addToTableList(nameDealer.lumidataTableName(),'l')
+#        qHandle.addToTableList(nameDealer.trgdataTableName(),'t')
+#        qHandle.addToTableList(nameDealer.hltdataTableName(),'h')
+#        qHandle.addToOutputList('l.DATA_ID','lumidataid')
+#        qHandle.addToOutputList('t.DATA_ID','trgdataid')
+#        qHandle.addToOutputList('h.DATA_ID','hltdataid')
+#        qConditionStr='l.RUNNUM=t.RUNNUM and t.RUNNUM=h.RUNNUM and l.RUNNUM=:runnum '
+#        qCondition=coral.AttributeList()
+#        qCondition.extend('runnum','unsigned int')
+#        qCondition['runnum'].setData(runnum)
+#        qResult=coral.AttributeList()
+#        qResult.extend('lumidataid','unsigned long long')
+#        qResult.extend('trgdataid','unsigned long long')
+#        qResult.extend('hltdataid','unsigned long long')
+#        qHandle.defineOutput(qResult)
+#        qHandle.setCondition(qConditionStr,qCondition)
+#        cursor=qHandle.execute()
+#        while cursor.next():
+#            lumidataid=cursor.currentRow()['lumidataid'].data()
+#            trgdataid=cursor.currentRow()['trgdataid'].data()
+#            hltdataid=cursor.currentRow()['hltdataid'].data()
+#            lumiids.append(lumidataid)
+#            trgids.append(trgdataid)
+#            hltids.append(hltdataid)
+#    except :
+#        del qHandle
+#        raise 
+#    del qHandle
+#    if len(lumiids)>0 and len(trgids)>0 and len(hltids)>0:
+#        return (max(lumiids),max(trgids),max(hltids))
+#    else:
+#        return (None,None,None)
+
 def guessnormIdByContext(schema,amodetag,egev1):
     '''
     get norm dataids by amodetag, egev if there are duplicates, pick max(dataid).Bypass full version lookups
@@ -1371,7 +1382,6 @@ def addLumiRunDataToBranch(schema,runnumber,lumirundata,branchinfo,tableName):
           (revision_id,entry_id,data_id)
     '''
     try:
-        print 'tableName ',tableName
         datasource=lumirundata[0]
         nominalegev=3500.0
         if len(lumirundata)>1:
