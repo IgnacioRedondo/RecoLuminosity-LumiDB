@@ -118,7 +118,7 @@ def beamForRange(schema,inputRange,withBeamIntensity=False,minIntensity=0.1,tabl
         if lslist is not None and len(lslist)==0:
             result[run]=[]#if no LS is selected for a run
             continue
-        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,tableName,branchName)
+        lumidataid=dataDML.guessLumiDataIdByRun(schema,run,tableName)
         if lumidataid is None:
             result[run]=None
             continue #run non exist
@@ -151,17 +151,17 @@ def hltForRange(schema,inputRange,hltpathname=None,hltpathpattern=None,withL1Pas
            branchName : data version
     output: {runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     '''
-    if tableName is None:
-        tableName=nameDealer.hltdataTableName()
-    if branchName is None:
-        branchName='DATA'
+    #if tableName is None:
+    #    tableName=nameDealer.hltdataTableName()
+    #if branchName is None:
+    #    branchName='DATA'
     result={}
     for run in inputRange.keys():
         lslist=inputRange[run]
         if lslist is not None and len(lslist)==0:
             result[run]=[]#if no LS is selected for a run
             continue
-        hltdataid=dataDML.guessHltDataIdByRunInBranch(schema,run,tableName,branchName)
+        hltdataid=dataDML.guessHltDataIdByRun(schema,run)
         if hltdataid is None:
             result[run]=None
             continue #run non exist
@@ -197,10 +197,10 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
     output
             result {run:[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(bitname,prescale,counts)]]}
     '''
-    if tableName is None:
-        tableName=nameDealer.trgdataTableName()
-    if branchName is None:
-        branchName='DATA'
+    #if tableName is None:
+    #    tableName=nameDealer.trgdataTableName()
+    #if branchName is None:
+    #    branchName='DATA'
     result={}
     withprescaleblob=True
     withtrgblob=True    
@@ -209,7 +209,7 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
         if lslist is not None and len(lslist)==0:
             result[run]=[]#if no LS is selected for a run
             continue
-        trgdataid=dataDML.guessTrgDataIdByRunInBranch(schema,run,tableName,branchName)
+        trgdataid=dataDML.guessTrgDataIdByRunInBranch(schema,run)
         if trgdataid is None:
             result[run]=None
             continue #run non exist
@@ -258,8 +258,8 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
     '''
     if tableName is None:
         tableName=nameDealer.lumidataTableName()
-    if branchName is None:
-        branchName='DATA'
+    #if branchName is None:
+    #    branchName='DATA'
     result={}
     for run in inputRange.keys():
         lslist=inputRange[run]
@@ -271,7 +271,7 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
             result[run]=None
             continue
         runstarttimeStr=runsummary[6]
-        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,tableName,branchName)
+        lumidataid=dataDML.guessLumiDataIdByRun(schema,run,tableName)
         if lumidataid is None: #if run not found in lumidata
             result[run]=None
             continue
@@ -315,7 +315,7 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
                 bxindexlist=[]
                 b1intensitylist=[]
                 b2intensitylist=[]
-                if beaminfo:
+                if beaminfo[0] and beaminfo[1] and beaminfo[2]:
                     bxindexarray=beaminfo[0]
                     beam1intensityarray=beaminfo[1]
                     beam2intensityarray=beaminfo[2]                    
@@ -544,8 +544,8 @@ def lumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withB
     '''
     if lumitype not in ['HF','PIXEL']:
         raise ValueError('unknown lumitype '+lumitype)
-    if branchName is None:
-        branchName='DATA'
+    #if branchName is None:
+    #    branchName='DATA'
     lumitableName=''
     lumilstableName=''
     if lumitype=='HF':
@@ -577,11 +577,11 @@ def lumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withB
         startTimeStr=cmsrunsummary[6]
         lumidataid=None
         trgdataid=None
-        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,lumitableName,branchName)
+        lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
         if lumidataid is None :
             result[run]=None
             continue
-        trgdataid=dataDML.guessTrgDataIdByRunInBranch(schema,run,nameDealer.trgdataTableName(),branchName)
+        trgdataid=dataDML.guessTrgDataIdByRun(schema,run)
         (lumirunnum,lumidata)=dataDML.lumiLSById(schema,lumidataid,beamstatus=beamstatus,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,tableName=lumilstableName)
         if trgdataid is None :
             trgdata={}
@@ -749,10 +749,9 @@ def effectiveLumiForRange(schema,inputRange,hltpathname=None,hltpathpattern=None
         lumidataid=None
         trgdataid=None
         hltdataid=None
-        lumidataid=dataDML.guessLumiDataIdByRunInBranch(schema,run,lumitableName,branchName)
-        trgdataid=dataDML.guessTrgDataIdByRunInBranch(schema,run,nameDealer.trgtableName(),branchName)
-        hltdataid=dataDML.guessHltDataIdByRunInBranch(schema,run,nameDealer.hlttableName(),branchName)
-        #(lumidataid,trgdataid,hltdataid)=dataDML.guessAllDataIdByRun(schema,run)
+        lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
+        trgdataid=dataDML.guessTrgDataIdByRun(schema,run)
+        hltdataid=dataDML.guessHltDataIdByRun(schema,run)
         if lumidataid is None or trgdataid is None or hltdataid is None:
             result[run]=None
             continue
