@@ -1,5 +1,5 @@
 import os,coral,fnmatch,time
-from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML,lumiTime,CommonUtil
+from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML,lumiTime,CommonUtil,LumiCorrector,lumiCorrections
 import array
 
 #
@@ -9,6 +9,50 @@ import array
 #==============================
 # SELECT
 #==============================
+def correctionByName(schema,tagname):
+    '''
+    select name,a1,a2,drift from lumicorrections where isdefault=1
+    select name,a1,a2,drift from lumicorrections where name=:tagname
+    output: [tagname,a1,a2,drift]
+    '''
+    result=[]
+    qHandle=schema.newQuery()
+    r=nameDealer.lumicorrectionTableName()
+    try:
+       qHandle.addToTableList(r)
+       qConditionStr=''
+       qCondition=coral.AttributeList()
+       if not tagname:
+           qConditionStr='ISDEFAULT=:isdefault'
+           qCondition.extend('isdefault','usigned int')
+           qCondition['isdefault'].setData(int(1))
+       else:
+           qConditionStr='NAME=:tagname'
+           qCondition.extend('tagname','string')
+           qCondition['tagname'].setData(tagname)
+       qResult=coral.AttributeList()
+       qResult.extend('NAME','string')
+       qResult.extend('A1','float')
+       qResult.extend('A2','float')
+       qResult.extend('DRIFT','float')
+       qHandle.defineOutput(qResult)
+       qHandle.setCondition(qConditionStr,qCondition)
+       qHandle.addToOutputList('NAME')
+       qHandle.addToOutputList('A1')
+       qHandle.addToOutputList('A2')
+       qHandle.addToOutputList('DRIFT')
+       cursor=qHandle.execute()
+       while cursor.next():
+           name=cursor.currentRow()['NAME'].data()
+           a1=cursor.currentRow()['A1'].data()
+           a2=0.0
+           if not cursor.currentRow()['A2'].isNull():
+               a2=cursor.currentRow()['A2'].data()
+           drift=0.0
+           if not cursor.currentRow()['DRIFT'].isNull():
+               drift=cursor.currentRow()['DRIFT'].data()
+           result=[name,a1,a2,drift]
+       return result
 def fillInRange(schema,fillmin,fillmax,amodetag,startT,stopT):
     '''
     select fillnum,runnum,starttime from cmsrunsummary where [where fillnum>=:fillmin and fillnum<=:fillmax and amodetag=:amodetag]
@@ -578,38 +622,108 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
     return (runnum,result)
 def lumiRunById(schema,dataid,tableName=None):
     '''
-    result [runnum(0),datasource(1),nominalegev(2)]
+    result [runnum(0),datasource(1),nominalegev(2),ncollidingbunches(3),afterglow(4)]
     '''
     result=[]
     qHandle=schema.newQuery()
+    ncollidingbunches=None
     if tableName is None:
         tableName=nameDealer.lumidataTableName()        
     try:
         qHandle.addToTableList(tableName)
-        qHandle.addToOutputList('RUNNUM','runnum')
-        qHandle.addToOutputList('SOURCE','datasource')
-        qHandle.addToOutputList('NOMINALEGEV','nominalegev')
+        qHandle.addToOutputList('RUNNUM')
+        qHandle.addToOutputList('SOURCE')
+        qHandle.addToOutputList('NOMINALEGEV')
+        qHandle.addToOutputList('NCOLLIDINGBUNCHES')
         qConditionStr='DATA_ID=:dataid'
         qCondition=coral.AttributeList()
         qCondition.extend('dataid','unsigned long long')
         qCondition['dataid'].setData(dataid)
         qResult=coral.AttributeList()
-        qResult.extend('runnum','unsigned int')
-        qResult.extend('datasource','string')
-        qResult.extend('nominalegev','float')
+        qResult.extend('RUNNUM','unsigned int')
+        qResult.extend('SOURCE','string')
+        qResult.extend('NOMINALEGEV','float')
+        qResult.extend('NCOLLIDINGBUNCHES','unsigned int')
         qHandle.defineOutput(qResult)
         qHandle.setCondition(qConditionStr,qCondition)
         cursor=qHandle.execute()
         while cursor.next():
-            runnum=cursor.currentRow()['runnum'].data()
-            datasource=cursor.currentRow()['datasource'].data()
-            nominalegev=cursor.currentRow()['nominalegev'].data()
-            result.extend([runnum,datasource])
+            runnum=cursor.currentRow()['RUNNUM'].data()
+            datasource=cursor.currentRow()['SOURCE'].data()
+            nominalegev=cursor.currentRow()['NOMINALEGEV'].data()
+            if not cursor.currentRow()['NOMINALEGEV'].isNull():
+                ncollidingbunches=cursor.currentRow()['NCOLLIDINGBUNCHES'].data()
+            if  ncollidingbunches is not None:
+                lcorr=LumiCorrector()
+                afterglow=lcorr.AfterglowFactor(ncollidingbunches)
+                result.extend(afterglow)
+            else:#should not come here. only for backward compatibility
+                if runnum<176697:#older runs either do not need to correct or already corrected by online
+                    afterglow=1.0                    
+            result=[runnum,datasource,nominalegev,ncollidingbunches,afterglow]        
     except :
         del qHandle
-        raise    
+        raise
     del qHandle
+    if result[3] is None:
+        (fillschemeStr,ncollidingbunches)=fillschemeByRun(schema,result[0])
+        afterglows=allfillschemes(schema)
+        afterglow=lumiCorrections.afterglowByFillscheme(fillschemeStr,afterglows)
+        result[3]=ncollidingbunches
+        result[4]=afterglow
     return result
+
+def fillschemeByRun(schema,runnum):
+    fillscheme=''
+    ncollidingbunches=0
+    r=nameDealer.cmsrunsummaryTableName()
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(r)
+        qHandle.addToOutputList('FILLSCHEME')
+        qHandle.addToOutputList('NCOLLIDINGBUNCHES')
+        qResult=coral.AttributeList()
+        qResult.extend('FILLSCHEME','string')
+        qResult.extend('NCOLLIDINGBUNCHES','unsigned int')
+        qConditionStr='RUNNUM=:runnum'
+        qCondition=coral.AttributeList()
+        qCondition.extend('runnum','unsigned int')
+        qCondition['runnum'].setData(int(runnum))
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition(qConditionStr,qCondition)
+        cursor=qHandle.execute()
+        while cursor.next(): 
+            if not cursor.currentRow()['NCOLLIDINGBUNCHES'].isNull():
+                ncollidingbunches=cursor.currentRow()['NCOLLIDINGBUNCHES'].data()
+            if not cursor.currentRow()['FILLSCHEME'].isNull():
+                fillscheme=cursor.currentRow()['FILLSCHEME'].data()
+    except :
+        del qHandle
+        raise
+    del qHandle
+    return (fillscheme,ncollidingbunches)
+def allfillschemes(schema):
+    afterglows=[]
+    s=nameDealer.fillschemeTableName()
+    try:
+        qHandle.addToTableList(s)
+        qResult=coral.AttributeList()
+        qResult.extend('FILLSCHEMEPATTERN','string')
+        qResult.extend('CORRECTIONFACTOR','float')
+        qHandle.defineOutput(qResult)
+        qHandle.addToOutputList('FILLSCHEMEPATTERN')
+        qHandle.addToOutputList('CORRECTIONFACTOR')
+        cursor=qHandle.execute()
+        while cursor.next():
+            fillschemePattern=cursor.currentRow()['FILLSCHEMEPATTERN'].data()
+            afterglowfac=cursor.currentRow()['CORRECTIONFACTOR'].data()
+            afterglows.append((fillschemePattern,afterglowfac))
+    except :
+        del qHandle
+        raise
+    del qHandle
+    return afterglows
+    
 def lumiLSById(schema,dataid,beamstatus=None,withBXInfo=False,bxAlgo='OCC1',withBeamIntensity=False,tableName=None):
     '''    
     result (runnum,{lumilsnum,[cmslsnum(0),instlumi(1),instlumierr(2),instlumiqlty(3),beamstatus(4),beamenergy(5),numorbit(6),startorbit(7),(bxvalueArray,bxerrArray)(8),(bxindexArray,beam1intensityArray,beam2intensityArray)(9)]})

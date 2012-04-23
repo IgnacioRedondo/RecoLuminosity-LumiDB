@@ -1,20 +1,8 @@
 #!/usr/bin/env python
-import os,sys,time,re
+import os,sys,time
 import coral
-from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,lumiReport,lumiCorrections
-class RegexValidator(object):
-    def __init__(self, pattern, statement=None):
-        self.pattern = re.compile(pattern)
-        self.statement = statement
-        if not self.statement:
-            self.statement = "must match pattern %s" % self.pattern
+from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,lumiReport,lumiCorrections,RegexValidator
 
-    def __call__(self, string):
-        match = self.pattern.search(string)
-        if not match:
-            raise ValueError(self.statement)
-        return string 
-        
 def parseInputFiles(inputfilename,dbrunlist,optaction):
     '''
     output ({run:[cmsls,cmsls,...]},[[resultlines]])
@@ -90,12 +78,12 @@ if __name__ == '__main__':
     
     parser.add_argument('--begin',dest='begin',action='store',
                         required=False,
-                        type=RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
                         help='min run start time, mm/dd/yy hh:mm:ss')
     
     parser.add_argument('--end',dest='end',action='store',
                         required=False,
-                        type=RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
                         help='max run start time, mm/dd/yy hh:mm:ss')    
     #
     #optional args for data and normalization version control

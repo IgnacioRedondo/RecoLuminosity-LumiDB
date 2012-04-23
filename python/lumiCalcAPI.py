@@ -5,26 +5,83 @@ from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,Common
 #
 #to decide on the norm value to use
 #
-def _getnorm(schema,norm):
+
+
+def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lumitype='HF'):
+    '''
+    input: [run] (required)
+    output: {run:(lumiid,trgid,hltid)}
+    '''
+    if lumitype=='HF':
+        lumitableName=nameDealer.lumidataTableName()
+        lumilstableName=nameDealer.lumisummaryv2TableName()
+    else:
+        lumitableName=nameDealer.pixellumidataTableName()
+        lumilstableName=nameDealer.pixellumisummaryv2TableName()
+    result={}
+    for run in inputRange:
+        lumidataid=None
+        trgdataid=None
+        hltdataid=None
+        if not tagname:
+            lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
+        else:
+            lumidataid=dataDML.lumiDataIdByTagByRun(schema,run,tagname,lumitype)
+        if lumidataid is None: #if run not found in lumidata,stop even searching for trg and hlt
+            result[run]=(lumidataid,trgdataid,hltdataid)
+            continue
+        if not withTrg:
+            result[run]=(lumidataid,trgdataid,hltdataid)
+            continue
+        if not tagname:
+            trgdataid=dataDML.guessTrgDataIdByRun(schema,run)
+        else:
+            trgdataid=dataDML.trgDataIdByTagByRun(schema,run,tagname)
+        if not withHlt:
+            result[run]=(lumidataid,trgdataid,hltdataid)
+            continue
+        if not tagname:
+            hltdataid=dataDML.guessHltDataIdByRun(schema,run)
+        else:
+            hltdataid=dataDML.hltDataIdByTagByRun(schema,run,tagname)
+        result[run]=(lumidataid,trgdataid,hltdataid)
+    return result
+
+def normForRange(schema,runcontextMap):
+    '''
+    decide from context
+    input {run:(amodetag,egev) }
+    output: {run:(norm,occ2norm,etnorm,punorm,constfactor)}    
+    '''
+    result={}
+    tmpresult={}#{(amodetag,egev):normdataid}
+    for r,context in runcontextMap.items():
+        if not tmpresult.hasKey(context):
+            tmpresult[context]=None
+            normdataid=dataDML.guessnormIdByContext(schema,context[0],context[1])
+            tmpresult[context]=normdataid
+        result[r]=tmpresult[context]
+    normresult=dataDML.luminormById(schema,normdataid)
+    return normresult[2]
+
+def normByName(schema,norm):
+    '''
+    output: (norm,occ2norm,etnorm,punorm,constfactor)
+    '''
     if isinstance(norm,int) or isinstance(norm,float) or CommonUtil.is_floatstr(norm) or CommonUtil.is_intstr(norm):
-        return float(norm)
+        return (float(norm,1.0,1.0,1.0,1.0)
     if not isinstance(norm,str):
         raise ValueError('wrong parameter type')
     normdataid=dataDML.guessnormIdByName(schema,norm)
     normresult=dataDML.luminormById(schema,normdataid)
     return normresult[2]
-def _decidenormFromContext(schema,amodetag,egev):
-    normdataid=dataDML.guessnormIdByContext(schema,amodetag,egev)
-    normresult=dataDML.luminormById(schema,normdataid)
-    return normresult[2]
-def _decidenormForRun(schema,run):
-    rundata=dataDML.runsummary(schema,run)
-    amodetagForRun=rundata[1]
-    egevForRun=rundata[2]
-    normdataid=dataDML.guessnormIdByContext(schema,amodetagForRun,egevForRun)
-    normresult=dataDML.luminormById(schema,normdataid)
-    return normresult[2]
-#public functions
+
+def correctionByName(schema,tagname=None):
+    '''
+    output:{tagname:(a1,a2,drift)}
+    '''
+    return dataDML.correctionByName(schema,tagname)
+        
 def runsummary(schema,irunlsdict):
     '''
     output  [[run,l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime]]
@@ -243,7 +300,7 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
            withBeamIntensity: get beam intensity info (optional)
            branchName: data version
     output:
-           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11)]}}
+           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11),nbx(12)]}}
            lumi unit: HZ/ub
     '''
     if lumitype not in ['HF','PIXEL']:
@@ -429,7 +486,8 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
             result[run].append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,calibratedlumi,calibratedlumierr,startorbit,numorbit,calibratedbxdata,beamdata,fillnum])
             del perlsdata[:]
     return result
-         
+
+
 def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,norm=None,datatag='DATA',finecorrections=None,driftcorrections=None,usecorrectionv2=False,lumitype='HF',branchName=None):
     '''
     delivered lumi (including calibration,time integral)

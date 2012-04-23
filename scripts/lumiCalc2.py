@@ -1,21 +1,8 @@
 #!/usr/bin/env python
 VERSION='2.00'
-import os,sys,time,re
+import os,sys,time
 import coral
-from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,lumiReport,lumiCorrections
-
-class RegexValidator(object):
-    def __init__(self, pattern, statement=None):
-        self.pattern = re.compile(pattern)
-        self.statement = statement
-        if not self.statement:
-            self.statement = "must match pattern %s" % self.pattern
-
-    def __call__(self, string):
-        match = self.pattern.search(string)
-        if not match:
-            raise ValueError(self.statement)
-        return string 
+from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,lumiReport,RegexValidator
         
 beamChoices=['PROTPHYS','IONPHYS','PAPHYS']
 
@@ -101,6 +88,12 @@ if __name__ == '__main__':
                         choices=amodetagChoices,
                         required=False,
                         help='specific accelerator mode choices [PROTOPHYS,IONPHYS,PAPHYS] (optional)')
+    parser.add_argument('--correctiontag',dest='correctiontag',action='store',
+                        required=False,
+                        help='version of lumi correction coefficients')
+    parser.add_argument('--datatag',dest='datatag',action='store',
+                        required=False,
+                        help='version of lumi/trg/hlt data')
     parser.add_argument('--beamenergy',dest='beamenergy',action='store',
                         type=float,
                         default=None,
@@ -114,13 +107,13 @@ if __name__ == '__main__':
     parser.add_argument('--begin',dest='begin',action='store',
                         default=None,
                         required=False,
-                        type=RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
                         help='min run start time, mm/dd/yy hh:mm:ss (optional)'
                         )
     parser.add_argument('--end',dest='end',action='store',
                         default=None,
                         required=False,
-                        type=RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
                         help='max run start time, mm/dd/yy hh:mm:ss (optional)'
                         )    
     #
@@ -138,10 +131,6 @@ if __name__ == '__main__':
     #
     #optional args for data and normalization version control
     #
-    parser.add_argument('--lumiversion',dest='lumiversion',action='store',
-                        default=None,
-                        required=False,
-                        help='data version, optional')
     parser.add_argument('--norm',dest='normfactor',action='store',
                         default=None,
                         required=False,
@@ -163,8 +152,6 @@ if __name__ == '__main__':
     #
     parser.add_argument('--without-correction',dest='withoutFineCorrection',action='store_true',
                         help='without fine correction on calibration' )
-    parser.add_argument('--correctionv3',dest='correctionv3',action='store_true',
-                        help='apply correction v3' )
     parser.add_argument('--verbose',dest='verbose',action='store_true',
                         help='verbose mode for printing' )
     parser.add_argument('--nowarning',dest='nowarning',action='store_true',
@@ -191,7 +178,8 @@ if __name__ == '__main__':
         print 'General configuration'
         print '\tconnect: ',options.connect
         print '\tauthpath: ',options.authpath
-        print '\tlumi data version: ',options.lumiversion
+        print '\tcorrection tag: ',options.correctiontag
+        print '\tlumi data tag: ',options.datatag
         print '\tsiteconfpath: ',options.siteconfpath
         print '\toutputfile: ',options.outputfile
         print '\tscalefactor: ',options.scalefactor        
@@ -254,27 +242,33 @@ if __name__ == '__main__':
                 print '\t%d : %s'%(run,','.join([str(ls) for ls in irunlsdict[run]]))
             else:
                 print '\t%d : all'%run
-
-    finecorrections=None
-    driftcorrections=None
-    if not options.withoutFineCorrection:
-        rruns=irunlsdict.keys()
-        schema=session.nominalSchema()
-        session.transaction().start(True)
-        if options.correctionv3:
-            cterms=lumiCorrections.nonlinearV3()                   
-        else:#default            
-            cterms=lumiCorrections.nonlinearV2()
-        finecorrections=lumiCorrections.correctionsForRangeV2(schema,rruns,cterms)#constant+nonlinear corrections
-        driftcorrections=lumiCorrections.driftcorrectionsForRange(schema,rruns,cterms)
-        if options.verbose:
-            print finecorrections,driftcorrections    
-        session.transaction().commit()
+                
+    #resolve data/correction/norm versions, if not specified use default or guess
+    dataidmap={}     #{run:(lumiid,trgid,hltid)}
+    normmap={}       #{run:(norm1,occ2norm,etnorm,punorm,constfactor)}
+    correctionCoeffMap={} #{name:(alpha1,alpha2,drift)}just coefficient, not including drift intglumi
+    rruns=irunlsdict.keys()
+    session.transaction().start(True)
+    schema=session.nominalSchema()    
+    dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg,withHlt=reqHlt,tagname=None)
+    GrunsummaryData=lumiCalcAPI.runsummary(schema,irunlsdict)
+    runcontextMap={}
+    for rdata in GrunsummaryData:
+        myrun=rdata[0]
+        mymodetag=rdata[2]
+        myegev=rdata[3]
+        runcontextMap[myrun]=(mymodetag,myegev)
+    if not options.normfactor:#decide from context
+        normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
+    else:
+        normvalue=lumiCalcAPI.normByName(schema,options.normfactor)
+        normmap=dict.fromkeys(rruns,normvalue)
         
+    if not options.withoutFineCorrection:
+        correctionCoeffMap=lumiCalcAPI.corretionByName(schema,tagname=options.correctiontag)
+         
     if options.action == 'delivered':
-        session.transaction().start(True)
-        #print irunlsdict
-        result=lumiCalcAPI.deliveredLumiForRange(session.nominalSchema(),irunlsdict,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,norm=normfactor,finecorrections=finecorrections,driftcorrections=driftcorrections,usecorrectionv2=True)
+        result=lumiCalcAPI.deliveredLumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap)
         session.transaction().commit()
         if not options.outputfile:
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
@@ -282,7 +276,7 @@ if __name__ == '__main__':
             lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)           
     if options.action == 'overview':
        session.transaction().start(True)
-       result=lumiCalcAPI.lumiForRange(session.nominalSchema(),irunlsdict,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,norm=normfactor,finecorrections=finecorrections,driftcorrections=driftcorrections,usecorrectionv2=True)
+       result=lumiCalcAPI.lumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap)
        session.transaction().commit()
        if not options.outputfile:
            lumiReport.toScreenOverview(result,iresults,options.scalefactor,options.verbose)
@@ -291,7 +285,7 @@ if __name__ == '__main__':
     if options.action == 'lumibyls':
        if not options.hltpath:
            session.transaction().start(True)
-           result=lumiCalcAPI.lumiForRange(session.nominalSchema(),irunlsdict,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,norm=normfactor,finecorrections=finecorrections,driftcorrections=driftcorrections,usecorrectionv2=True)
+           result=lumiCalcAPI.lumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap)
            session.transaction().commit()
            if not options.outputfile:
                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
@@ -306,7 +300,7 @@ if __name__ == '__main__':
               hltpat=hltname
               hltname=None
            session.transaction().start(True)
-           result=lumiCalcAPI.effectiveLumiForRange(session.nominalSchema(),irunlsdict,hltpathname=hltname,hltpathpattern=hltpat,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,norm=normfactor,finecorrections=finecorrections,driftcorrections=driftcorrections,usecorrectionv2=True)
+           result=lumiCalcAPI.effectiveLumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap,hltpathname=hltname,hltpathpattern=hltpat)
            session.transaction().commit()
            if not options.outputfile:
                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
@@ -322,7 +316,7 @@ if __name__ == '__main__':
           elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
               hltpat=hltname
               hltname=None
-       result=lumiCalcAPI.effectiveLumiForRange(session.nominalSchema(),irunlsdict,hltpathname=hltname,hltpathpattern=hltpat,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,norm=normfactor,finecorrections=finecorrections,driftcorrections=driftcorrections,usecorrectionv2=True)
+       result=lumiCalcAPI.effectiveLumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap,hltpathname=hltname,hltpathpattern=hltpat)
        session.transaction().commit()
        if not options.outputfile:
            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
@@ -330,7 +324,7 @@ if __name__ == '__main__':
            lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibylsXing':
        session.transaction().start(True)
-       result=lumiCalcAPI.lumiForRange(session.nominalSchema(),irunlsdict,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,norm=normfactor,xingMinLum=options.xingMinLum,withBeamIntensity=False,withBXInfo=True,bxAlgo=options.xingAlgo,finecorrections=finecorrections,driftcorrections=True)
+       result=lumiCalcAPI.lumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap,xingMinLum=options.xingMinLum,withBeamIntensity=False,withBXInfo=True,bxAlgo=options.xingAlgo)
        session.transaction().commit()           
        if not options.outputfile:
            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
