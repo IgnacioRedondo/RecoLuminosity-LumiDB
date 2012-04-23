@@ -243,30 +243,37 @@ if __name__ == '__main__':
             else:
                 print '\t%d : all'%run
                 
+    session.transaction().start(True)
+    schema=session.nominalSchema()
+    ##################
+    # run level      #
+    ##################
     #resolve data/correction/norm versions, if not specified use default or guess
-    dataidmap={}     #{run:(lumiid,trgid,hltid)}
     normmap={}       #{run:(norm1,occ2norm,etnorm,punorm,constfactor)}
     correctionCoeffMap={} #{name:(alpha1,alpha2,drift)}just coefficient, not including drift intglumi
+    datatagidMap={}  #{run:(lumiid,trgid,hltid)}
     rruns=irunlsdict.keys()
-    session.transaction().start(True)
-    schema=session.nominalSchema()    
-    dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg,withHlt=reqHlt,tagname=None)
-    GrunsummaryData=lumiCalcAPI.runsummary(schema,irunlsdict)
-    runcontextMap={}
-    for rdata in GrunsummaryData:
-        myrun=rdata[0]
-        mymodetag=rdata[2]
-        myegev=rdata[3]
-        runcontextMap[myrun]=(mymodetag,myegev)
-    if not options.normfactor:#decide from context
-        normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
+    GrunsummaryData=lumiCalcAPI.runsummary(schema,irunlsdict) 
+    if not normfactor:#if no specific norm,decide from context
+        runcontextMap={}
+        for rdata in GrunsummaryData:
+            myrun=rdata[0]
+            mymodetag=rdata[2]
+            myegev=rdata[3]
+            runcontextMap[myrun]=(mymodetag,myegev)
+            normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
     else:
-        normvalue=lumiCalcAPI.normByName(schema,options.normfactor)
+        normvalue=lumiCalcAPI.normByName(schema,normfactor)
         normmap=dict.fromkeys(rruns,normvalue)
-        
     if not options.withoutFineCorrection:
         correctionCoeffMap=lumiCalcAPI.corretionByName(schema,tagname=options.correctiontag)
-         
+        drifcoeff=0.0
+        driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
+    dataidmap={}     #{run:(lumiid,trgid,hltid)}
+    dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg,withHlt=reqHlt,tagname=options.datatag)    
+    ##################
+    # ls level      #
+    ##################
     if options.action == 'delivered':
         result=lumiCalcAPI.deliveredLumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap)
         session.transaction().commit()
@@ -274,8 +281,7 @@ if __name__ == '__main__':
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
         else:
             lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)           
-    if options.action == 'overview':
-       session.transaction().start(True)
+    if options.action == 'overview':       
        result=lumiCalcAPI.lumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap)
        session.transaction().commit()
        if not options.outputfile:
@@ -284,7 +290,6 @@ if __name__ == '__main__':
            lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibyls':
        if not options.hltpath:
-           session.transaction().start(True)
            result=lumiCalcAPI.lumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap)
            session.transaction().commit()
            if not options.outputfile:
@@ -299,7 +304,6 @@ if __name__ == '__main__':
            elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
               hltpat=hltname
               hltname=None
-           session.transaction().start(True)
            result=lumiCalcAPI.effectiveLumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap,hltpathname=hltname,hltpathpattern=hltpat)
            session.transaction().commit()
            if not options.outputfile:
@@ -307,7 +311,6 @@ if __name__ == '__main__':
            else:
                lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
-       session.transaction().start(True)
        hltname=options.hltpath
        hltpat=None
        if hltname is not None:
@@ -323,7 +326,6 @@ if __name__ == '__main__':
        else:
            lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibylsXing':
-       session.transaction().start(True)
        result=lumiCalcAPI.lumiForRange(schema,irunlsdict,dataidmap,beamstatus=pbeammode,norm=normmap,correctioncoeff=correctionCoeffMap,xingMinLum=options.xingMinLum,withBeamIntensity=False,withBXInfo=True,bxAlgo=options.xingAlgo)
        session.transaction().commit()           
        if not options.outputfile:
