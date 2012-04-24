@@ -1,14 +1,11 @@
 import os,coral,datetime,fnmatch,time
 from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,CommonUtil,selectionParser,hltTrgSeedMapper,lumiCorrections,lumiParameters
-
-#internal functions
-#
-#to decide on the norm value to use
-#
-
-
+##
+#dataidForRange
+##
 def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lumitype='HF'):
     '''
+    resolve dataids for lumi,trg,hlt in a given run range with specific datatag If no tag, use head
     input: [run] (required)
     output: {run:(lumiid,trgid,hltid)}
     '''
@@ -18,35 +15,25 @@ def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lu
     else:
         lumitableName=nameDealer.pixellumidataTableName()
         lumilstableName=nameDealer.pixellumisummaryv2TableName()
+    trgtableName=nameDealer.trgdataTableName()
+    hlttableName=nameDealer.hltdataTableName()
     result={}
-    for run in inputRange:
-        lumidataid=None
-        trgdataid=None
-        hltdataid=None
-        if not tagname:
-            lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
-        else:
-            lumidataid=dataDML.lumiDataIdByTagByRun(schema,run,tagname,lumitype)
-        if lumidataid is None: #if run not found in lumidata,stop even searching for trg and hlt
-            result[run]=(lumidataid,trgdataid,hltdataid)
-            continue
-        if not withTrg:
-            result[run]=(lumidataid,trgdataid,hltdataid)
-            continue
-        if not tagname:
-            trgdataid=dataDML.guessTrgDataIdByRun(schema,run)
-        else:
-            trgdataid=dataDML.trgDataIdByTagByRun(schema,run,tagname)
-        if not withHlt:
-            result[run]=(lumidataid,trgdataid,hltdataid)
-            continue
-        if not tagname:
-            hltdataid=dataDML.guessHltDataIdByRun(schema,run)
-        else:
-            hltdataid=dataDML.hltDataIdByTagByRun(schema,run,tagname)
-        result[run]=(lumidataid,trgdataid,hltdataid)
+    if not tagname:
+        lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
+        trgdataidMap=dict.fromkeys(inputRange,None)
+        hltdataidMap=dict.fromkeys(inputRange,None)
+        if withTrg:
+            trgdataidMap=dataDML.guessDataIdForRange(schema,inputRange,trgtableName)
+        if withHlt:
+            hltdataidMap=dataDML.guessDataIdForRange(schema,inputRange,hlttableName)
+        for r,lid in lumidataidMap.items():
+            result[r]=(lid,trgdataidMap[r],hltdataidMap[r])
+    else:
+        result=dataDML.dataIdByTagForRange(schema,inputRange,tagname)
     return result
-
+##
+#normForRange
+##
 def normForRange(schema,runcontextMap):
     '''
     decide from context
@@ -56,9 +43,11 @@ def normForRange(schema,runcontextMap):
     result={}
     tmpresult={}#{(amodetag,egev):normdataid}
     for r,context in runcontextMap.items():
+        mymodetag=context[0]
+        myegev=context[1]
         if not tmpresult.hasKey(context):
             tmpresult[context]=None
-            normdataid=dataDML.guessnormIdByContext(schema,context[0],context[1])
+            normdataid=dataDML.guessnormIdByContext(schema,mymodetag,myegev)
             tmpresult[context]=normdataid
         result[r]=tmpresult[context]
     normresult=dataDML.luminormById(schema,normdataid)
@@ -69,22 +58,79 @@ def normByName(schema,norm):
     output: (norm,occ2norm,etnorm,punorm,constfactor)
     '''
     if isinstance(norm,int) or isinstance(norm,float) or CommonUtil.is_floatstr(norm) or CommonUtil.is_intstr(norm):
-        return (float(norm,1.0,1.0,1.0,1.0)
+        return (float(norm,1.0,1.0,1.0,1.0))
     if not isinstance(norm,str):
         raise ValueError('wrong parameter type')
     normdataid=dataDML.guessnormIdByName(schema,norm)
+    if not normdataid:
+        raise  ValueError('unknown norm '+norm)
     normresult=dataDML.luminormById(schema,normdataid)
-    return normresult[2]
+    return (normresult[2],normresult[4],normresult[5],normresult[6],normresult[7])
 
 def correctionByName(schema,tagname=None):
     '''
-    output:{tagname:(a1,a2,drift)}
+    output:(tagname,a1,a2,driftcoeff)
     '''
-    return dataDML.correctionByName(schema,tagname)
-        
+    correctiondataid=dataDML.guesscorrectionIdByName(schema,tagname)
+    if not correctiondataid:
+        raise  ValueError('unknown correction '+tagname)
+    correctionresult=dataDML.correctionById(schema,correctiondataid)
+    return correctionresult
+
+def driftCorrectionForRange(schema,inputRange,driftcoeff):
+    '''
+    select intglumi from intglumi where runnum=:runnum and startrun=:startrun
+    input : inputRange. str if a single run, [runs] if a list of runs
+            driftcoeff float
+    output: {run:driftcorrection} driftcorrection=intglumi*driftcoeff
+    '''
+    result={}
+    runs=[]
+    if isinstance(inputRange,str):
+        runs.append(int(inputRange))
+    else:
+        runs=inputRange
+    if not runs: return result    
+    for r in runs:
+        defaultresult=1.0
+        intglumi=0.0
+        lint=0.0
+        if r<150008 :# no drift corrections for 2010 data
+            result[r]=defaultresult
+            continue
+        if r>189738: # no drift correction for 2012 data
+            result[r]=defaultresult
+            continue
+        qHandle=schema.newQuery()
+        try:
+            qHandle.addToTableList(nameDealer.intglumiTableName())
+            qResult=coral.AttributeList()
+            qResult.extend('INTGLUMI','float')
+            qHandle.addToOutputList('INTGLUMI')
+            qConditionStr='RUNNUM=:runnum AND STARTRUN<=:runnum'
+            qCondition=coral.AttributeList()
+            qCondition.extend('runnum','unsigned int')
+            qCondition.extend('startrun','unsigned int')
+            qCondition['runnum'].setData(int(r))
+            qHandle.setCondition(qConditionStr,qCondition)
+            qHandle.defineOutput(qResult)
+            cursor=qHandle.execute()
+            while cursor.next():
+                intglumi=cursor.currentRow()['INTGLUMI'].data()
+            lint=intglumi*6.37*1.0e-9*driftcoeff #(convert to /fb)
+            #print lint
+        except :
+            del qHandle
+            raise
+        del qHandle
+        if not lint:
+            print '[WARNING] null intglumi for run ',r,' '
+        result[r]=defaultresult+correctionTerm.drift*lint
+    return result
+
 def runsummary(schema,irunlsdict):
     '''
-    output  [[run,l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime]]
+    output  [[run(0),l1key(1),amodetag(2),egev(3),hltkey(4),fillnum(5),sequence(6),starttime(7),stoptime(8)]]
     '''
     result=[]
     for run in sorted(irunlsdict):

@@ -37,6 +37,9 @@ def lumidetailTableName():
 def luminormTableName():
        return 'LUMINORMS'
 
+def lumicorrectionsTableName():
+       return 'LUMICORRECTIONS'
+
 def trgdataTableName():
        return 'TRGDATA'
 

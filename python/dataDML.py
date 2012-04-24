@@ -9,50 +9,77 @@ import array
 #==============================
 # SELECT
 #==============================
-def correctionByName(schema,tagname):
+def guesscorrectionIdByName(schema,tagname=None):
     '''
-    select name,a1,a2,drift from lumicorrections where isdefault=1
-    select name,a1,a2,drift from lumicorrections where name=:tagname
-    output: [tagname,a1,a2,drift]
+    select data_id from lumicorrectionss [where entry_name=:tagname]
+    result lumicorrectionsdataid
     '''
-    result=[]
+    lumicorrectionids=[]
+    result=None
     qHandle=schema.newQuery()
-    r=nameDealer.lumicorrectionTableName()
     try:
-       qHandle.addToTableList(r)
-       qConditionStr=''
-       qCondition=coral.AttributeList()
-       if not tagname:
-           qConditionStr='ISDEFAULT=:isdefault'
-           qCondition.extend('isdefault','usigned int')
-           qCondition['isdefault'].setData(int(1))
-       else:
-           qConditionStr='NAME=:tagname'
-           qCondition.extend('tagname','string')
-           qCondition['tagname'].setData(tagname)
-       qResult=coral.AttributeList()
-       qResult.extend('NAME','string')
-       qResult.extend('A1','float')
-       qResult.extend('A2','float')
-       qResult.extend('DRIFT','float')
-       qHandle.defineOutput(qResult)
-       qHandle.setCondition(qConditionStr,qCondition)
-       qHandle.addToOutputList('NAME')
-       qHandle.addToOutputList('A1')
-       qHandle.addToOutputList('A2')
-       qHandle.addToOutputList('DRIFT')
-       cursor=qHandle.execute()
-       while cursor.next():
-           name=cursor.currentRow()['NAME'].data()
-           a1=cursor.currentRow()['A1'].data()
-           a2=0.0
-           if not cursor.currentRow()['A2'].isNull():
-               a2=cursor.currentRow()['A2'].data()
-           drift=0.0
-           if not cursor.currentRow()['DRIFT'].isNull():
-               drift=cursor.currentRow()['DRIFT'].data()
-           result=[name,a1,a2,drift]
-       return result
+        qHandle.addToTableList( nameDealer.lumicorrectionsTableName() )
+        qHandle.addToOutputList('DATA_ID')
+        if tagname:
+            qConditionStr='ENTRY_NAME=:tagname '
+            qCondition=coral.AttributeList()
+            qCondition.extend('tagname','string')
+            qCondition['tagname'].setData(tagname)
+        qResult=coral.AttributeList()
+        qResult.extend('DATA_ID','unsigned long long')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition(qConditionStr,qCondition)
+        cursor=qHandle.execute()
+        while cursor.next():
+            dataid=cursor.currentRow()['normdataid'].data()
+            lumicorrectionids.append(dataid)
+    except :
+        del qHandle
+        raise
+    del qHandle
+    if len(lumicorrectionids) !=0:return max(lumicorrectionids)
+    return result
+
+def correctionById(schema,correctiondataid):
+    '''
+    select entry_name,a1,a2,drift from lumicorrections where DATA_ID=:dataid
+    output: [tagname(0),a1(1),a2(2),driftcoeff(3)]
+    '''
+    result=[None]*4
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(nameDealer.lumicorrectionsTableName())
+        qHandle.addToOutputList('ENTRY_NAME')
+        qHandle.addToOutputList('A1')
+        qHandle.addToOutputList('A2')
+        qHandle.addToOutputList('DRIFT')
+        qCondition=coral.AttributeList()
+        qCondition.extend('dataid','unsigned long long')
+        qCondition['dataid'].setData(dataid)
+        qResult=coral.AttributeList()
+        qResult.extend('ENTRY_NAME','string')
+        qResult.extend('A1','float')
+        qResult.extend('A2','float')
+        qResult.extend('DRIFT','float')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition('DATA_ID=:dataid',qCondition)
+        cursor=qHandle.execute()
+        while cursor.next():
+            tagname=cursor.currentRow()['ENTRY_NAME'].data()
+            a1=cursor.currentRow()['A1'].data()
+            a2=None
+            if cursor.currentRow()['A2'].data():
+                a2=cursor.currentRow()['A2'].data()
+            drift=None
+            if cursor.currentRow()['DRIFT'].data():
+                drift=cursor.currentRow()['DRIFT'].data()
+            result=[tagname,a1,a2,drift]
+    except :
+        del qHandle
+        raise
+    del qHandle
+    return result
+
 def fillInRange(schema,fillmin,fillmax,amodetag,startT,stopT):
     '''
     select fillnum,runnum,starttime from cmsrunsummary where [where fillnum>=:fillmin and fillnum<=:fillmax and amodetag=:amodetag]
@@ -362,8 +389,8 @@ def runsummary(schema,runnum,sessionflavor=''):
 def mostRecentLuminorms(schema,branchfilter):
     '''
     this overview query should be only for norm
-    select e.name,max(n.data_id),r.revision_id , n.amodetag,n.norm_1,n.egev_1,n.norm_2,n.egev_2 from luminorms_entries e,luminorms_rev r,luminorms n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter) group by e.entry_name,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_2,n.egev_2;
-    output {norm_name:[data_id,amodetag,norm_1,egev_1,norm_2,egev_2]}
+    select e.name,max(n.data_id),r.revision_id , n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor from luminorms_entries e,luminorms_rev r,luminorms n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter) group by e.entry_name,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor;
+    output {norm_name:[data_id,amodetag,norm_1,egev_1,norm_occ2,norm_et,norm_pu,constfactor]}
     '''
     #print branchfilter
     result={}
@@ -386,8 +413,10 @@ def mostRecentLuminorms(schema,branchfilter):
         qHandle.addToOutputList('n.AMODETAG','amodetag')
         qHandle.addToOutputList('n.NORM_1','norm_1')
         qHandle.addToOutputList('n.EGEV_1','energy_1')
-        qHandle.addToOutputList('n.NORM_2','norm_2')
-        qHandle.addToOutputList('n.EGEV_2','energy_2')
+        qHandle.addToOutputList('n.NORM_OCC2','norm_occ2')
+        qHandle.addToOutputList('n.NORM_ET','norm_et')
+        qHandle.addToOutputList('n.NORM_PU','norm_pu')
+        qHandle.addToOutputList('n.CONSTFACTOR','constfactor')
         qCondition=coral.AttributeList()
         qCondition.extend('branchmin','unsigned long long')
         qCondition.extend('branchmax','unsigned long long')
@@ -400,33 +429,100 @@ def mostRecentLuminorms(schema,branchfilter):
         qResult.extend('amodetag','string')
         qResult.extend('norm_1','float')
         qResult.extend('energy_1','unsigned int')
-        qResult.extend('norm_2','float')
-        qResult.extend('energy_2','unsigned int')
+        qResult.extend('norm_occ2','float')
+        qResult.extend('norm_et','float')
+        qResult.extend('norm_pu','float')
+        qResult.extend('constfactor','float')
         qHandle.defineOutput(qResult)
         qHandle.setCondition('n.ENTRY_ID=e.ENTRY_ID and n.DATA_ID=r.DATA_ID AND n.DATA_ID=r.DATA_ID AND r.REVISION_ID>=:branchmin AND r.REVISION_ID<=:branchmax',qCondition)
-        qHandle.groupBy('e.name,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_2,n.egev_2')
+        qHandle.groupBy('e.name,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor')
         cursor=qHandle.execute()
         while cursor.next():
             normname=cursor.currentRow()['normname'].data()
             amodetag=cursor.currentRow()['amodetag'].data()
             norm_1=cursor.currentRow()['norm_1'].data()
             energy_1=cursor.currentRow()['energy_1'].data()
-            norm_2=None
-            if cursor.currentRow()['norm_2'].data():
-                norm_2=cursor.currentRow()['norm_2'].data()
-            energy_2=None
-            if cursor.currentRow()['energy_2'].data():
-                energy_2=cursor.currentRow()['energy_2'].data()
-            result[normname]=[amodetag,norm_1,energy_1,norm_2,energy_2]
+            norm_occ2=1.0
+            if cursor.currentRow()['norm_occ2'].data():
+                norm_occ2=cursor.currentRow()['norm_occ2'].data()
+            norm_et=1.0
+            if cursor.currentRow()['norm_et'].data():
+                norm_et=cursor.currentRow()['norm_et'].data()
+            norm_pu=1.0
+            if cursor.currentRow()['norm_pu'].data():
+                norm_pu=cursor.currentRow()['norm_pu'].data()
+            constfactor=1.0
+            if cursor.currentRow()['constfactor'].data():
+                constfactor=cursor.currentRow()['constfactor'].data()
+            result[normname]=[amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor]
     except:
         raise
     return result
+
+def mostRecentLumicorrs(schema,branchfilter):
+    '''
+    this overview query should be only for corr
+    select e.name,max(n.data_id),r.revision_id , n.a1,n.a2,n.drift from lumicorrections_entries e,lumicorrections_rev r,lumicorrections n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter) group by e.entry_name,r.revision_id,n.a1,n.a2,n.drift;
+    output {corrname:[data_id,a1,a2,drift]}
+    '''
+    #print branchfilter
+    result={}
+    entry2datamap={}
+    branchmin=0
+    branchmax=0
+    if branchfilter and len(branchfilter)!=0:
+        branchmin=min(branchfilter)
+        branchmax=max(branchfilter)
+    else:
+        return result
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(nameDealer.entryTableName(nameDealer.lumicorrectionsTableName()),'e')
+        qHandle.addToTableList(nameDealer.lumicorrectionsTableName(),'n')
+        qHandle.addToTableList(nameDealer.revmapTableName(nameDealer.lumicorrectionsTableName()),'r')
+        qHandle.addToOutputList('e.NAME','corrname')
+        qHandle.addToOutputList('max(r.DATA_ID)','data_id')
+        qHandle.addToOutputList('r.REVISION_ID','revision_id')
+        qHandle.addToOutputList('n.A1','a1')
+        qHandle.addToOutputList('n.A2','a2')
+        qHandle.addToOutputList('n.DRIFT','drift')
+        qCondition=coral.AttributeList()
+        qCondition.extend('branchmin','unsigned long long')
+        qCondition.extend('branchmax','unsigned long long')
+        qCondition['branchmin'].setData(branchmin)
+        qCondition['branchmax'].setData(branchmax)
+        qResult=coral.AttributeList()
+        qResult.extend('corrname','string')
+        qResult.extend('data_id','unsigned long long')
+        qResult.extend('revision_id','unsigned long long')
+        qResult.extend('a1','float')
+        qResult.extend('a2','float')
+        qResult.extend('drift','float')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition('n.ENTRY_ID=e.ENTRY_ID and n.DATA_ID=r.DATA_ID AND n.DATA_ID=r.DATA_ID AND r.REVISION_ID>=:branchmin AND r.REVISION_ID<=:branchmax',qCondition)
+        qHandle.groupBy('e.name,r.revision_id,n.a1,n.a2,n.drift')
+        cursor=qHandle.execute()
+        while cursor.next():
+            corrname=cursor.currentRow()['corrname'].data()
+            dataid=cursor.currentRow()['data_id'].data()
+            a1=cursor.currentRow()['a1'].data()
+            a2=0.0
+            if not cursor.currentRow()['a2'].isNull():
+                a2=cursor.currentRow()['a2'].data()
+            drift=0.0
+            if not cursor.currentRow()['drift'].isNull():
+                drift=cursor.currentRow()['drift'].data()
+            result[corrname]=[dataid,a1,a2,drift]
+    except:
+        raise
+    return result
+
 def luminormById(schema,dataid):
     '''
     select entry_name,amodetag,norm_1,egev_1,norm_2,egev_2 from luminorms where DATA_ID=:dataid
-    result [name(0),amodetag(1),norm_1(2),egev_1(3),norm_2(4),energy_2(5) ]
+    result [name(0),amodetag(1),norm_1(2),egev_1(3),norm_occ2(4),norm_et(5),norm_pu(6),constfactor(7)]
     '''
-    result=[]
+    result=[None]*8
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList(nameDealer.luminormTableName())
@@ -434,8 +530,10 @@ def luminormById(schema,dataid):
         qHandle.addToOutputList('AMODETAG','amodetag')
         qHandle.addToOutputList('NORM_1','norm_1')
         qHandle.addToOutputList('EGEV_1','energy_1')
-        qHandle.addToOutputList('NORM_2','norm_2')
-        qHandle.addToOutputList('EGEV_2','energy_2')        
+        qHandle.addToOutputList('NORM_OCC2','norm_occ2')
+        qHandle.addToOutputList('NORM_ET','norm_et')
+        qHandle.addToOutputList('NORM_PU','norm_pu')
+        qHandle.addToOutputList('CONSTFACTOR','constfactor')
         qCondition=coral.AttributeList()
         qCondition.extend('dataid','unsigned long long')
         qCondition['dataid'].setData(dataid)
@@ -444,8 +542,10 @@ def luminormById(schema,dataid):
         qResult.extend('amodetag','string')
         qResult.extend('norm_1','float')
         qResult.extend('energy_1','unsigned int')
-        qResult.extend('norm_2','float')
-        qResult.extend('energy_2','unsigned int')
+        qResult.extend('norm_occ2','float')
+        qResult.extend('norm_et','float')
+        qResult.extend('norm_pu','float')
+        qResult.extend('constfactor','float')
         qHandle.defineOutput(qResult)
         qHandle.setCondition('DATA_ID=:dataid',qCondition)
         cursor=qHandle.execute()
@@ -454,13 +554,19 @@ def luminormById(schema,dataid):
             amodetag=cursor.currentRow()['amodetag'].data()
             norm_1=cursor.currentRow()['norm_1'].data()
             energy_1=cursor.currentRow()['energy_1'].data()
-            norm_2=None
-            if cursor.currentRow()['norm_2'].data():
-                norm_2=cursor.currentRow()['norm_2'].data()
-            energy_2=None
-            if cursor.currentRow()['energy_2'].data():
-                energy_2=cursor.currentRow()['energy_2'].data()
-            result.extend([normname,amodetag,norm_1,energy_1,norm_2,energy_2])
+            norm_occ2=1.0
+            if cursor.currentRow()['norm_occ2'].data():
+                norm_occ2=cursor.currentRow()['norm_occ2'].data()
+            norm_et=1.0
+            if cursor.currentRow()['norm_et'].data():
+                norm_et=cursor.currentRow()['norm_et'].data()
+            norm_pu=1.0
+            if cursor.currentRow()['norm_pu'].data():
+                norm_pu=cursor.currentRow()['norm_pu'].data()
+            constfactor=1.0
+            if cursor.currentRow()['constfactor'].data():
+                constfactor=cursor.currentRow()['constfactor'].data()
+            result=[normname,amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor]
     except :
         del qHandle
         raise
@@ -673,6 +779,18 @@ def lumiRunById(schema,dataid,tableName=None):
         result[4]=afterglow
     return result
 
+def correctionByName(schema,correctiontagname=None):
+    '''
+    get correction coefficients by name
+    input: correctiontagname if None,get current default
+    output: [tagname,a1,a2,drift]
+    if not correctiontagname
+    select entry_name,data_id,a1,a2,drift from lumicorrections where 
+    else:
+    select entry_name,data_id,a1,a2,drift from lumicorrections where entry_name=:correctiontagname
+    '''
+
+    
 def fillschemeByRun(schema,runnum):
     fillscheme=''
     ncollidingbunches=0
@@ -1155,75 +1273,12 @@ def guessLumiDataIdByRunInBranch(schema,runnum,tablename,branchName):
     lumientry_id=revisionDML.entryInBranch(schema,tablename,str(runnum),branchName)
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,lumientry_id,revlist)
     return latestrevision
-
-def guessLumiDataIdByRun(schema,runnum,tablename,revfilter=None):
-    '''
-    select max data_id of the given run. In current design, it's the most recent data of the run
-    '''
-    result=None
-    lumiids=[]
-    qHandle=schema.newQuery()
-    try:
-        qHandle.addToTableList(tablename)
-        qHandle.addToOutputList('DATA_ID','lumidataid')
-        qConditionStr='RUNNUM=:runnum'
-        qCondition=coral.AttributeList()
-        qCondition.extend('runnum','unsigned int')
-        qCondition['runnum'].setData(runnum)
-        qResult=coral.AttributeList()
-        qResult.extend('lumidataid','unsigned long long')
-        qHandle.defineOutput(qResult)
-        qHandle.setCondition(qConditionStr,qCondition)
-        cursor=qHandle.execute()
-        while cursor.next():
-            lumidataid=cursor.currentRow()['lumidataid'].data()
-            lumiids.append(lumidataid)
-    except :
-        del qHandle
-        raise 
-    del qHandle
-    if not lumiids:
-        return None
-    else:
-        result=max(lumiids)
-        return result
-
+        
 def guessTrgDataIdByRunInBranch(schema,runnum,tablename,branchName):    
     revlist=revisionDML.revisionsInBranchName(schema,branchName)
     trgentry_id=revisionDML.entryInBranch(schema,tablename,str(runnum),branchName)
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,trgentry_id,revlist)
     return latestrevision
-
-def guessTrgDataIdByRun(schema,runnum,revfilter=None):
-    '''
-    select max data_id of the given run. In current design, it's the most recent data of the run
-    '''
-    result=None
-    trgids=[]
-    qHandle=schema.newQuery()
-    try:
-        qHandle.addToTableList(nameDealer.trgdataTableName())
-        qHandle.addToOutputList('DATA_ID','trgdataid')
-        qConditionStr='RUNNUM=:runnum'
-        qCondition=coral.AttributeList()
-        qCondition.extend('runnum','unsigned int')
-        qCondition['runnum'].setData(runnum)
-        qResult=coral.AttributeList()
-        qResult.extend('trgdataid','unsigned long long')
-        qHandle.defineOutput(qResult)
-        qHandle.setCondition(qConditionStr,qCondition)
-        cursor=qHandle.execute()
-        while cursor.next():
-            trgdataid=cursor.currentRow()['trgdataid'].data()
-            trgids.append(trgdataid)
-    except :
-        del qHandle
-        raise 
-    del qHandle
-    if len(trgids)>0:
-        return max(trgids)
-    else:
-        return result
 
 def guessHltDataIdByRunInBranch(schema,runnum,tablename,branchName):    
     revlist=revisionDML.revisionsInBranchName(schema,branchName)
@@ -1231,37 +1286,81 @@ def guessHltDataIdByRunInBranch(schema,runnum,tablename,branchName):
     latestrevision=revisionDML.latestDataRevisionOfEntry(schema,tablename,hltentry_id,revlist)
     return latestrevision
 
-def guessHltDataIdByRun(schema,runnum,revfilter=None):
+def guessDataIdByRun(schema,runnum,tablename,revfilter=None):
     '''
     select max data_id of the given run. In current design, it's the most recent data of the run
     '''
     result=None
-    hltids=[]
+    ids=[]
     qHandle=schema.newQuery()
     try:
-        qHandle.addToTableList(nameDealer.hltdataTableName())
-        qHandle.addToOutputList('DATA_ID','hltdataid')
+        qHandle.addToTableList(tablename)
+        qHandle.addToOutputList('DATA_ID')
         qConditionStr='RUNNUM=:runnum '
         qCondition=coral.AttributeList()
         qCondition.extend('runnum','unsigned int')
         qCondition['runnum'].setData(runnum)
         qResult=coral.AttributeList()
-        qResult.extend('hltdataid','unsigned long long')
+        qResult.extend('DATA_ID','unsigned long long')
         qHandle.defineOutput(qResult)
         qHandle.setCondition(qConditionStr,qCondition)
         cursor=qHandle.execute()
         while cursor.next():
-            hltdataid=cursor.currentRow()['hltdataid'].data()
-            hltids.append(hltdataid)
+            dataid=cursor.currentRow()['DATA_ID'].data()
+            ids.append(dataid)
     except :
         del qHandle
         raise 
     del qHandle
-    if len(hltids)>0 :
-        return max(hltids)
+    if len(ids)>0 :
+        return max(ids)
     else:
         return result
         
+def guessDataIdForRange(schema,inputRange,tablename):
+    '''
+    input: inputRange [run]
+    output: {run:lumiid}
+    select data_id,runnum from hltdata where runnum<=runmax and runnum>=:runmin 
+    '''
+    result={}
+    if not inputRange : return result
+    if len(inputRange)==1:
+        trgid=guessDataIdByRun(schema,inputRange[0],tablename)
+        result[inputRange[0],trgid]
+        return result
+    rmin=min(inputRange)
+    rmax=max(inputRange)
+    result=dict.fromkeys(inputRange,None)
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(tablename)
+        qHandle.addToOutputList('DATA_ID')
+        qHandle.addToOutputList('RUNNUM')
+        qConditionStr='RUNNUM>=:rmin'
+        qConditionStr='RUNNUM<=:rmax'
+        qCondition=coral.AttributeList()
+        qCondition.extend('rmin','unsigned int')
+        qCondition.extend('rmax','unsigned int')
+        qCondition['rmin'].setData(rmin)
+        qCondition['rmax'].setData(rmax)
+        qResult=coral.AttributeList()
+        qResult.extend('DATA_ID','unsigned long long')
+        qResult.extend('RUNNUM','unsigned int')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition(qConditionStr,qCondition)
+        cursor=qHandle.execute()
+        while cursor.next():
+            dataid=cursor.currentRow()['DATA_ID'].data()
+            runnum=cursor.currentRow()['RUNNUM'].data()
+            if result.has_key(runnum):
+                if dataid>result[runnum]:
+                    result[runnum]=dataid
+    except :
+        del qHandle
+        raise 
+    del qHandle
+    return result
 #def guessAllDataIdByRun(schema,runnum):
 #    '''
 #    get dataids by runnumber, if there are duplicates, pick max(dataid).Bypass full version lookups
@@ -1462,17 +1561,24 @@ def addNormToBranch(schema,normname,amodetag,norm1,egev1,optionalnormdata,branch
     '''
     input:
        branchinfo(normrevisionid,branchname)
-       optionalnormdata {'norm2':norm2,'egev2':egev2}
+       optionalnormdata {'norm_occ2':norm_occ2,'norm_et':norm_et,'norm_pu':norm_pu,'constfactor':constfactor}
     output:
        (revision_id,entry_id,data_id)
     '''
     #print 'branchinfo ',branchinfo
-    norm2=None
-    if optionalnormdata.has_key('norm2'):
-        norm2=optionalnormdata['norm2']
-    egev2=None
-    if optionalnormdata.has_key('egev2'):
-        egev2=optionalnormdata['egev2']
+    norm_occ2=1.0
+    if optionalnormdata.has_key('normOcc2'):
+        norm_occ2=optionalnormdata['norm_occ2']
+    norm_et=1.0
+    if optionalnormdata.has_key('norm_et'):
+        norm_et=optionalnormdata['norm_et']
+    norm_pu=1.0
+    if optionalnormdata.has_key('norm_pu'):
+        norm_pu=optionalnormdata['norm_pu']
+    constfactor=1.0
+    if optionalnormdata.has_key('constfactor'):
+        constfactor=optionalnormdata['constfactor']
+        print 'constfactor ',constfactor
     try:
         entry_id=revisionDML.entryInBranch(schema,nameDealer.luminormTableName(),normname,branchinfo[1])
         if entry_id is None:
@@ -1482,14 +1588,45 @@ def addNormToBranch(schema,normname,amodetag,norm1,egev1,optionalnormdata,branch
         else:
             (revision_id,data_id)=revisionDML.bookNewRevision( schema,nameDealer.luminormTableName() )
             revisionDML.addRevision(schema,nameDealer.luminormTableName(),(revision_id,data_id),branchinfo)
-        tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','AMODETAG':'string','NORM_1':'float','EGEV_1':'unsigned int','NORM_2':'float','EGEV_2':'unsigned int'}
-        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':normname,'AMODETAG':amodetag,'NORM_1':norm1,'EGEV_1':egev1,'NORM_2':norm2,'EGEV_2':egev2}
+        tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','AMODETAG':'string','NORM_1':'float','EGEV_1':'unsigned int','NORM_OCC2':'float','NORM_ET':'float','NORM_PU':'float','CONSTFACTOR':'float'}
+        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':normname,'AMODETAG':amodetag,'NORM_1':norm1,'EGEV_1':egev1,'NORM_OCC2':norm_occ2,'NORM_ET':norm_et,'NORM_PU':norm_pu,'CONSTFACTOR':constfactor}
         db=dbUtil.dbUtil(schema)
         db.insertOneRow(nameDealer.luminormTableName(),tabrowDefDict,tabrowValueDict)
         return (revision_id,entry_id,data_id)
     except :
         raise
     
+def addCorrToBranch(schema,corrname,a1,optionalcorrdata,branchinfo):
+    '''
+    input:
+       branchinfo(corrrevisionid,branchname)
+       optionalcorrdata {'a2':a2,'drift':drif}
+    output:
+       (revision_id,entry_id,data_id)
+    '''
+    a2=1.0
+    if optionalcorrdata.has_key('a2'):
+        a2=optionalcorrdata['a2']
+    drift=1.0
+    if optionalcorrdata.has_key('drift'):
+        drift=optionalcorrdata['drift']
+    try:
+        entry_id=revisionDML.entryInBranch(schema,nameDealer.lumicorrectionsTableName(),corrname,branchinfo[1])
+        if entry_id is None:
+            (revision_id,entry_id,data_id)=revisionDML.bookNewEntry(schema,nameDealer.lumicorrectionsTableName())
+            entryinfo=(revision_id,entry_id,corrname,data_id)
+            revisionDML.addEntry(schema,nameDealer.lumicorrectionsTableName(),entryinfo,branchinfo)
+        else:
+            (revision_id,data_id)=revisionDML.bookNewRevision( schema,nameDealer.lumicorrectionsTableName() )
+            revisionDML.addRevision(schema,nameDealer.lumicorrectionsTableName(),(revision_id,data_id),branchinfo)
+        tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','A1':'float','A2':'float','DRIFT':'float'}
+        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':corrname,'A1':a1,'A2':a2,'DRIFT':drift}
+        db=dbUtil.dbUtil(schema)
+        db.insertOneRow(nameDealer.lumicorrectionsTableName(),tabrowDefDict,tabrowValueDict)
+        return (revision_id,entry_id,data_id)
+    except :
+        raise
+
 def addLumiRunDataToBranch(schema,runnumber,lumirundata,branchinfo,tableName):
     '''
     input:

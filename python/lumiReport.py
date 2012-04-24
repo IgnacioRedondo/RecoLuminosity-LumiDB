@@ -3,15 +3,41 @@ from RecoLuminosity.LumiDB import tablePrinter, csvReporter,CommonUtil
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
 def toScreenNorm(normdata):
     result=[]
-    labels=[('Name','amode','E(GeV)','Norm')]
+    labels=[('Name','amode','E(GeV)','Norm','Norm_PU','CONSTFACTOR')]
     print ' ==  = '
     for name,thisnorm in normdata.items():
         amodetag=str(thisnorm[0])
         normval='%.2f'%thisnorm[1]
         egev='%.0f'%thisnorm[2]
-        result.append([name,amodetag,egev,normval])
+        norm_pu='%.3f'%thisnorm[5]
+        constfactor='%.3f'%thisnorm[6]
+        result.append([name,amodetag,egev,normval,norm_pu,constfactor])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 
+def toScreenCorr(corrdata):
+    result=[]
+    tmpdata={}
+    labels=[('Name','A1','A2','Drift','isDefault')]
+    print ' ==  = '
+    dataidmax=0
+    for name,thiscorr in corrdata.items():
+        dataid=thiscorr[0]
+        if dataid>dataidmax:
+            dataidmax=dataid
+        a1='%.3f'%thiscorr[1]
+        a2='%.3f'%thiscorr[2]
+        drift='%.3f'%thiscorr[3]
+        tmpdata[name]=[dataid,a1,a2,drift]
+    for name,mydata in tmpdata.items():
+        myid=mydata[0]
+        mya1=mydata[1]
+        mya2=mydata[2]
+        mydrift=mydata[3]
+        if myid==dataidmax:
+            result.append([name,mya1,mya2,mydrift,'1'])
+        else:
+            result.append([name,mya1,mya2,mydrift,'0'])
+    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose):
     '''
     inputs:
