@@ -28,10 +28,11 @@ def guesscorrectionIdByName(schema,tagname=None):
         qResult=coral.AttributeList()
         qResult.extend('DATA_ID','unsigned long long')
         qHandle.defineOutput(qResult)
-        qHandle.setCondition(qConditionStr,qCondition)
+        if tagname:
+            qHandle.setCondition(qConditionStr,qCondition)
         cursor=qHandle.execute()
         while cursor.next():
-            dataid=cursor.currentRow()['normdataid'].data()
+            dataid=cursor.currentRow()['DATA_ID'].data()
             lumicorrectionids.append(dataid)
     except :
         del qHandle
@@ -55,7 +56,7 @@ def correctionById(schema,correctiondataid):
         qHandle.addToOutputList('DRIFT')
         qCondition=coral.AttributeList()
         qCondition.extend('dataid','unsigned long long')
-        qCondition['dataid'].setData(dataid)
+        qCondition['dataid'].setData(correctiondataid)
         qResult=coral.AttributeList()
         qResult.extend('ENTRY_NAME','string')
         qResult.extend('A1','float')
@@ -1307,11 +1308,13 @@ def guessDataIdByRun(schema,runnum,tablename,revfilter=None):
         cursor=qHandle.execute()
         while cursor.next():
             dataid=cursor.currentRow()['DATA_ID'].data()
+            print ' dataid ',dataid
             ids.append(dataid)
     except :
         del qHandle
         raise 
     del qHandle
+    print 'ids ',ids
     if len(ids)>0 :
         return max(ids)
     else:
@@ -1327,7 +1330,8 @@ def guessDataIdForRange(schema,inputRange,tablename):
     if not inputRange : return result
     if len(inputRange)==1:
         trgid=guessDataIdByRun(schema,inputRange[0],tablename)
-        result[inputRange[0],trgid]
+        result[inputRange[0]]=trgid
+        print 'result ',result
         return result
     rmin=min(inputRange)
     rmax=max(inputRange)

@@ -20,10 +20,12 @@ def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lu
     result={}
     if not tagname:
         lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
+        print lumidataidMap
         trgdataidMap=dict.fromkeys(inputRange,None)
         hltdataidMap=dict.fromkeys(inputRange,None)
         if withTrg:
             trgdataidMap=dataDML.guessDataIdForRange(schema,inputRange,trgtableName)
+            print 'trg id map ',trgdataidMap
         if withHlt:
             hltdataidMap=dataDML.guessDataIdForRange(schema,inputRange,hlttableName)
         for r,lid in lumidataidMap.items():
@@ -45,7 +47,7 @@ def normForRange(schema,runcontextMap):
     for r,context in runcontextMap.items():
         mymodetag=context[0]
         myegev=context[1]
-        if not tmpresult.hasKey(context):
+        if not tmpresult.has_key(context):
             tmpresult[context]=None
             normdataid=dataDML.guessnormIdByContext(schema,mymodetag,myegev)
             tmpresult[context]=normdataid
@@ -107,11 +109,12 @@ def driftCorrectionForRange(schema,inputRange,driftcoeff):
             qResult=coral.AttributeList()
             qResult.extend('INTGLUMI','float')
             qHandle.addToOutputList('INTGLUMI')
-            qConditionStr='RUNNUM=:runnum AND STARTRUN<=:runnum'
+            qConditionStr='RUNNUM=:runnum AND STARTRUN<=:startrun'
             qCondition=coral.AttributeList()
             qCondition.extend('runnum','unsigned int')
             qCondition.extend('startrun','unsigned int')
             qCondition['runnum'].setData(int(r))
+            qCondition['startrun'].setData(int(r))
             qHandle.setCondition(qConditionStr,qCondition)
             qHandle.defineOutput(qResult)
             cursor=qHandle.execute()
@@ -125,7 +128,7 @@ def driftCorrectionForRange(schema,inputRange,driftcoeff):
         del qHandle
         if not lint:
             print '[WARNING] null intglumi for run ',r,' '
-        result[r]=defaultresult+correctionTerm.drift*lint
+        result[r]=defaultresult+driftcoeff*lint
     return result
 
 def runsummary(schema,irunlsdict):
@@ -372,7 +375,9 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
             continue
         fillnum=runsummary[4]
         runstarttimeStr=runsummary[6]
+        print lumitableName
         lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
+        print lumidataid
         if lumidataid is None: #if run not found in lumidata
             result[run]=None
             continue

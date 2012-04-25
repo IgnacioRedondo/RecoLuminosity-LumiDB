@@ -218,14 +218,16 @@ if __name__ == '__main__':
     
     irunlsdict={}
     iresults=[]
+    reqTrg=False
+    reqHlt=False
+    if options.action=='overview' or options.action=='lumibyls' or options.action=='lumibylsXing':
+        reqTrg=True
+    if options.action=='recorded':
+        reqTrg=True
+        reqHlt=True
     if options.runnumber: # if runnumber specified, do not go through other run selection criteria
         irunlsdict[options.runnumber]=None
     else:
-        reqTrg=False
-        reqHlt=False
-        if options.action=='recorded':
-            reqTrg=True
-            reqHlt=True
         session.transaction().start(True)
         schema=session.nominalSchema()
         runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=reqTrg,requirehlt=reqHlt)
@@ -253,28 +255,34 @@ if __name__ == '__main__':
     correctionCoeffMap={} #{name:(alpha1,alpha2,drift)}just coefficient, not including drift intglumi
     datatagidMap={}  #{run:(lumiid,trgid,hltid)}
     rruns=irunlsdict.keys()
-    print rruns
     GrunsummaryData=lumiCalcAPI.runsummary(schema,irunlsdict)
-    print GrunsummaryData
+    if len(GrunsummaryData)==0:
+        print 'required runs not found in db,do nothing'
+        session.transaction().commit()
+        del session
+        del svc
+        sys.exit(-1)
     if not normfactor:#if no specific norm,decide from context
         runcontextMap={}
         for rdata in GrunsummaryData:
-            print rdata
             myrun=rdata[0]
-            
             mymodetag=rdata[2]
             myegev=rdata[3]
             runcontextMap[myrun]=(mymodetag,myegev)
+            print 'runcontextMap ',runcontextMap
             normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
     else:
         normvalue=lumiCalcAPI.normByName(schema,normfactor)
         normmap=dict.fromkeys(rruns,normvalue)
+    print 'normmap ',normmap
     if not options.withoutFineCorrection:
-        correctionCoeffMap=lumiCalcAPI.corretionByName(schema,tagname=options.correctiontag)
-        drifcoeff=0.0
+        correctionCoeffMap=lumiCalcAPI.correctionByName(schema,tagname=options.correctiontag)
+        driftcoeff=0.0
         driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
+        print driftcorrectionMap
     dataidmap={}     #{run:(lumiid,trgid,hltid)}
     dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg ,withHlt=reqHlt,tagname=options.datatag,lumitype='HF')    
     print 'dataidmap', dataidmap
+    session.transaction().commit()
     del session
     del svc 
