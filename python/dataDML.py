@@ -521,7 +521,7 @@ def mostRecentLumicorrs(schema,branchfilter):
 def luminormById(schema,dataid):
     '''
     select entry_name,amodetag,norm_1,egev_1,norm_2,egev_2 from luminorms where DATA_ID=:dataid
-    result [name(0),amodetag(1),norm_1(2),egev_1(3),norm_occ2(4),norm_et(5),norm_pu(6),constfactor(7)]
+    result (normname(0),amodetag(1),egev(2),norm(3),norm_occ2(4),norm_et(5),norm_pu(6),constfactor(7))
     '''
     result=[None]*8
     qHandle=schema.newQuery()
@@ -567,7 +567,7 @@ def luminormById(schema,dataid):
             constfactor=1.0
             if cursor.currentRow()['constfactor'].data():
                 constfactor=cursor.currentRow()['constfactor'].data()
-            result=[normname,amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor]
+            result=(normname,amodetag,energy_1,norm_1,norm_occ2,norm_et,norm_pu,constfactor)
     except :
         del qHandle
         raise
@@ -1308,13 +1308,11 @@ def guessDataIdByRun(schema,runnum,tablename,revfilter=None):
         cursor=qHandle.execute()
         while cursor.next():
             dataid=cursor.currentRow()['DATA_ID'].data()
-            print ' dataid ',dataid
             ids.append(dataid)
     except :
         del qHandle
         raise 
     del qHandle
-    print 'ids ',ids
     if len(ids)>0 :
         return max(ids)
     else:
@@ -1331,7 +1329,6 @@ def guessDataIdForRange(schema,inputRange,tablename):
     if len(inputRange)==1:
         trgid=guessDataIdByRun(schema,inputRange[0],tablename)
         result[inputRange[0]]=trgid
-        print 'result ',result
         return result
     rmin=min(inputRange)
     rmax=max(inputRange)
@@ -1342,12 +1339,13 @@ def guessDataIdForRange(schema,inputRange,tablename):
         qHandle.addToOutputList('DATA_ID')
         qHandle.addToOutputList('RUNNUM')
         qConditionStr='RUNNUM>=:rmin'
-        qConditionStr='RUNNUM<=:rmax'
         qCondition=coral.AttributeList()
         qCondition.extend('rmin','unsigned int')
-        qCondition.extend('rmax','unsigned int')
         qCondition['rmin'].setData(rmin)
-        qCondition['rmax'].setData(rmax)
+        if rmin!=rmax:
+            qConditionStr+=' AND RUNNUM<=:rmax'
+            qCondition.extend('rmax','unsigned int')
+            qCondition['rmax'].setData(rmax)
         qResult=coral.AttributeList()
         qResult.extend('DATA_ID','unsigned long long')
         qResult.extend('RUNNUM','unsigned int')
@@ -1582,7 +1580,6 @@ def addNormToBranch(schema,normname,amodetag,norm1,egev1,optionalnormdata,branch
     constfactor=1.0
     if optionalnormdata.has_key('constfactor'):
         constfactor=optionalnormdata['constfactor']
-        print 'constfactor ',constfactor
     try:
         entry_id=revisionDML.entryInBranch(schema,nameDealer.luminormTableName(),normname,branchinfo[1])
         if entry_id is None:
@@ -1646,14 +1643,13 @@ def addLumiRunDataToBranch(schema,runnumber,lumirundata,branchinfo,tableName):
         if len(lumirundata)>1:
             nominalenergy=lumirundata[1]
         entry_id=revisionDML.entryInBranch(schema,tableName,str(runnumber),branchinfo[1])
-        print 'entry_id ',entry_id
         if entry_id is None:
             (revision_id,entry_id,data_id)=revisionDML.bookNewEntry(schema,tableName)
             entryinfo=(revision_id,entry_id,str(runnumber),data_id)
             revisionDML.addEntry(schema,tableName,entryinfo,branchinfo)
         else:
             (revision_id,data_id)=revisionDML.bookNewRevision(schema,tableName)
-            print 'revision_id,data_id ',revision_id,data_id
+            #print 'revision_id,data_id ',revision_id,data_id
             revisionDML.addRevision(schema,tableName,(revision_id,data_id),branchinfo)
         tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','RUNNUM':'unsigned int','SOURCE':'string','NOMINALEGEV':'float'}
         tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':str(runnumber),'RUNNUM':int(runnumber),'SOURCE':datasource,'NOMINALEGEV':nominalegev}

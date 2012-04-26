@@ -269,7 +269,6 @@ if __name__ == '__main__':
             mymodetag=rdata[2]
             myegev=rdata[3]
             runcontextMap[myrun]=(mymodetag,myegev)
-            print 'runcontextMap ',runcontextMap
             normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
     else:
         normvalue=lumiCalcAPI.normByName(schema,normfactor)
@@ -277,12 +276,16 @@ if __name__ == '__main__':
     print 'normmap ',normmap
     if not options.withoutFineCorrection:
         correctionCoeffMap=lumiCalcAPI.correctionByName(schema,tagname=options.correctiontag)
+        print 'correctionCoeffMap ',correctionCoeffMap
         driftcoeff=0.0
         driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
-        print driftcorrectionMap
+        print 'driftcorrectionMap ',driftcorrectionMap
     dataidmap={}     #{run:(lumiid,trgid,hltid)}
     dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg ,withHlt=reqHlt,tagname=options.datatag,lumitype='HF')    
     print 'dataidmap', dataidmap
     session.transaction().commit()
+
+
+    
     del session
     del svc 

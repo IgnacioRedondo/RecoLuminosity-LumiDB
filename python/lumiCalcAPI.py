@@ -20,7 +20,7 @@ def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lu
     result={}
     if not tagname:
         lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
-        print lumidataidMap
+        print 'lumidataidMap ',lumidataidMap
         trgdataidMap=dict.fromkeys(inputRange,None)
         hltdataidMap=dict.fromkeys(inputRange,None)
         if withTrg:
@@ -44,6 +44,8 @@ def normForRange(schema,runcontextMap):
     '''
     result={}
     tmpresult={}#{(amodetag,egev):normdataid}
+    tmpmap={}
+    normmap={}#{normdataid:normvalues}
     for r,context in runcontextMap.items():
         mymodetag=context[0]
         myegev=context[1]
@@ -51,23 +53,26 @@ def normForRange(schema,runcontextMap):
             tmpresult[context]=None
             normdataid=dataDML.guessnormIdByContext(schema,mymodetag,myegev)
             tmpresult[context]=normdataid
-        result[r]=tmpresult[context]
-    normresult=dataDML.luminormById(schema,normdataid)
-    return normresult[2]
+        tmpmap[r]=tmpresult[context]
+    for myid in tmpmap.values():
+        normmap[myid]=dataDML.luminormById(schema,normdataid)
+    for r,myid in tmpmap.items():
+        result[r]=normmap[myid]
+    return result
 
 def normByName(schema,norm):
     '''
-    output: (norm,occ2norm,etnorm,punorm,constfactor)
+    output: (normname(0),amodetag(1),egev(2),norm(3),occ2norm(4),etnorm(5),punorm(6),constfactor(7))
     '''
     if isinstance(norm,int) or isinstance(norm,float) or CommonUtil.is_floatstr(norm) or CommonUtil.is_intstr(norm):
-        return (float(norm,1.0,1.0,1.0,1.0))
+        return (None,None,None,float(norm),1.0,1.0,1.0,1.0)
     if not isinstance(norm,str):
         raise ValueError('wrong parameter type')
     normdataid=dataDML.guessnormIdByName(schema,norm)
     if not normdataid:
         raise  ValueError('unknown norm '+norm)
     normresult=dataDML.luminormById(schema,normdataid)
-    return (normresult[2],normresult[4],normresult[5],normresult[6],normresult[7])
+    return normresult
 
 def correctionByName(schema,tagname=None):
     '''
@@ -375,9 +380,7 @@ def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bx
             continue
         fillnum=runsummary[4]
         runstarttimeStr=runsummary[6]
-        print lumitableName
         lumidataid=dataDML.guessLumiDataIdByRun(schema,run,lumitableName)
-        print lumidataid
         if lumidataid is None: #if run not found in lumidata
             result[run]=None
             continue
