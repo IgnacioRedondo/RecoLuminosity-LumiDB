@@ -255,7 +255,7 @@ if __name__ == '__main__':
     correctionCoeffMap={} #{name:(alpha1,alpha2,drift)}just coefficient, not including drift intglumi
     datatagidMap={}  #{run:(lumiid,trgid,hltid)}
     rruns=irunlsdict.keys()
-    GrunsummaryData=lumiCalcAPI.runsummary(schema,irunlsdict)
+    GrunsummaryData=lumiCalcAPI.runsummaryMap(schema,irunlsdict)
     if len(GrunsummaryData)==0:
         print 'required runs not found in db,do nothing'
         session.transaction().commit()
@@ -264,28 +264,35 @@ if __name__ == '__main__':
         sys.exit(-1)
     if not normfactor:#if no specific norm,decide from context
         runcontextMap={}
-        for rdata in GrunsummaryData:
-            myrun=rdata[0]
-            mymodetag=rdata[2]
-            myegev=rdata[3]
-            runcontextMap[myrun]=(mymodetag,myegev)
+        for rdata in sorted(GrunsummaryData):
+            mymodetag=GrunsummaryData[rdata][1]
+            myegev=GrunsummaryData[rdata][2]
+            runcontextMap[rdata]=(mymodetag,myegev)
             normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
+            
     else:
         normvalue=lumiCalcAPI.normByName(schema,normfactor)
         normmap=dict.fromkeys(rruns,normvalue)
-    print 'normmap ',normmap
     if not options.withoutFineCorrection:
-        correctionCoeffMap=lumiCalcAPI.correctionByName(schema,tagname=options.correctiontag)
-        print 'correctionCoeffMap ',correctionCoeffMap
+        correctionCoeffs=lumiCalcAPI.correctionByName(schema,tagname=options.correctiontag)
         driftcoeff=0.0
         driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
-        print 'driftcorrectionMap ',driftcorrectionMap
     dataidmap={}     #{run:(lumiid,trgid,hltid)}
     dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg ,withHlt=reqHlt,tagname=options.datatag,lumitype='HF')    
-    print 'dataidmap', dataidmap
     session.transaction().commit()
 
-
-    
+    ##################
+    # ls level       #
+    ##################
+    if options.action == 'delivered':
+        session.transaction().start(True)
+        print 'HELLO'
+        result=lumiCalcAPI.deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        print 'after hello'
+        session.transaction().commit()
+        if not options.outputfile:
+            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
+        else:
+            lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)      
     del session
     del svc 

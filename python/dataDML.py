@@ -1,5 +1,5 @@
 import os,coral,fnmatch,time
-from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML,lumiTime,CommonUtil,LumiCorrector,lumiCorrections
+from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML,lumiTime,CommonUtil,lumiCorrections
 import array
 
 #
@@ -390,8 +390,8 @@ def runsummary(schema,runnum,sessionflavor=''):
 def mostRecentLuminorms(schema,branchfilter):
     '''
     this overview query should be only for norm
-    select e.name,max(n.data_id),r.revision_id , n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor from luminorms_entries e,luminorms_rev r,luminorms n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter) group by e.entry_name,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor;
-    output {norm_name:[data_id,amodetag,norm_1,egev_1,norm_occ2,norm_et,norm_pu,constfactor]}
+    select e.name,n.data_id,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor from luminorms_entries e,luminorms_rev r,luminorms n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter);
+    output {norm_name:(amodetag(0),norm_1(1),egev_1(2),norm_occ2(3),norm_et(4),norm_pu(5),constfactor(6))}
     '''
     #print branchfilter
     result={}
@@ -403,13 +403,15 @@ def mostRecentLuminorms(schema,branchfilter):
         branchmax=max(branchfilter)
     else:
         return result
+    #print branchmin,branchmax
     qHandle=schema.newQuery()
+    normdict={}
     try:
         qHandle.addToTableList(nameDealer.entryTableName(nameDealer.luminormTableName()),'e')
         qHandle.addToTableList(nameDealer.luminormTableName(),'n')
         qHandle.addToTableList(nameDealer.revmapTableName(nameDealer.luminormTableName()),'r')
         qHandle.addToOutputList('e.NAME','normname')
-        qHandle.addToOutputList('max(r.DATA_ID)','data_id')
+        qHandle.addToOutputList('r.DATA_ID','data_id')
         qHandle.addToOutputList('r.REVISION_ID','revision_id')
         qHandle.addToOutputList('n.AMODETAG','amodetag')
         qHandle.addToOutputList('n.NORM_1','norm_1')
@@ -436,7 +438,64 @@ def mostRecentLuminorms(schema,branchfilter):
         qResult.extend('constfactor','float')
         qHandle.defineOutput(qResult)
         qHandle.setCondition('n.ENTRY_ID=e.ENTRY_ID and n.DATA_ID=r.DATA_ID AND n.DATA_ID=r.DATA_ID AND r.REVISION_ID>=:branchmin AND r.REVISION_ID<=:branchmax',qCondition)
-        qHandle.groupBy('e.name,r.revision_id,n.amodetag,n.norm_1,n.egev_1,n.norm_occ2,n.norm_et,n.norm_pu,n.constfactor')
+        cursor=qHandle.execute()
+        while cursor.next():
+            data_id=cursor.currentRow()['data_id'].data()
+            normname=cursor.currentRow()['normname'].data()
+            if not normdict.has_key(normname):
+                normdict[normname]=0
+            if data_id>normdict[normname]:
+                normdict[normname]=data_id
+                amodetag=cursor.currentRow()['amodetag'].data()
+                norm_1=cursor.currentRow()['norm_1'].data()
+                energy_1=cursor.currentRow()['energy_1'].data()
+                norm_occ2=1.0
+                if cursor.currentRow()['norm_occ2'].data():
+                    norm_occ2=cursor.currentRow()['norm_occ2'].data()
+                norm_et=1.0
+                if cursor.currentRow()['norm_et'].data():
+                    norm_et=cursor.currentRow()['norm_et'].data()
+                norm_pu=1.0
+                if cursor.currentRow()['norm_pu'].data():
+                    norm_pu=cursor.currentRow()['norm_pu'].data()
+                constfactor=1.0
+                if cursor.currentRow()['constfactor'].data():
+                    constfactor=cursor.currentRow()['constfactor'].data()
+                result[normname]=(amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor)
+    except:
+        raise
+    return result
+def luminormById(schema,dataid):
+    '''
+    select entry_name,amodetag,norm_1,egev_1,norm_2,egev_2 from luminorms where DATA_ID=:dataid
+    output: {norm_name:(amodetag(0),norm_1(1),egev_1(2),norm_occ2(3),norm_et(4),norm_pu(5),constfactor(6))}
+    '''
+    result=None
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(nameDealer.luminormTableName())
+        qHandle.addToOutputList('ENTRY_NAME','normname')
+        qHandle.addToOutputList('AMODETAG','amodetag')
+        qHandle.addToOutputList('NORM_1','norm_1')
+        qHandle.addToOutputList('EGEV_1','energy_1')
+        qHandle.addToOutputList('NORM_OCC2','norm_occ2')
+        qHandle.addToOutputList('NORM_ET','norm_et')
+        qHandle.addToOutputList('NORM_PU','norm_pu')
+        qHandle.addToOutputList('CONSTFACTOR','constfactor')        
+        qCondition=coral.AttributeList()
+        qCondition.extend('dataid','unsigned long long')
+        qCondition['dataid'].setData(dataid)
+        qResult=coral.AttributeList()
+        qResult.extend('normname','string')
+        qResult.extend('amodetag','string')
+        qResult.extend('norm_1','float')
+        qResult.extend('energy_1','unsigned int')
+        qResult.extend('norm_occ2','float')
+        qResult.extend('norm_et','float')
+        qResult.extend('norm_pu','float')
+        qResult.extend('constfactor','float')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition('DATA_ID=:dataid',qCondition)
         cursor=qHandle.execute()
         while cursor.next():
             normname=cursor.currentRow()['normname'].data()
@@ -455,9 +514,11 @@ def mostRecentLuminorms(schema,branchfilter):
             constfactor=1.0
             if cursor.currentRow()['constfactor'].data():
                 constfactor=cursor.currentRow()['constfactor'].data()
-            result[normname]=[amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor]
-    except:
+            result={normname:(amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor)}
+    except :
+        del qHandle
         raise
+    del qHandle
     return result
 
 def mostRecentLumicorrs(schema,branchfilter):
@@ -523,7 +584,7 @@ def luminormById(schema,dataid):
     select entry_name,amodetag,norm_1,egev_1,norm_2,egev_2 from luminorms where DATA_ID=:dataid
     result (normname(0),amodetag(1),egev(2),norm(3),norm_occ2(4),norm_et(5),norm_pu(6),constfactor(7))
     '''
-    result=[None]*8
+    result=None
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList(nameDealer.luminormTableName())
@@ -567,7 +628,7 @@ def luminormById(schema,dataid):
             constfactor=1.0
             if cursor.currentRow()['constfactor'].data():
                 constfactor=cursor.currentRow()['constfactor'].data()
-            result=(normname,amodetag,energy_1,norm_1,norm_occ2,norm_et,norm_pu,constfactor)
+            result={normname:(amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor)}
     except :
         del qHandle
         raise
@@ -727,17 +788,38 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
 #    t1=time.time()
 #    print 'trgLSById time ',t1-t0
     return (runnum,result)
-def lumiRunById(schema,dataid,tableName=None):
+
+def lumiRunByIds(schema,dataidMap,lumitype='HF'):
     '''
-    result [runnum(0),datasource(1),nominalegev(2),ncollidingbunches(3),afterglow(4)]
+    input dataidMap : {run:lumidataid}
+    result {runnum: (datasource(1),nominalegev(2),ncollidingbunches(3)}
     '''
-    result=[]
+    result={}
+    if not dataidMap:
+        return result
+    inputRange=dataidMap.keys()
+    for r in inputRange:
+        lumidataid=dataidMap[r][0]
+        if lumidataid:
+            perrundata=lumiRunById(schema,lumidataid,lumitype=lumitype)
+            result[r]=(perrundata[1],perrundata[2],perrundata[3])
+    return result
+
+def lumiRunById(schema,lumidataid,lumitype='HF'):
+    '''
+    input: lumidataid
+    output: (runnum(0),datasource(1),nominalegev(2),ncollidingbunches(3))
+    '''
+    if lumitype not in ['HF','PIXEL']:
+        raise ValueError('unknown lumitype '+lumitype)
+    lumitableName=''
+    if lumitype=='HF':
+        lumitableName = nameDealer.lumidataTableName()
+    else:
+        lumitableName = nameDealer.pixellumidataTableName()
     qHandle=schema.newQuery()
-    ncollidingbunches=None
-    if tableName is None:
-        tableName=nameDealer.lumidataTableName()        
     try:
-        qHandle.addToTableList(tableName)
+        qHandle.addToTableList(lumitableName)
         qHandle.addToOutputList('RUNNUM')
         qHandle.addToOutputList('SOURCE')
         qHandle.addToOutputList('NOMINALEGEV')
@@ -745,7 +827,7 @@ def lumiRunById(schema,dataid,tableName=None):
         qConditionStr='DATA_ID=:dataid'
         qCondition=coral.AttributeList()
         qCondition.extend('dataid','unsigned long long')
-        qCondition['dataid'].setData(dataid)
+        qCondition['dataid'].setData(lumidataid)
         qResult=coral.AttributeList()
         qResult.extend('RUNNUM','unsigned int')
         qResult.extend('SOURCE','string')
@@ -757,27 +839,17 @@ def lumiRunById(schema,dataid,tableName=None):
         while cursor.next():
             runnum=cursor.currentRow()['RUNNUM'].data()
             datasource=cursor.currentRow()['SOURCE'].data()
-            nominalegev=cursor.currentRow()['NOMINALEGEV'].data()
+            nominalegev=0
             if not cursor.currentRow()['NOMINALEGEV'].isNull():
+                nominalegev=cursor.currentRow()['NOMINALEGEV'].data()
+            ncollidingbunches=0
+            if not cursor.currentRow()['NCOLLIDINGBUNCHES'].isNull():
                 ncollidingbunches=cursor.currentRow()['NCOLLIDINGBUNCHES'].data()
-            if  ncollidingbunches is not None:
-                lcorr=LumiCorrector()
-                afterglow=lcorr.AfterglowFactor(ncollidingbunches)
-                result.extend(afterglow)
-            else:#should not come here. only for backward compatibility
-                if runnum<176697:#older runs either do not need to correct or already corrected by online
-                    afterglow=1.0                    
-            result=[runnum,datasource,nominalegev,ncollidingbunches,afterglow]        
+            result=(runnum,datasource,nominalegev,ncollidingbunches)
     except :
         del qHandle
         raise
     del qHandle
-    if result[3] is None:
-        (fillschemeStr,ncollidingbunches)=fillschemeByRun(schema,result[0])
-        afterglows=allfillschemes(schema)
-        afterglow=lumiCorrections.afterglowByFillscheme(fillschemeStr,afterglows)
-        result[3]=ncollidingbunches
-        result[4]=afterglow
     return result
 
 def correctionByName(schema,correctiontagname=None):

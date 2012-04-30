@@ -5,10 +5,12 @@ def toScreenNorm(normdata):
     result=[]
     labels=[('Name','amode','E(GeV)','Norm','Norm_PU','CONSTFACTOR')]
     print ' ==  = '
-    for name,thisnorm in normdata.items():
+    names=sorted(normdata)
+    for name in names:
+        thisnorm=normdata[name]
         amodetag=str(thisnorm[0])
-        normval='%.2f'%thisnorm[1]
-        egev='%.0f'%thisnorm[2]
+        normval='%.3f'%thisnorm[1]
+        egev='%d'%thisnorm[2]
         norm_pu='%.3f'%thisnorm[5]
         constfactor='%.3f'%thisnorm[6]
         result.append([name,amodetag,egev,normval,norm_pu,constfactor])

@@ -2,8 +2,9 @@
 ##identical copy from online. no drift correction
 ##
 class LumiCorrector(object):
-    def __init__(self,occ1norm=7.13e3,occ2norm=7.97e3,etnorm=1.59e3,punorm=6.37e3,alpha1=0.063,alpha2=-0.0037):
+    def __init__(self,occ1norm=7.13e3,occ2norm=7.97e3,etnorm=1.59e3,occ1constfactor=1.0,punorm=6.37e3,alpha1=0.063,alpha2=-0.0037):
         self.Occ1Norm_=occ1norm
+        self.Occ1ConstFactor_=occ1constfactor
         self.Occ2Norm_=occ2norm
         self.ETNorm_=etnorm
         self.PUNorm_=punorm
@@ -42,6 +43,8 @@ class LumiCorrector(object):
         if algo=='PU':
             self.PUNorm_=value
             return
+    def setOcc1ConstFactor(self,occ1constfactor):
+        self.Occ1ConstFactor_=occ1constfactor
     def setCoefficient(self,name,value):
         if name=="ALPHA1":
             self.Alpha1_=value
@@ -49,7 +52,7 @@ class LumiCorrector(object):
             self.Alpha2_=value
     def getNormForAlgo(self,algo):
         if algo=="OCC1" :
-            return self.Occ1Norm_
+            return self.Occ1Norm_*self.Occ1ConstFactor_
         if algo=="OCC2" :
             return self.Occ2Norm_
         if algo=="ET" :
@@ -74,11 +77,21 @@ class LumiCorrector(object):
     
     def TotalNormOcc1(self,TotLumi_noNorm,nBXs):
         AvgLumi = 0.
+        print 'occ1norm ',self.Occ1Norm_
+        print 'occ1const ',self.Occ1ConstFactor_
+        print 'self.PUNorm_ ',self.PUNorm_
+        print 'TotLumi_noNorm ',TotLumi_noNorm
+        print 'nBXs ',nBXs
         if nBXs>0:
             AvgLumi = self.PUNorm_*TotLumi_noNorm/nBXs            
         else:
             return 1.0
-        return self.Occ1Norm_*self.AfterglowFactor(nBXs)/(1 + self.Alpha1_*AvgLumi + self.Alpha2_*AvgLumi*AvgLumi)
+        print 'avglumi ',AvgLumi
+        print 'occ1norm ',self.Occ1Norm_
+        print 'afterglow ',self.AfterglowFactor(nBXs)
+        print 'apha1 ',self.Alpha1_
+        print 'alpha2 ',self.Alpha2_
+        return self.Occ1Norm_*self.Occ1ConstFactor_*self.AfterglowFactor(nBXs)/(1 + self.Alpha1_*AvgLumi + self.Alpha2_*AvgLumi*AvgLumi)
     
     def PixelAfterglowFactor(self,nBXs):
         Afterglow = 1.0

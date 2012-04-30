@@ -76,15 +76,8 @@ if __name__ == '__main__':
         elif options.name is not None:
             normdataid=dataDML.guessnormIdByName(schema,options.name)
             norm=dataDML.luminormById(schema,normdataid)
-            nname=norm[0]
-            namodetag=norm[1]
-            nnormval=norm[2]
-            negev=norm[3]
-            norm_occ2=norm[4]
-            norm_et=norm[5]
-            norm_pu=norm[6]
-            constfactor=norm[7]
-            lumiReport.toScreenNorm({nname:[namodetag,nnormval,negev,norm_occ2,norm_et,norm_pu,constfactor]})
+            if norm:
+                lumiReport.toScreenNorm(norm)
         else:
             amodetag=options.amodetag 
             if options.amodetag is None:
@@ -96,11 +89,8 @@ if __name__ == '__main__':
                 egev='3500'
             normdataid=dataDML.guessnormIdByContext(schema,amodetag,int(egev))
             norm=dataDML.luminormById(schema,normdataid)
-            nname=norm[0]
-            namodetag=norm[1]
-            nnormval=norm[2]
-            negev=norm[3]
-            lumiReport.toScreenNorm({nname:[namodetag,nnormval,negev]})
+            if norm:
+                lumiReport.toScreenNorm(norm)
         session.transaction().commit()
     del session
     del svc

@@ -1,5 +1,5 @@
 import os,coral,datetime,fnmatch,time
-from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,CommonUtil,selectionParser,hltTrgSeedMapper,lumiCorrections,lumiParameters
+from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,CommonUtil,selectionParser,hltTrgSeedMapper,lumiCorrections,lumiParameters,LumiCorrector
 ##
 #dataidForRange
 ##
@@ -40,7 +40,7 @@ def normForRange(schema,runcontextMap):
     '''
     decide from context
     input {run:(amodetag,egev) }
-    output: {run:(norm,occ2norm,etnorm,punorm,constfactor)}    
+    output: {run:(normval,occ2norm,etnorm,punorm,constfactor)}    
     '''
     result={}
     tmpresult={}#{(amodetag,egev):normdataid}
@@ -143,9 +143,22 @@ def runsummary(schema,irunlsdict):
     result=[]
     for run in sorted(irunlsdict):
         runinfo=dataDML.runsummary(schema,run)
+        print runinfo
         runinfo.insert(0,run)
         result.append(runinfo)
     return result
+
+def runsummaryMap(schema,irunlsdict):
+    '''
+    output  {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+    '''
+    result={}
+    seqresult=runsummary(schema,irunlsdict)
+    print seqresult
+    for [run,l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime] in seqresult:
+        result[run]=[l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime]
+    return result
+
 def fillInRange(schema,fillmin=1000,fillmax=9999,amodetag='PROTPHYS',startT=None,stopT=None):
     '''
     output [fill]
@@ -341,7 +354,102 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
                 result[run].append(lsdata)
     return result
 
-def instLumiForRange(schema,inputRange,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',branchName=None):
+def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',datatag=None):
+    '''
+    DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
+    lumi raw data. beofore normalization and time integral
+    input:
+           irunlsdict  {run:[cmsls]} (required)
+           dataidmap 
+           beamstatus: LS filter on beamstatus (optional)
+           withBXInfo: get per bunch info (optional)
+           bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
+           xingMinLum: cut on bx lumi value (optional)
+           withBeamIntensity: get beam intensity info (optional)
+           branchName: data version
+    output:
+           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11),nbx(12)]}}
+           lumi unit: HZ/ub
+    '''
+    if lumitype not in ['HF','PIXEL']:
+        raise ValueError('unknown lumitype '+lumitype)
+    lumitableName=''
+    lumilstableName=''
+    if lumitype=='HF':
+        lumitableName=nameDealer.lumidataTableName()
+        lumilstableName=nameDealer.lumisummaryv2TableName()
+    else:
+        lumitableName=nameDealer.pixellumidataTableName()
+        lumilstableName=nameDealer.pixellumisummaryv2TableName()
+    print lumitableName
+    result={}
+    for run,(lumidataid,trgid,hltid ) in dataidmap.items():
+        lslist=irunlsdict[run]
+        if lslist is not None and len(lslist)==0:
+            result[run]=[]#if no LS is selected for a run
+            continue
+
+        fillnum=runsummaryMap[run][4]
+        runstarttimeStr=runsummaryMap[run][6]
+        if lumidataid is None: #if run not found in lumidata
+            result[run]=None
+            continue
+        (lumirunnum,perlsresult)=dataDML.lumiLSById(schema,lumidataid,beamstatus=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,tableName=lumilstableName)
+        lsresult=[]
+        c=lumiTime.lumiTime()
+        for lumilsnum in perlsresult.keys():
+            perlsdata=perlsresult[lumilsnum]
+            cmslsnum=perlsdata[0]
+            if lslist is not None and lumilsnum not in lslist:
+                cmslsnum=0
+            numorbit=perlsdata[6]
+            startorbit=perlsdata[7]
+            orbittime=c.OrbitToTime(runstarttimeStr,startorbit,0)
+            instlumi=perlsdata[1]
+            instlumierr=perlsdata[2]
+            beamstatus=perlsdata[4]
+            beamenergy=perlsdata[5]
+            bxidxlist=[]
+            bxvaluelist=[]
+            bxerrorlist=[]
+            bxdata=None
+            beamdata=None
+            if withBXInfo:
+                bxinfo=perlsdata[8]                
+                bxvalueArray=None
+                bxerrArray=None
+                if bxinfo:
+                    bxvalueArray=bxinfo[0]
+                    bxerrArray=bxinfo[1]
+                    for idx,bxval in enumerate(bxvalueArray):
+                        if bxval>xingMinLum:
+                            bxidxlist.append(idx)
+                            bxvaluelist.append(bxval)
+                            bxerrorlist.append(bxerrArray[idx])
+                    del bxvalueArray[:]
+                    del bxerrArray[:]
+                bxdata=(bxidxlist,bxvaluelist,bxerrorlist)
+            if withBeamIntensity:
+                beaminfo=perlsdata[9]
+                bxindexlist=[]
+                b1intensitylist=[]
+                b2intensitylist=[]
+                if beaminfo[0] and beaminfo[1] and beaminfo[2]:
+                    bxindexarray=beaminfo[0]
+                    beam1intensityarray=beaminfo[1]
+                    beam2intensityarray=beaminfo[2]                    
+                    bxindexlist=bxindexarray.tolist()
+                    b1intensitylist=beam1intensityarray.tolist()
+                    b2intensitylist=beam2intensityarray.tolist()
+                    del bxindexarray[:]
+                    del beam1intensityarray[:]
+                    del beam2intensityarray[:]                    
+                beamdata=(bxindexlist,b1intensitylist,b2intensitylist)
+            lsresult.append([lumilsnum,cmslsnum,orbittime,beamstatus,beamenergy,instlumi,instlumierr,startorbit,numorbit,bxdata,beamdata,fillnum])         
+            del perlsdata[:]
+        result[run]=lsresult
+        return result
+def instLumiForRange(schema,inputRange,lumirundataMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',branchName=None):
     '''
     DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
     lumi raw data. beofore normalization and time integral
@@ -538,6 +646,77 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
             if withBeamIntensity:
                 beamdata=perlsdata[10]                
             result[run].append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,calibratedlumi,calibratedlumierr,startorbit,numorbit,calibratedbxdata,beamdata,fillnum])
+            del perlsdata[:]
+    return result
+
+def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,correctioncoeffs=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF',datatag=None):
+    '''
+    delivered lumi (including calibration,time integral)
+    get inst raw lumi values then apply norm,corrections etc
+    input:
+    inputRange  {run:[lsnum]} (required) [lsnum]==None means all ; [lsnum]==[] means selected ls 
+    amodetag : accelerator mode for all the runs (optional) ['PROTPHYS','IONPHYS']
+    beamstatus: LS filter on beamstatus (optional)
+    amodetag: amodetag for  picking norm(optional)
+    egev: beamenergy for picking norm(optional)
+    withBXInfo: get per bunch info (optional)
+    bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
+    xingMinLum: cut on bx lumi value (optional)
+           withBeamIntensity: get beam intensity info (optional)
+           norm: norm factor name to use: if float, apply directly, if str search norm by name (optional)
+           branchName: data version or branch name
+           output:
+           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
+           avg lumi unit: 1/ub
+    '''
+    result = {}
+    print normmap
+    lumip=lumiParameters.ParametersObject()
+    lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
+    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,datatag=datatag)
+    print normmap
+    for run,perrundata in instresult.items():
+        if perrundata is None:
+            result[run]=None
+            continue
+        result[run]=[]
+        (normname,amodetag,egev,normval,norm_occ2,norm_et,norm_pu,constfactor)=normmap[run]
+        if not normval:
+            normval=7.13e3
+            print '[Warning] using default normalization '+str(normval)
+        lctor=LumiCorrector.LumiCorrector(occ1norm=normval,occ2norm=norm_occ2,etnorm=norm_et,occ1constfactor=constfactor,punorm=norm_pu,alpha1=correctioncoeffs[1],alpha2=correctioncoeffs[2])
+        drifter=correctioncoeffs[2]
+        nBXs=lumirundata[run][2]
+        for perlsdata in perrundata:#loop over ls
+            lumilsnum=perlsdata[0]
+            cmslsnum=perlsdata[1]
+            timestamp=perlsdata[2]
+            bs=perlsdata[3]
+            beamenergy=perlsdata[4]
+            instluminonorm=perlsdata[5]
+            print 'instluminonorm ',instluminonorm
+            fillnum=perlsdata[11]
+            if lumitype=='HF':
+                instcorrectedlumi=lctor.TotalNormOcc1(instluminonorm,nBXs)
+            if lumitype=='PIXEL':
+                instcorrectedlumi=instluminonorm*lctor.PixelAfterglowFactor(self,nBXs)
+            numorbit=perlsdata[8]
+            numbx=lumip.NBX
+            lslen=lumip.lslengthsec()
+            deliveredlumi=instcorrectedlumi*lslen
+            calibratedbxdata=None
+            beamdata=None
+            if withBXInfo:
+                bxdata=perlsdata[9]
+                if bxdata:
+                    if lumitype=='HF':
+                        calibratedbxdata=lctor.TotalNormOcc1(bxdata,nBXs)/1000.0                        
+                del bxdata[1][:]
+                del bxdata[2][:]
+            if withBeamIntensity:
+                beamdata=perlsdata[10]
+            calibratedlumierr=0.0
+            result[run].append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,calibratedlumierr,calibratedbxdata,beamdata,fillnum])
             del perlsdata[:]
     return result
 
