@@ -76,12 +76,12 @@ def normByName(schema,norm):
 
 def correctionByName(schema,tagname=None):
     '''
-    output:(tagname,a1,a2,driftcoeff)
+    output:{tagname:(data_id(0),a1(1),a2(2),driftcoeff(3)}
     '''
-    correctiondataid=dataDML.guesscorrectionIdByName(schema,tagname)
+    correctiondataid=dataDML.guesscorrIdByName(schema,tagname)
     if not correctiondataid:
         raise  ValueError('unknown correction '+tagname)
-    correctionresult=dataDML.correctionById(schema,correctiondataid)
+    correctionresult=dataDML.lumicorrById(schema,correctiondataid)
     return correctionresult
 
 def driftCorrectionForRange(schema,inputRange,driftcoeff):
@@ -670,22 +670,28 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
            avg lumi unit: 1/ub
     '''
     result = {}
-    print normmap
+    #print normmap
     lumip=lumiParameters.ParametersObject()
     lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
     instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,datatag=datatag)
-    print normmap
     for run,perrundata in instresult.items():
         if perrundata is None:
             result[run]=None
             continue
         result[run]=[]
-        (normname,amodetag,egev,normval,norm_occ2,norm_et,norm_pu,constfactor)=normmap[run]
+        (amodetag,normval,egev,norm_occ2,norm_et,norm_pu,constfactor)=normmap[run].values()[0]
         if not normval:
-            normval=7.13e3
-            print '[Warning] using default normalization '+str(normval)
-        lctor=LumiCorrector.LumiCorrector(occ1norm=normval,occ2norm=norm_occ2,etnorm=norm_et,occ1constfactor=constfactor,punorm=norm_pu,alpha1=correctioncoeffs[1],alpha2=correctioncoeffs[2])
-        drifter=correctioncoeffs[2]
+            normval=6.52e3
+            occ2norm=1.0
+            norm_et=1.0
+            occ1constfactor=1.0
+            norm_pu=0.0
+            alpha1=0.0
+            alpha2=0.0
+            print '[Warning] using default normalization ',normval
+        corrToUse=correctioncoeffs.values()[0]
+        lctor=LumiCorrector.LumiCorrector(occ1norm=normval,occ2norm=norm_occ2,etnorm=norm_et,occ1constfactor=constfactor,punorm=norm_pu,alpha1=corrToUse[1],alpha2=corrToUse[2])
+        drifter=corrToUse[3]
         nBXs=lumirundata[run][2]
         for perlsdata in perrundata:#loop over ls
             lumilsnum=perlsdata[0]
@@ -694,12 +700,12 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             bs=perlsdata[3]
             beamenergy=perlsdata[4]
             instluminonorm=perlsdata[5]
-            print 'instluminonorm ',instluminonorm
             fillnum=perlsdata[11]
             if lumitype=='HF':
-                instcorrectedlumi=lctor.TotalNormOcc1(instluminonorm,nBXs)
+                totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)
             if lumitype=='PIXEL':
-                instcorrectedlumi=instluminonorm*lctor.PixelAfterglowFactor(self,nBXs)
+                totcorrection=instluminonorm*lctor.PixelAfterglowFactor(self,nBXs)
+            instcorrectedlumi=totcorrection*instluminonorm
             numorbit=perlsdata[8]
             numbx=lumip.NBX
             lslen=lumip.lslengthsec()

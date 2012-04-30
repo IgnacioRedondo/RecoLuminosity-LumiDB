@@ -286,9 +286,7 @@ if __name__ == '__main__':
     ##################
     if options.action == 'delivered':
         session.transaction().start(True)
-        print 'HELLO'
         result=lumiCalcAPI.deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
-        print 'after hello'
         session.transaction().commit()
         if not options.outputfile:
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)

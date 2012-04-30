@@ -2,7 +2,7 @@
 ##identical copy from online. no drift correction
 ##
 class LumiCorrector(object):
-    def __init__(self,occ1norm=7.13e3,occ2norm=7.97e3,etnorm=1.59e3,occ1constfactor=1.0,punorm=6.37e3,alpha1=0.063,alpha2=-0.0037):
+    def __init__(self,occ1norm=5.714e3,occ2norm=7.97e3,etnorm=1.59e3,occ1constfactor=1.0,punorm=6.37e3,alpha1=0.063,alpha2=-0.0037):
         self.Occ1Norm_=occ1norm
         self.Occ1ConstFactor_=occ1constfactor
         self.Occ2Norm_=occ2norm
@@ -10,26 +10,27 @@ class LumiCorrector(object):
         self.PUNorm_=punorm
         self.Alpha1_=alpha1
         self.Alpha2_=alpha2
-        self.AfterglowMap_={}
-        self.AfterglowMap_[213]=0.992 
-        self.AfterglowMap_[321]=0.990 
-        self.AfterglowMap_[423]=0.988 
-        self.AfterglowMap_[597]=0.985 
-        self.AfterglowMap_[700]=0.984 
-        self.AfterglowMap_[873]=0.981 
-        self.AfterglowMap_[1041]=0.979 
-        self.AfterglowMap_[1179]=0.977 
-        self.AfterglowMap_[1317]=0.975
-        self.pixelAfterglowMap_={}
-        self.pixelAfterglowMap_[213]=0.989 
-        self.pixelAfterglowMap_[321]=0.989 
-        self.pixelAfterglowMap_[423]=0.985 
-        self.pixelAfterglowMap_[597]=0.983 
-        self.pixelAfterglowMap_[700]=0.980 
-        self.pixelAfterglowMap_[873]=0.980 
-        self.pixelAfterglowMap_[1041]=0.976 
-        self.pixelAfterglowMap_[1179]=0.974 
-        self.pixelAfterglowMap_[1317]=0.972
+        self.AfterglowMap_=[]
+        #THIS HAS TO BE IN ASC ORDER
+        self.AfterglowMap_.append((213,0.992))
+        self.AfterglowMap_.append((321,0.990))
+        self.AfterglowMap_.append((423,0.988))
+        self.AfterglowMap_.append((597,0.985))
+        self.AfterglowMap_.append((700,0.984))
+        self.AfterglowMap_.append((873,0.981))
+        self.AfterglowMap_.append((1041,0.979))
+        self.AfterglowMap_.append((1179,0.977)) 
+        self.AfterglowMap_.append((1317,0.975))
+        self.pixelAfterglowMap_=[]
+        self.pixelAfterglowMap_.append((213,0.989)) 
+        self.pixelAfterglowMap_.append((321,0.989))
+        self.pixelAfterglowMap_.append((423,0.985))
+        self.pixelAfterglowMap_.append((597,0.983))
+        self.pixelAfterglowMap_.append((700,0.980))
+        self.pixelAfterglowMap_.append((873,0.980))
+        self.pixelAfterglowMap_.append((1041,0.976)) 
+        self.pixelAfterglowMap_.append((1179,0.974))
+        self.pixelAfterglowMap_.append((1317,0.972))
     def setNormForAlgo(self,algo,value):
         if algo=='OCC1':
             self.Occ1Norm_=value
@@ -69,28 +70,17 @@ class LumiCorrector(object):
     
     def AfterglowFactor(self,nBXs):
         Afterglow = 1.0
-        for bxthreshold,correction in self.AfterglowMap_.items():
+        for (bxthreshold,correction) in self.AfterglowMap_:
             if nBXs >= bxthreshold :
                 Afterglow = correction
-                return Afterglow
         return Afterglow
     
     def TotalNormOcc1(self,TotLumi_noNorm,nBXs):
         AvgLumi = 0.
-        print 'occ1norm ',self.Occ1Norm_
-        print 'occ1const ',self.Occ1ConstFactor_
-        print 'self.PUNorm_ ',self.PUNorm_
-        print 'TotLumi_noNorm ',TotLumi_noNorm
-        print 'nBXs ',nBXs
         if nBXs>0:
             AvgLumi = self.PUNorm_*TotLumi_noNorm/nBXs            
         else:
             return 1.0
-        print 'avglumi ',AvgLumi
-        print 'occ1norm ',self.Occ1Norm_
-        print 'afterglow ',self.AfterglowFactor(nBXs)
-        print 'apha1 ',self.Alpha1_
-        print 'alpha2 ',self.Alpha2_
         return self.Occ1Norm_*self.Occ1ConstFactor_*self.AfterglowFactor(nBXs)/(1 + self.Alpha1_*AvgLumi + self.Alpha2_*AvgLumi*AvgLumi)
     
     def PixelAfterglowFactor(self,nBXs):
