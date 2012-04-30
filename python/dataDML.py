@@ -9,10 +9,11 @@ import array
 #==============================
 # SELECT
 #==============================
-def guesscorrectionIdByName(schema,tagname=None):
+def guesscorrIdByName(schema,tagname=None):
     '''
     select data_id from lumicorrectionss [where entry_name=:tagname]
     result lumicorrectionsdataid
+    
     '''
     lumicorrectionids=[]
     result=None
@@ -41,12 +42,12 @@ def guesscorrectionIdByName(schema,tagname=None):
     if len(lumicorrectionids) !=0:return max(lumicorrectionids)
     return result
 
-def correctionById(schema,correctiondataid):
+def lumicorrById(schema,correctiondataid):
     '''
     select entry_name,a1,a2,drift from lumicorrections where DATA_ID=:dataid
-    output: [tagname(0),a1(1),a2(2),driftcoeff(3)]
+    output: {tagname:(data_id(0),a1(1),a2(2),driftcoeff(3))}
     '''
-    result=[None]*4
+    result=None
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList(nameDealer.lumicorrectionsTableName())
@@ -74,10 +75,11 @@ def correctionById(schema,correctiondataid):
             drift=None
             if cursor.currentRow()['DRIFT'].data():
                 drift=cursor.currentRow()['DRIFT'].data()
-            result=[tagname,a1,a2,drift]
+            result={tagname:(correctiondataid,a1,a2,drift)}
     except :
         del qHandle
         raise
+    print result
     del qHandle
     return result
 
@@ -450,16 +452,16 @@ def mostRecentLuminorms(schema,branchfilter):
                 norm_1=cursor.currentRow()['norm_1'].data()
                 energy_1=cursor.currentRow()['energy_1'].data()
                 norm_occ2=1.0
-                if cursor.currentRow()['norm_occ2'].data():
+                if not cursor.currentRow()['norm_occ2'].isNull():
                     norm_occ2=cursor.currentRow()['norm_occ2'].data()
                 norm_et=1.0
-                if cursor.currentRow()['norm_et'].data():
+                if not cursor.currentRow()['norm_et'].isNull():
                     norm_et=cursor.currentRow()['norm_et'].data()
                 norm_pu=1.0
-                if cursor.currentRow()['norm_pu'].data():
+                if not cursor.currentRow()['norm_pu'].isNull():
                     norm_pu=cursor.currentRow()['norm_pu'].data()
                 constfactor=1.0
-                if cursor.currentRow()['constfactor'].data():
+                if not cursor.currentRow()['constfactor'].isNull():
                     constfactor=cursor.currentRow()['constfactor'].data()
                 result[normname]=(amodetag,norm_1,energy_1,norm_occ2,norm_et,norm_pu,constfactor)
     except:
@@ -524,8 +526,8 @@ def luminormById(schema,dataid):
 def mostRecentLumicorrs(schema,branchfilter):
     '''
     this overview query should be only for corr
-    select e.name,max(n.data_id),r.revision_id , n.a1,n.a2,n.drift from lumicorrections_entries e,lumicorrections_rev r,lumicorrections n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter) group by e.entry_name,r.revision_id,n.a1,n.a2,n.drift;
-    output {corrname:[data_id,a1,a2,drift]}
+    select e.name,n.data_id,r.revision_id , n.a1,n.a2,n.drift from lumicorrections_entries e,lumicorrections_rev r,lumicorrections n where n.entry_id=e.entry_id and n.data_id=r.data_id and r.revision_id>=min(branchfilter) and r.revision_id<=max(branchfilter) group by e.entry_name,r.revision_id,n.a1,n.a2,n.drift;
+    output {corrname:(data_id,a1,a2,drift)}
     '''
     #print branchfilter
     result={}
@@ -538,12 +540,13 @@ def mostRecentLumicorrs(schema,branchfilter):
     else:
         return result
     qHandle=schema.newQuery()
+    corrdict={}
     try:
         qHandle.addToTableList(nameDealer.entryTableName(nameDealer.lumicorrectionsTableName()),'e')
         qHandle.addToTableList(nameDealer.lumicorrectionsTableName(),'n')
         qHandle.addToTableList(nameDealer.revmapTableName(nameDealer.lumicorrectionsTableName()),'r')
         qHandle.addToOutputList('e.NAME','corrname')
-        qHandle.addToOutputList('max(r.DATA_ID)','data_id')
+        qHandle.addToOutputList('r.DATA_ID','data_id')
         qHandle.addToOutputList('r.REVISION_ID','revision_id')
         qHandle.addToOutputList('n.A1','a1')
         qHandle.addToOutputList('n.A2','a2')
@@ -562,19 +565,22 @@ def mostRecentLumicorrs(schema,branchfilter):
         qResult.extend('drift','float')
         qHandle.defineOutput(qResult)
         qHandle.setCondition('n.ENTRY_ID=e.ENTRY_ID and n.DATA_ID=r.DATA_ID AND n.DATA_ID=r.DATA_ID AND r.REVISION_ID>=:branchmin AND r.REVISION_ID<=:branchmax',qCondition)
-        qHandle.groupBy('e.name,r.revision_id,n.a1,n.a2,n.drift')
         cursor=qHandle.execute()
         while cursor.next():
             corrname=cursor.currentRow()['corrname'].data()
-            dataid=cursor.currentRow()['data_id'].data()
-            a1=cursor.currentRow()['a1'].data()
-            a2=0.0
-            if not cursor.currentRow()['a2'].isNull():
-                a2=cursor.currentRow()['a2'].data()
-            drift=0.0
-            if not cursor.currentRow()['drift'].isNull():
-                drift=cursor.currentRow()['drift'].data()
-            result[corrname]=[dataid,a1,a2,drift]
+            data_id=cursor.currentRow()['data_id'].data()
+            if not corrdict.has_key(corrname):
+                corrdict[corrname]=0
+            if data_id>corrdict[corrname]:
+                corrdict[corrname]=data_id
+                a1=cursor.currentRow()['a1'].data() #required
+                a2=0.0
+                if not cursor.currentRow()['a2'].isNull():
+                    a2=cursor.currentRow()['a2'].data()
+                drift=0.0
+                if not cursor.currentRow()['drift'].isNull():
+                    drift=cursor.currentRow()['drift'].data()
+                result[corrname]=(data_id,a1,a2,drift)
     except:
         raise
     return result

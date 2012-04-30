@@ -61,7 +61,7 @@ if __name__ == '__main__':
         if options.name is None:
             branchfilter=revisionDML.revisionsInBranchName(schema,'CORR')
             allcorrs=dataDML.mostRecentLumicorrs(schema,branchfilter)
-            lumiReport.toScreenCorr(allcorrs)
+            lumiReport.toScreenCorr(allcorrs,showglobaldefault=True)
         elif options.name is not None:
             corrdataid=dataDML.guesscorrIdByName(schema,options.name)
             corr=dataDML.lumicorrById(schema,corrdataid)

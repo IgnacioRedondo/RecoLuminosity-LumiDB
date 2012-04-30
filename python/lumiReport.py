@@ -16,7 +16,7 @@ def toScreenNorm(normdata):
         result.append([name,amodetag,egev,normval,norm_pu,constfactor])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 
-def toScreenCorr(corrdata):
+def toScreenCorr(corrdata,showglobaldefault=False):
     result=[]
     tmpdata={}
     labels=[('Name','A1','A2','Drift','isDefault')]
@@ -26,19 +26,26 @@ def toScreenCorr(corrdata):
         dataid=thiscorr[0]
         if dataid>dataidmax:
             dataidmax=dataid
-        a1='%.3f'%thiscorr[1]
-        a2='%.3f'%thiscorr[2]
-        drift='%.3f'%thiscorr[3]
+        a1='%.5f'%thiscorr[1]
+        a2='0'
+        if thiscorr[2]:
+            a2='%.5f'%thiscorr[2]
+        drift='0'
+        if thiscorr[3]:
+            drift='%.5f'%thiscorr[3]
         tmpdata[name]=[dataid,a1,a2,drift]
     for name,mydata in tmpdata.items():
         myid=mydata[0]
         mya1=mydata[1]
         mya2=mydata[2]
         mydrift=mydata[3]
-        if myid==dataidmax:
-            result.append([name,mya1,mya2,mydrift,'1'])
+        if showglobaldefault:
+            if myid==dataidmax:
+                result.append([name,mya1,mya2,mydrift,'1'])
+            else:
+                result.append([name,mya1,mya2,mydrift,'0'])
         else:
-            result.append([name,mya1,mya2,mydrift,'0'])
+            result.append([name,mya1,mya2,mydrift,''])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose):
     '''
