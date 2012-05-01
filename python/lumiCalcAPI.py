@@ -141,7 +141,6 @@ def runsummary(schema,irunlsdict):
     result=[]
     for run in sorted(irunlsdict):
         runinfo=dataDML.runsummary(schema,run)
-        print runinfo
         runinfo.insert(0,run)
         result.append(runinfo)
     return result
@@ -152,7 +151,6 @@ def runsummaryMap(schema,irunlsdict):
     '''
     result={}
     seqresult=runsummary(schema,irunlsdict)
-    print seqresult
     for [run,l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime] in seqresult:
         result[run]=[l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime]
     return result

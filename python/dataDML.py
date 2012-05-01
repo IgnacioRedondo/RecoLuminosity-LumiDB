@@ -79,7 +79,6 @@ def lumicorrById(schema,correctiondataid):
     except :
         del qHandle
         raise
-    print result
     del qHandle
     return result
 
