@@ -696,6 +696,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             beamenergy=perlsdata[4]
             instluminonorm=perlsdata[5]
             fillnum=perlsdata[11]
+            totcorrection=1.0
             if lumitype=='HF':
                 totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)
             if lumitype=='PIXEL':
@@ -708,12 +709,14 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             calibratedbxdata=None
             beamdata=None
             if withBXInfo:
-                bxdata=perlsdata[9]
-                if bxdata:
-                    if lumitype=='HF':
-                        calibratedbxdata=lctor.TotalNormOcc1(bxdata,nBXs)/1000.0                        
-                del bxdata[1][:]
-                del bxdata[2][:]
+                (bxidx,bxvalues,bxerrs)=perlsdata[9]
+                if lumitype=='HF':
+                    totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)/1000.0
+                    calibratedbxdata=[totcorrection*x for x in bxvalues]
+                    calibratedlumierr=[totcorrection*x for x in bxerrs]
+                del bxidx[:]
+                del bxvalues[:]
+                del bxerrs[:]
             if withBeamIntensity:
                 beamdata=perlsdata[10]
             calibratedlumierr=0.0
