@@ -20,12 +20,10 @@ def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lu
     result={}
     if not tagname:
         lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
-        print 'lumidataidMap ',lumidataidMap
         trgdataidMap=dict.fromkeys(inputRange,None)
         hltdataidMap=dict.fromkeys(inputRange,None)
         if withTrg:
             trgdataidMap=dataDML.guessDataIdForRange(schema,inputRange,trgtableName)
-            print 'trg id map ',trgdataidMap
         if withHlt:
             hltdataidMap=dataDML.guessDataIdForRange(schema,inputRange,hlttableName)
         for r,lid in lumidataidMap.items():
@@ -356,17 +354,18 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
 
 def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',datatag=None):
     '''
-    DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
-    lumi raw data. beofore normalization and time integral
+    FROM ROOT FILE NO CORRECTION AT ALL 
     input:
-           irunlsdict  {run:[cmsls]} (required)
-           dataidmap 
+           irunlsdict: {run:[cmsls]} 
+           dataidmap: {run:(lumiid,trgid,hltid)}
+           runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
            beamstatus: LS filter on beamstatus (optional)
            withBXInfo: get per bunch info (optional)
            bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
            xingMinLum: cut on bx lumi value (optional)
            withBeamIntensity: get beam intensity info (optional)
-           branchName: data version
+           lumitype: luminosity measurement source
+           datatag: data version
     output:
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11),nbx(12)]}}
            lumi unit: HZ/ub
@@ -381,7 +380,6 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
     else:
         lumitableName=nameDealer.pixellumidataTableName()
         lumilstableName=nameDealer.pixellumisummaryv2TableName()
-    print lumitableName
     result={}
     for run,(lumidataid,trgid,hltid ) in dataidmap.items():
         lslist=irunlsdict[run]
@@ -448,7 +446,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
             lsresult.append([lumilsnum,cmslsnum,orbittime,beamstatus,beamenergy,instlumi,instlumierr,startorbit,numorbit,bxdata,beamdata,fillnum])         
             del perlsdata[:]
         result[run]=lsresult
-        return result
+    return result
 def instLumiForRange(schema,inputRange,lumirundataMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',branchName=None):
     '''
     DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
@@ -652,25 +650,24 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
 def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,correctioncoeffs=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF',datatag=None):
     '''
     delivered lumi (including calibration,time integral)
-    get inst raw lumi values then apply norm,corrections etc
     input:
-    inputRange  {run:[lsnum]} (required) [lsnum]==None means all ; [lsnum]==[] means selected ls 
-    amodetag : accelerator mode for all the runs (optional) ['PROTPHYS','IONPHYS']
-    beamstatus: LS filter on beamstatus (optional)
-    amodetag: amodetag for  picking norm(optional)
-    egev: beamenergy for picking norm(optional)
-    withBXInfo: get per bunch info (optional)
-    bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
-    xingMinLum: cut on bx lumi value (optional)
-           withBeamIntensity: get beam intensity info (optional)
-           norm: norm factor name to use: if float, apply directly, if str search norm by name (optional)
-           branchName: data version or branch name
-           output:
-           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
-           avg lumi unit: 1/ub
+       irunlsdict:  {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
+       dataidmap : {run:(lumiid,trgid,hltid)}
+       runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+       beamstatus: LS filter on beamstatus 
+       normmap: {run:(lumiid,trgid,hltid)}
+       correctioncoeffs: {name:(alpha1,alpha2,drift)}
+       withBXInfo: get per bunch info (optional)
+       bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
+       xingMinLum: cut on bx lumi value (optional)
+       withBeamIntensity: get beam intensity info (optional)
+       lumitype: luminosity source
+       datatag: data version 
+    output:
+       result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
+       lumi unit: 1/ub
     '''
     result = {}
-    #print normmap
     lumip=lumiParameters.ParametersObject()
     lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
     instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,datatag=datatag)
