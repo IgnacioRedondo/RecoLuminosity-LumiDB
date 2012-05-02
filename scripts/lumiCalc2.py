@@ -279,18 +279,62 @@ if __name__ == '__main__':
         driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
     dataidmap={}     #{run:(lumiid,trgid,hltid)}
     dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg ,withHlt=reqHlt,tagname=options.datatag,lumitype='HF')    
-    session.transaction().commit()
 
     ##################
     # ls level       #
     ##################
     if options.action == 'delivered':
-        session.transaction().start(True)
         result=lumiCalcAPI.deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
-        session.transaction().commit()
         if not options.outputfile:
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
         else:
-            lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)      
+            lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+    if options.action == 'overview':
+        result=lumiCalcAPI.lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        if not options.outputfile:
+            lumiReport.toScreenOverview(result,iresults,options.scalefactor,options.verbose)
+        else:
+            lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+    if options.action == 'lumibyls':
+        if not options.hltpath:
+            result=lumiCalcAPI.lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+            if not options.outputfile:
+                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
+            else:
+                lumiReport.toCSVLumiByLS(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+        else:
+            hltname=options.hltpath
+            hltpat=None
+            if hltname=='*' or hltname=='all':
+                hltname=None
+            elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
+                hltpat=hltname
+                hltname=None
+            result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,hltpathname=hltname,hltpathpattern=hltpat,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+            if not options.outputfile:
+                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
+            else:
+                lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+    if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
+        hltname=options.hltpath
+        hltpat=None
+        if hltname is not None:
+            if hltname=='*' or hltname=='all':
+                hltname=None
+            elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
+                hltpat=hltname
+                hltname=None
+        result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,hltpathname=hltname,hltpathpattern=hltpat,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        if not options.outputfile:
+            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
+        else:
+            lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+    if options.action == 'lumibylsXing':
+        result=lumiCalcAPI.lumiForIds(schema,irunlsdict,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,xingMinLum=options.xingMinLum,withBeamIntensity=False,withBXInfo=True,bxAlgo=options.xingAlgo,lumitype='HF')
+        if not options.outputfile:
+            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
+        else:
+            lumiReport.toCSVLumiByLSXing(result,options.scalefactor,options.outputfile)
+    session.transaction().commit()
     del session
     del svc 
