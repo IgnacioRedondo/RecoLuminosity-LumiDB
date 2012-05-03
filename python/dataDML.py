@@ -69,10 +69,10 @@ def lumicorrById(schema,correctiondataid):
         while cursor.next():
             tagname=cursor.currentRow()['ENTRY_NAME'].data()
             a1=cursor.currentRow()['A1'].data()
-            a2=None
+            a2=0.0
             if cursor.currentRow()['A2'].data():
                 a2=cursor.currentRow()['A2'].data()
-            drift=None
+            drift=0.0
             if cursor.currentRow()['DRIFT'].data():
                 drift=cursor.currentRow()['DRIFT'].data()
             result={tagname:(correctiondataid,a1,a2,drift)}
