@@ -350,6 +350,56 @@ def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1C
                 result[run].append(lsdata)
     return result
 
+def trgForIds(schema,irunlsdict,dataidmap,trgbitname=None,trgbitnamepattern=None,withL1Count=False,withPrescale=False,tableName=None,branchName=None):
+    '''
+    input :
+            irunlsdict  {run:[cmsls]} (required)
+            dataidmap: {run:(lumiid,trgid,hltid)}
+            trgbitname exact match  trgbitname (optional)
+            trgbitnamepattern match trgbitname (optional)
+            tableName : trgdata table name
+            branchName : data version
+    output
+            result {run:[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(bitname,prescale,counts)]]}
+    '''
+    result={}
+    #withprescaleblob=True
+    #withtrgblob=True    
+    for run in irunlsdict.keys():
+        lslist=irunlsdict[run]
+        if lslist is not None and len(lslist)==0:
+            result[run]=[]#if no LS is selected for a run
+            continue
+        trgdataid=dataidmap[run][1]
+        if trgdataid is None:
+            result[run]=None
+            continue #run non exist
+        trgdata=dataDML.trgLSById(schema,trgdataid,trgbitname=trgbitname,trgbitnamepattern=trgbitnamepattern,withL1Count=withL1Count,withPrescale=withPrescale)
+        #(runnum,{cmslsnum:[deadtimecount(0),bitzerocount(1),bitzeroprescale(2),deadfrac(3),[(bitname,trgcount,prescale)](4)]})
+        result[run]=[]
+        if trgdata and trgdata[1]:
+            lsdict={}
+            for cmslsnum in sorted(trgdata[1]):
+                if lslist is not None and cmslsnum not in lslist:
+                    continue
+                lsdata=[]
+                #print trgdata[1][cmslsnum]
+                deadtimecount=trgdata[1][cmslsnum][0]
+                bitzerocount=trgdata[1][cmslsnum][1]
+                bitzeroprescale=trgdata[1][cmslsnum][2]               
+                deadfrac=trgdata[1][cmslsnum][3]
+                if deadfrac<0 or deadfrac>1.0:
+                    deadfrac=1.0
+                allbitsinfo=trgdata[1][cmslsnum][4]
+                lsdata.append(cmslsnum)
+                lsdata.append(deadfrac)
+                lsdata.append(deadtimecount)
+                lsdata.append(bitzerocount)
+                lsdata.append(bitzeroprescale)
+                lsdata.append(allbitsinfo)
+                result[run].append(lsdata)
+    return result
+
 def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',datatag=None):
     '''
     FROM ROOT FILE NO CORRECTION AT ALL 
@@ -981,7 +1031,105 @@ def lumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withB
             del perlsdata[:]
         result[run]=perrunresult    
     return result
-       
+
+def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,correctioncoeffs=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF',datatag=None):
+    '''
+    delivered/recorded lumi  (including calibration,time integral)
+    input:
+       irunlsdict:  {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
+       dataidmap : {run:(lumiid,trgid,hltid)}
+       runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+       beamstatus: LS filter on beamstatus 
+       normmap: {run:(lumiid,trgid,hltid)}
+       correctioncoeffs: {name:(alpha1,alpha2,drift)}
+       withBXInfo: get per bunch info (optional)
+       bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
+       xingMinLum: cut on bx lumi value (optional)
+       withBeamIntensity: get beam intensity info (optional)
+       lumitype: luminosity source
+       datatag: data version 
+    output:
+       result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
+       lumi unit: 1/ub
+    '''
+    result = {}
+    lumip=lumiParameters.ParametersObject()
+    lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
+    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,datatag=datatag)
+    trgresult=trgForIds(schema,irunlsdict,dataidmap)
+    #print 'trgresult ',trgresult
+    for run in irunlsdict.keys():#loop over run
+        if not lumirundata.has_key(run):
+            result[run]=None
+            continue
+        if not trgresult.has_key(run):
+            trgdata={}
+        perrunresult=[]
+        for run,perrundata in instresult.items():
+            if perrundata is None:
+                result[run]=None
+                continue
+        (amodetag,normval,egev,norm_occ2,norm_et,norm_pu,constfactor)=normmap[run].values()[0]
+        if not normval:
+            normval=6.52e3
+            occ2norm=1.0
+            norm_et=1.0
+            occ1constfactor=1.0
+            norm_pu=0.0
+            alpha1=0.0
+            alpha2=0.0
+            print '[Warning] using default normalization ',normval
+        corrToUse=correctioncoeffs.values()[0]
+        lctor=LumiCorrector.LumiCorrector(occ1norm=normval,occ2norm=norm_occ2,etnorm=norm_et,occ1constfactor=constfactor,punorm=norm_pu,alpha1=corrToUse[1],alpha2=corrToUse[2])
+        drifter=corrToUse[3]
+        nBXs=lumirundata[run][2]
+        startTimeStr=runsummaryMap[run][6]
+        for perlsdata in perrundata:#loop over ls
+            lumilsnum=perlsdata[0]
+            cmslsnum=perlsdata[1]
+            alltrgls=[x[0] for x in trgresult[run]]
+            deadfrac=1.0
+            if cmslsnum in alltrgls:
+                trglsidx=alltrgls.index(cmslsnum)
+                deadfrac=trgresult[run][trglsidx][1]
+                if deadfrac<0 or deadfrac>1.0:
+                    deadfrac=1.0
+            timestamp=perlsdata[2]
+            bs=perlsdata[3]
+            beamenergy=perlsdata[4]
+            instluminonorm=perlsdata[5]
+            fillnum=perlsdata[11]
+            totcorrection=1.0
+            if lumitype=='HF':
+                totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)
+            if lumitype=='PIXEL':
+                totcorrection=instluminonorm*lctor.PixelAfterglowFactor(self,nBXs)
+            instcorrectedlumi=totcorrection*instluminonorm
+            numorbit=perlsdata[8]
+            numbx=lumip.NBX
+            lslen=lumip.lslengthsec()
+            deliveredlumi=instcorrectedlumi*lslen
+            recordedlumi=(1.0-deadfrac)*deliveredlumi
+            #print 'recordedlumi ',recordedlumi
+            calibratedbxdata=None
+            beamdata=None
+            if withBXInfo:
+                (bxidx,bxvalues,bxerrs)=perlsdata[9]
+                if lumitype=='HF':
+                    totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)/1000.0
+                    calibratedbxdata=[totcorrection*x for x in bxvalues]
+                    calibratedlumierr=[totcorrection*x for x in bxerrs]
+                del bxidx[:]
+                del bxvalues[:]
+                del bxerrs[:]
+            if withBeamIntensity:
+                beamdata=perlsdata[10]
+            calibratedlumierr=0.0
+            perrunresult.append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,recordedlumi,calibratedlumierr,calibratedbxdata,beamdata,fillnum])
+            del perlsdata[:]
+        result[run]=perrunresult    
+    return result
+
 def effectiveLumiForRange(schema,inputRange,hltpathname=None,hltpathpattern=None,amodetag=None,beamstatus=None,egev=None,withBXInfo=False,xingMinLum=0.0,bxAlgo=None,withBeamIntensity=False,norm=None,finecorrections=None,driftcorrections=None,usecorrectionv2=False,lumitype='HF',branchName=None):
     '''
     input:
