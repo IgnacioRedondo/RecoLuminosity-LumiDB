@@ -324,7 +324,7 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-        result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,hltpathname=hltname,hltpathpattern=hltpat,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
         if not options.outputfile:
             lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
         else:

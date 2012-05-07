@@ -294,6 +294,51 @@ def hltForRange(schema,inputRange,hltpathname=None,hltpathpattern=None,withL1Pas
                 result[run].append((cmslsnum,lsdata))
     return result
 
+def hltForIds(schema,irunlsdict,dataidmap,hltpathname=None,hltpathpattern=None,withL1Pass=False,withHLTAccept=False,tableName=None,branchName=None):
+    '''
+    input:
+           irunlsdict: {run:[cmsls]} (required)
+           dataidmap: {run:(lumiid,trgid,hltid)}
+           hltpathname: exact match hltpathname  (optional) 
+           hltpathpattern: regex match hltpathpattern (optional)
+           withL1Pass: with L1 pass count
+           withHLTAccept: with HLT accept
+           tablename: 
+           branchName : data version
+    output: {runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
+    '''
+    result={}
+    for run in irunlsdict.keys():
+        lslist=irunlsdict[run]
+        if lslist is not None and len(lslist)==0:
+            result[run]=[]#if no LS is selected for a run
+            continue
+        hltdataid=dataidmap[run][2]
+        if hltdataid is None:
+            result[run]=None
+            continue #run non exist
+        hltdata=dataDML.hltLSById(schema,hltdataid,hltpathname=hltpathname,hltpathpattern=hltpathpattern,withL1Pass=withL1Pass,withHLTAccept=withHLTAccept)
+        #(runnum,{cmslsnum:[(pathname,prescale,l1pass,hltaccept),...]})
+        result[run]=[]
+        if hltdata and hltdata[1]:
+            lsdict={}            
+            for cmslsnum in sorted(hltdata[1]):
+                if lslist is not None and cmslsnum not in lslist:
+                    continue
+                lsdata=[]
+                for perpathdata in hltdata[1][cmslsnum]:
+                    pathname=perpathdata[0]
+                    prescale=perpathdata[1]
+                    l1pass=None
+                    hltaccept=None
+                    if withL1Pass:
+                        l1pass=perpathdata[2]
+                    if withHLTAccept:
+                        hltaccept=perpathdata[3]
+                    lsdata.append((pathname,prescale,l1pass,hltaccept))
+                result[run].append((cmslsnum,lsdata))
+    return result
+
 def trgForRange(schema,inputRange,trgbitname=None,trgbitnamepattern=None,withL1Count=False,withPrescale=False,tableName=None,branchName=None):
     '''
     input :
@@ -1062,8 +1107,6 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
         if not lumirundata.has_key(run):
             result[run]=None
             continue
-        if not trgresult.has_key(run):
-            trgdata={}
         perrunresult=[]
         for run,perrundata in instresult.items():
             if perrundata is None:
@@ -1087,7 +1130,9 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
         for perlsdata in perrundata:#loop over ls
             lumilsnum=perlsdata[0]
             cmslsnum=perlsdata[1]
-            alltrgls=[x[0] for x in trgresult[run]]
+            alltrgls=[]
+            if trgresult.has_key(run):
+                alltrgls=[x[0] for x in trgresult[run]]
             deadfrac=1.0
             if cmslsnum in alltrgls:
                 trglsidx=alltrgls.index(cmslsnum)
@@ -1126,6 +1171,151 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
                 beamdata=perlsdata[10]
             calibratedlumierr=0.0
             perrunresult.append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,recordedlumi,calibratedlumierr,calibratedbxdata,beamdata,fillnum])
+            del perlsdata[:]
+        result[run]=perrunresult    
+    return result
+
+def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatusfilter=None,normmap=None,correctioncoeffs=None,hltpathname=None,hltpathpattern=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',datatag=None):
+    '''
+    input:
+           irunlsdict:  {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
+           dataidmap : {run:(lumiid,trgid,hltid)}
+           runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+           beamstatusfilter: LS filter on beamstatus
+           normmap: {run:(lumiid,trgid,hltid)}
+           correctioncoeffs: {name:(alpha1,alpha2,drift)}
+           hltpathname: selected hltpathname
+           hltpathpattern: regex select hltpaths           
+           withBXInfo: get per bunch info (optional)
+           bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
+           xingMinLum: cut on bx lumi value (optional)
+           withBeamIntensity: get beam intensity info (optional)
+           lumitype: luminosity source
+           datatag: data version 
+    output:
+           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),{hltpath:[l1name,l1prescale,hltprescale,efflumi]},bxdata,beamdata,fillnum]}
+           lumi unit: 1/ub
+    '''
+    result = {}
+    lumip=lumiParameters.ParametersObject()
+    lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
+    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,datatag=datatag)
+    trgresult=trgForIds(schema,irunlsdict,dataidmap)
+    print 'trgresult ',trgresult
+    hltresult=hltForIds(schema,irunlsdict,dataidmap)
+    trgprescalemap={}
+    for run in irunlsdict.keys():
+        if not lumirundata.has_key(run):
+            result[run]=None
+            continue        
+        perrunresult=[]
+        for run,perrundata in instresult.items():
+            if perrundata is None:
+                result[run]=None
+                continue
+        (amodetag,normval,egev,norm_occ2,norm_et,norm_pu,constfactor)=normmap[run].values()[0]
+        if not normval:
+            normval=6.52e3
+            occ2norm=1.0
+            norm_et=1.0
+            occ1constfactor=1.0
+            norm_pu=0.0
+            alpha1=0.0
+            alpha2=0.0
+            print '[Warning] using default normalization ',normval
+        corrToUse=correctioncoeffs.values()[0]
+        lctor=LumiCorrector.LumiCorrector(occ1norm=normval,occ2norm=norm_occ2,etnorm=norm_et,occ1constfactor=constfactor,punorm=norm_pu,alpha1=corrToUse[1],alpha2=corrToUse[2])
+        drifter=corrToUse[3]
+        nBXs=lumirundata[run][2]
+        startTimeStr=runsummaryMap[run][6]
+        l1bitinfo=[]
+        hltpathinfo=[]
+        hlttrgmap=dataDML.hlttrgMappingByrun(schema,run)
+        alltrgls=[x[0] for x in trgresult[run]]
+        allhltls=[x[0] for x in hltresult[run]]
+        for perlsdata in perrundata:#loop over ls
+            lumilsnum=perlsdata[0]
+            cmslsnum=perlsdata[1]
+            deadfrac=1.0
+            efflumi=0.0
+            efflumidict={}
+            if cmslsnum in alltrgls:
+                trglsidx=alltrgls.index(cmslsnum)
+                deadfrac=trgresult[run][trglsidx][1]
+                if deadfrac<0 or deadfrac>1.0:
+                    deadfrac=1.0
+                l1bitinfo=trgresult[run][trglsidx][5]                
+            if cmslsnum in allhltls:
+                hltlsidx=allhltls.index(cmslsnum)
+                hltpathdata=hltresult[run][hltlsidx][1]
+                for pathidx,thispathinfo in enumerate(hltpathdata):
+                    efflumi=0.0                    
+                    thispathname=thispathinfo[0]
+                    thisprescale=thispathinfo[1]
+                    thisl1seed=None
+                    l1bitname=None
+                    l1prescale=None
+                    try:
+                        thisl1seed=hlttrgmap[thispathname]
+                    except KeyError:
+                        thisl1seed=None
+                        # print 'hltpath, l1seed, hltprescale ',thispathname,thisl1seed,thisprescale
+                    if thisl1seed:                            
+                        try:
+                            l1bitname=hltTrgSeedMapper.findUniqueSeed(thispathname,thisl1seed)
+                            if l1bitname:
+                                l1prescale=trgprescalemap[l1bitname]#need to match double quoted string!
+                            else:
+                                l1prescale=None
+                        except KeyError:
+                            l1prescale=None                           
+                        if l1prescale and thisprescale :#normal both prescaled
+                            efflumi=recordedlumi/(float(l1prescale)*float(thisprescale))
+                            efflumidict[thispathname]=[l1bitname,l1prescale,thisprescale,efflumi]
+                        elif l1prescale and thisprescale==0: #hltpath in menu but masked
+                            efflumi=0.0
+                            efflumidict[thispathname]=[l1bitname,l1prescale,thisprescale,efflumi]
+                        else:
+                            efflumi=0.0
+                            efflumidict[thispathname]=[None,0,thisprescale,efflumi]
+            timestamp=perlsdata[2]
+            bs=perlsdata[3]
+            beamenergy=perlsdata[4]
+            instluminonorm=perlsdata[5]
+            fillnum=perlsdata[11]
+            totcorrection=1.0
+            if lumitype=='HF':
+                totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)
+            if lumitype=='PIXEL':
+                totcorrection=instluminonorm*lctor.PixelAfterglowFactor(self,nBXs)
+            instcorrectedlumi=totcorrection*instluminonorm
+            numorbit=perlsdata[8]
+            numbx=lumip.NBX
+            lslen=lumip.lslengthsec()
+            deliveredlumi=instcorrectedlumi*lslen
+            recordedlumi=(1.0-deadfrac)*deliveredlumi
+            #print 'recordedlumi ',recordedlumi
+            if l1bitinfo:
+                for thisbitinfo in l1bitinfo:
+                    thisbitname=thisbitinfo[0]
+                    thisbitprescale=thisbitinfo[2]
+                    #trgprescalemap['"'+thisbitname+'"']=thisbitprescale#note:need to double quote bit name!
+                    trgprescalemap['"'+thisbitname+'"']=thisbitprescale
+            calibratedbxdata=None
+            beamdata=None
+            if withBXInfo:
+                (bxidx,bxvalues,bxerrs)=perlsdata[9]
+                if lumitype=='HF':
+                    totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)/1000.0
+                    calibratedbxdata=[totcorrection*x for x in bxvalues]
+                    calibratedlumierr=[totcorrection*x for x in bxerrs]
+                del bxidx[:]
+                del bxvalues[:]
+                del bxerrs[:]
+            if withBeamIntensity:
+                beamdata=perlsdata[10]
+            calibratedlumierr=0.0
+            perrunresult.append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,recordedlumi,calibratedlumierr,efflumidict,calibratedbxdata,beamdata,fillnum])
             del perlsdata[:]
         result[run]=perrunresult    
     return result
