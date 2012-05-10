@@ -309,7 +309,7 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-            result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,hltpathname=hltname,hltpathpattern=hltpat,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+            result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
             if not options.outputfile:
                 lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
             else:
@@ -329,7 +329,7 @@ if __name__ == '__main__':
         else:
             lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibylsXing':
-        result=lumiCalcAPI.lumiForIds(schema,irunlsdict,amodetag=options.amodetag,egev=options.beamenergy,beamstatus=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,xingMinLum=options.xingMinLum,withBeamIntensity=False,withBXInfo=True,bxAlgo=options.xingAlgo,lumitype='HF')
+        result=lumiCalcAPI.lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
         if not options.outputfile:
             lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
         else:
