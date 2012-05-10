@@ -268,8 +268,7 @@ if __name__ == '__main__':
             mymodetag=GrunsummaryData[rdata][1]
             myegev=GrunsummaryData[rdata][2]
             runcontextMap[rdata]=(mymodetag,myegev)
-            normmap=lumiCalcAPI.normForRange(schema,runcontextMap)
-            
+            normmap=lumiCalcAPI.normForRange(schema,runcontextMap)            
     else:
         normvalue=lumiCalcAPI.normByName(schema,normfactor)
         normmap=dict.fromkeys(rruns,normvalue)

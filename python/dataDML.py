@@ -1193,8 +1193,8 @@ def hltRunById(schema,dataid,hltpathname=None,hltpathpattern=None):
                 elif hltpathpattern:
                     if fnmatch.fnmatch(hltname,hltpathpattern):
                         hltnamedict.append((pathnameidx,hltname))
-                else:
-                    hltnamedict.append((pathnameidx,hltname))
+                #else:
+                    #hltnamedict.append((pathnameidx,hltname))
         result=[runnum,datasource,npath,hltnamedict]
     except :
         del qHandle
@@ -1259,7 +1259,11 @@ def hltLSById(schema,dataid,hltpathname=None,hltpathpattern=None,withL1Pass=Fals
     #t0=time.time()
     result={}
     hltrundata=hltRunById(schema,dataid,hltpathname=hltpathname,hltpathpattern=hltpathpattern)
+    if not hltrundata:
+        return result        
     hltnamedict=hltrundata[3]
+    if not hltnamedict:
+        return (hltrundata[0],{})
     #tt1=time.time()
     #print '\thltrunbyid time ',tt1-t0
     #tt0=time.time()

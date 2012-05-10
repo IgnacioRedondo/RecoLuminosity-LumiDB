@@ -684,7 +684,8 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,isverbose):
                     if not lprescdict.has_key(l1name):
                         lprescdict[l1name]=[]
                     lprescdict[l1name].append(l1presc)
-                    totdict[hltpathname][0]+=1                    
+                    if cmslsnum!=0:
+                        totdict[hltpathname][0]+=1                    
                     if lumival:
                         totdict[hltpathname][1]+=lumival
                         totefflumiDict[hltpathname]+=lumival
