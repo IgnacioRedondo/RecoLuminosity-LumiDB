@@ -58,6 +58,12 @@ def hltdataTableName():
 def lshltTableName():
        return 'LSHLT'
 
+def tagRunsTableName():
+       return 'TAGRUNS'
+
+def tagsTableName():
+       return 'TAGS'
+
 def trghltMapTableName():
         return 'TRGHLTMAP'
 

@@ -16,6 +16,22 @@ def toScreenNorm(normdata):
         result.append([name,amodetag,egev,normval,norm_pu,constfactor])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 
+def toScreenTag(tagdata,name=None):
+    result=[]
+    if not name:
+        labels=[('Name','minRun','maxRun','CTime')]
+        print ' ==  = '
+        for tagid in sorted(tagdata):
+            taginfo=tagdata[tagid]
+            name=taginfo[0]
+            minRun=str(taginfo[1])
+            maxRun='Open'
+            if taginfo[2]!=0:
+                maxRun=str(taginfo[2])
+            creationtime=taginfo[3]
+            result.append([name,minRun,maxRun,creationtime])
+    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
+
 def toScreenCorr(corrdata,showglobaldefault=False):
     result=[]
     tmpdata={}

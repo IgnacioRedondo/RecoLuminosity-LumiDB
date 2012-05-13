@@ -474,6 +474,143 @@ def createBranch(schema,name,parentname,comment=''):
         return (revisionid,parentid,parentname)
     except:
         raise
+    
+#
+# Tag DML API
+#
+def createDataTag(schema,tagname):
+    '''
+    insert into tags(tagname,tagid,creationtime) values()
+    output:
+        tagname,tagid,creationtime
+    '''
+    try:
+        iddealer=idDealer.idDealer(schema)
+        tagid=iddealer.generateNextIDForTable( nameDealer.tagsTableName() )
+        db=dbUtil.dbUtil(schema)
+        tabrowDefDict={}
+        tabrowDefDict['TAGNAME']='string'
+        tabrowDefDict['TAGID']='unsigned long long'
+        tabrowDefDict['CREATIONTIME']='time stamp'
+        tabrowValueDict={}
+        tabrowValueDict['TAGNAME']=tagname
+        tabrowValueDict['TAGID']=tagid
+        creationtime=coral.TimeStamp()
+        tabrowValueDict['CREATIONTIME']=creationtime
+        db.insertOneRow(nameDealer.tagsTableName(),tabrowDefDict, tabrowValueDict )
+        return (tagname,tagid,creationtime)
+    except:
+        raise
+def addRunToCurrentDataTag(schema,runnum,lumiid,trgid,hltid,comment=''):
+    '''
+    select tagid from tags
+    insert into tagruns(tagid,runnum,lumidataid,trgdataid,hltdataid,creationtime,comment) values(tagid,runnum,lumiid,trgid,hltid,creationtime,comment)
+    '''
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagrunsTableName() )
+        qCondition=coral.AttributeList()
+        qResult=coral.AttributeList()
+        qResult.extend('TAGID','unsigned long long')
+        qHandle.defineOutput(qResult)
+        cursor=qHandle.execute()
+        tagids=[]
+        currenttagid=0
+        while cursor.next():
+            tagid=cursor.currentRow()['TAGID'].data()
+            tagids.append(tagid)
+        del qHandle
+        if len(tagid)!=0:
+            currenttagid=max(tagid)
+        if currenttagid==0:
+            raise 'no tag available'
+        db=dbUtil.dbUtil(schema)
+        tabrowDefDict={}
+        tabrowDefDict['TAGID']='unsigned long long'
+        tabrowDefDict['RUNNUM']='unsigned int'
+        tabrowDefDict['LUMIDATAID']='unsigned long long'
+        tabrowDefDict['TRGDATAID']='unsigned long long'
+        tabrowDefDict['HLTDATAID']='unsigned long long'
+        tabrowDefDict['CREATIONTIME']='time stamp'
+        tabrowDefDict['COMMENT']='string'
+        tabrowValueDict={}
+        tabrowValueDict['TAGID']=currenttagid
+        tabrowValueDict['RUNNUM']=runnum
+        tabrowValueDict['LUMIDATAID']=lumiid
+        tabrowValueDict['TRGDATAID']=trgid
+        tabrowValueDict['HLTDATAID']=hltid
+        tabrowValueDict['CREATIONTIME']=coral.TimeStamp()
+        tabrowValueDict['COMMENT']=comment
+        db.insertOneRow( nameDealer.tagrunsTableName(),tabrowDefDict, tabrowValueDict )
+    except:
+        raise
+
+def dataTags(schema):
+    '''
+    select tagname,tagid from tags,tagruns  
+        if number of tags==1->open tag
+        if tagid is max ->open tag
+        for closed tag:
+           max run=max(runnum) where tagid=:tagid
+           min run
+              select min(runnum) from tagruns where tagid<=:tagid
+        for open tag:
+           max run=None
+           min run
+              select min(runnum) from tagruns where tagid<=:tagid
+    output:
+       {tagid:(name,minrun,maxrun,creationtime)}
+    '''
+    tagmap={}#{tagid:[tagname,minrun,maxrun,creationtime]}
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagsTableName() )
+        qCondition=coral.AttributeList()
+        qHandle.addToOutputList('TAGNAME')
+        qHandle.addToOutputList('TAGID')
+        qHandle.addToOutputList("TO_CHAR(CREATIONTIME,\'MM/DD/YY HH24:MI:SS\')",'creationtime')
+        qResult=coral.AttributeList()        
+        qResult.extend('TAGNAME','string')
+        qResult.extend('TAGID','unsigned long long')
+        qResult.extend('creationtime','string')
+        qHandle.defineOutput(qResult)
+        cursor=qHandle.execute()
+        while cursor.next():
+            tagname=cursor.currentRow()['TAGNAME'].data()
+            tagid=cursor.currentRow()['TAGID'].data()
+            creationtime=cursor.currentRow()['creationtime'].data()
+            tagmap[tagid]=[tagname,0,0,creationtime]
+        del qHandle
+        
+        tagids=tagmap.keys()
+        allruns=set()
+        for tagid in tagids:
+            qConditionStr='TAGID<=:tagid'
+            qCondition=coral.AttributeList()
+            qCondition.extend('tagid','unsigned long long')
+            qCondition['tagid'].setData(tagid)
+            qHandle=schema.newQuery()
+            qHandle.addToTableList( nameDealer.tagRunsTableName() )
+            qResult=coral.AttributeList()
+            qResult.extend('RUNNUM','unsigned int')
+            qHandle.defineOutput(qResult)
+            qHandle.setCondition(qConditionStr,qCondition)
+            qHandle.addToOutputList('RUNNUM')
+            cursor=qHandle.execute()
+            while cursor.next():
+                rnum=cursor.currentRow()['RUNNUM'].data()
+                allruns.add(rnum)
+            minrun=0
+            maxrun=0
+            if len(allruns)!=0:
+                minrun=min(allruns)
+                maxrun=max(allruns)
+            tagmap[tagid][1]=minrun
+            if len(tagmap)>1 or tagid!=max(tagids):
+                tagmap[tagid][2]=maxrun   
+    except:
+        raise
+    return tagmap
 
 if __name__ == "__main__":
     import sessionManager
