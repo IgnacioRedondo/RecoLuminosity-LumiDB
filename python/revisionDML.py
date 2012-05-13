@@ -606,7 +606,169 @@ def dataTags(schema):
                 minrun=min(allruns)
                 maxrun=max(allruns)
             tagmap[tagid][1]=minrun
-            if len(tagmap)>1 or tagid!=max(tagids):
+            if len(tagmap)>1 and tagid!=max(tagids):
+                tagmap[tagid][2]=maxrun   
+    except:
+        raise
+    return tagmap
+
+def dataTagInfoByName(schema,tagname,withcomment=False):
+    '''
+    select tagid from tags where tagname=:tagname
+    output:
+        {run:(lumidataid,trgdataid,hltdataid,comment)}
+    '''
+    tagid=None
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagsTableName() )
+        qConditionStr='TAGNAME=:tagname'
+        qCondition=coral.AttributeList()
+        qCondition.extend('tagname','string')
+        qCondition['tagname'].setData(tagname)
+        qHandle.addToOutputList('TAGID')
+        qResult=coral.AttributeList()        
+        qResult.extend('TAGID','unsigned long long')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition(qConditionStr,qCondition)
+        cursor=qHandle.execute()
+        while cursor.next():
+            if not cursor.currentRow()['TAGID'].isNull():
+                tagid=cursor.currentRow()['TAGID'].data()
+        del qHandle
+    except:
+        raise
+    if tagid is None:
+        return {}
+    return dataTagInfoById(schema,tagid,withcomment=withcomment)
+
+def dataTagInfoById(schema,tagid,withcomment=False):
+    '''
+    select runnum,lumidataid,trgdataid,hltdataid,comment from tagruns where TAGID<=:tagid;
+    output:
+        {run:(lumidataid,trgdataid,hltdataid,comment)}
+    '''
+    result={}#{run:[lumiid,trgid,hltid,comment(optional)]} 
+    commentdict={}#{(lumiid,trgid,hltid):[comment,ctimestr]}
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagRunsTableName() )
+        qConditionStr='TAGID<=:tagid'
+        qCondition=coral.AttributeList()
+        qCondition.extend('tagid','unsigned long long')
+        qCondition['tagid'].setData(tagid)
+        qResult=coral.AttributeList()        
+        qResult.extend('RUNNUM','unsigned int')
+        qResult.extend('LUMIDATAID','unsigned long long')
+        qResult.extend('TRGDATAID','unsigned long long')
+        qResult.extend('HLTDATAID','unsigned long long')
+        if withcomment:
+            qResult.extend('COMMENT','string')
+            qResult.extend('creationtime','string')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition(qConditionStr,qCondition)
+        qHandle.addToOutputList('RUNNUM')
+        qHandle.addToOutputList('LUMIDATAID')
+        qHandle.addToOutputList('TRGDATAID')
+        qHandle.addToOutputList('HLTDATAID')
+        if withcomment:
+            qHandle.addToOutputList('COMMENT')
+            qHandle.addToOutputList("TO_CHAR(CREATIONTIME,\'MM/DD/YY HH24:MI:SS\')",'creationtime')
+        cursor=qHandle.execute()
+        while cursor.next():
+            runnum=cursor.currentRow()['RUNNUM'].data()
+            lumidataid=0
+            if not cursor.currentRow()['LUMIDATAID'].isNull():
+                lumidataid=cursor.currentRow()['LUMIDATAID'].data()
+            trgdataid=0
+            if not cursor.currentRow()['TRGDATAID'].isNull():
+                trgdataid=cursor.currentRow()['TRGDATAID'].data()
+            hltdataid=0
+            if not cursor.currentRow()['HLTDATAID'].isNull():
+                hltdataid=cursor.currentRow()['HLTDATAID'].data()
+            if not result.has_key(runnum):
+                result[runnum]=[0,0,0]
+            if lumidataid>result[runnum][0]:
+                result[runnum][0]=lumidataid
+            if trgdataid>result[runnum][1]:
+                result[runnum][1]=trgdataid
+            if hltdataid>result[runnum][2]:
+                result[runnum][2]=hltdataid    
+            if withcomment:
+                comment=''
+                creationtime=''
+                if not cursor.currentRow()['COMMENT'].isNull():
+                    comment=cursor.currentRow()['COMMENT'].data()
+                    creationtime=cursor.currentRow()['creationtime'].data()
+                    comment=creationtime+':'+comment
+                commentdict[(lumidataid,trgdataid,hltdataid)]=comment
+        del qHandle
+        if withcomment:
+            for run,resultentry in result.items():
+                lumiid=resultentry[0]
+                trgid=resultentry[1]
+                hltid=resultentry[2]
+                if commentdict.has_key((lumiid,trgid,hltid)):
+                    resultentry.append(commentdict[(lumiid,trgid,hltid)])
+                else:
+                    resultentry.append('')
+    except:
+        raise
+    return result
+    
+def dataTagInfo(schema,tagname):
+    '''
+    select tagid from tags where tagname=:tagname
+    select runnum,comment from tagruns where tagid<=:tagid
+    output:
+       {tagid:(name,minrun,maxrun,creationtime)}
+    '''
+    tagmap={}#{tagid:[tagname,minrun,maxrun,creationtime]}
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagsTableName() )
+        qCondition=coral.AttributeList()
+        qHandle.addToOutputList('TAGNAME')
+        qHandle.addToOutputList('TAGID')
+        qHandle.addToOutputList("TO_CHAR(CREATIONTIME,\'MM/DD/YY HH24:MI:SS\')",'creationtime')
+        qResult=coral.AttributeList()        
+        qResult.extend('TAGNAME','string')
+        qResult.extend('TAGID','unsigned long long')
+        qResult.extend('creationtime','string')
+        qHandle.defineOutput(qResult)
+        cursor=qHandle.execute()
+        while cursor.next():
+            tagname=cursor.currentRow()['TAGNAME'].data()
+            tagid=cursor.currentRow()['TAGID'].data()
+            creationtime=cursor.currentRow()['creationtime'].data()
+            tagmap[tagid]=[tagname,0,0,creationtime]
+        del qHandle
+        
+        tagids=tagmap.keys()
+        allruns=set()
+        for tagid in tagids:
+            qConditionStr='TAGID<=:tagid'
+            qCondition=coral.AttributeList()
+            qCondition.extend('tagid','unsigned long long')
+            qCondition['tagid'].setData(tagid)
+            qHandle=schema.newQuery()
+            qHandle.addToTableList( nameDealer.tagRunsTableName() )
+            qResult=coral.AttributeList()
+            qResult.extend('RUNNUM','unsigned int')
+            qHandle.defineOutput(qResult)
+            qHandle.setCondition(qConditionStr,qCondition)
+            qHandle.addToOutputList('RUNNUM')
+            cursor=qHandle.execute()
+            while cursor.next():
+                rnum=cursor.currentRow()['RUNNUM'].data()
+                allruns.add(rnum)
+            minrun=0
+            maxrun=0
+            if len(allruns)!=0:
+                minrun=min(allruns)
+                maxrun=max(allruns)
+            tagmap[tagid][1]=minrun
+            if len(tagmap)>1 and tagid!=max(tagids):
                 tagmap[tagid][2]=maxrun   
     except:
         raise
