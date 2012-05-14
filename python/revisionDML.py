@@ -1,6 +1,8 @@
+############################################################
+# LumiDB Revision and Versioning API
 #
-# Revision DML API
-#
+# Author:      Zhen Xie
+############################################################
 
 import coral
 from RecoLuminosity.LumiDB import nameDealer,idDealer,dbUtil
@@ -545,7 +547,7 @@ def addRunToCurrentDataTag(schema,runnum,lumiid,trgid,hltid,comment=''):
     except:
         raise
 
-def dataTags(schema):
+def alldataTags(schema):
     '''
     select tagname,tagid from tags,tagruns  
         if number of tags==1->open tag
@@ -612,9 +614,11 @@ def dataTags(schema):
         raise
     return tagmap
 
-def dataTagInfoByName(schema,tagname,withcomment=False):
+def dataIdsByTagName(schema,tagname,runlist=None,withcomment=False):
     '''
     select tagid from tags where tagname=:tagname
+    input:
+        runlist: select run list, if None, all
     output:
         {run:(lumidataid,trgdataid,hltdataid,comment)}
     '''
@@ -640,16 +644,18 @@ def dataTagInfoByName(schema,tagname,withcomment=False):
         raise
     if tagid is None:
         return {}
-    return dataTagInfoById(schema,tagid,withcomment=withcomment)
+    return dataIdsByTagId(schema,tagid,runlist=runlist,withcomment=withcomment)
 
-def dataTagInfoById(schema,tagid,withcomment=False):
+def dataIdsByTagId(schema,tagid,runlist=None,withcomment=False):
     '''
     select runnum,lumidataid,trgdataid,hltdataid,comment from tagruns where TAGID<=:tagid;
+    input:
+        runlist: select run list, if None, all
     output:
-        {run:(lumidataid,trgdataid,hltdataid,comment)}
+        {run:(lumidataid,trgdataid,hltdataid,(creationtime,comment))}
     '''
     result={}#{run:[lumiid,trgid,hltid,comment(optional)]} 
-    commentdict={}#{(lumiid,trgid,hltid):[comment,ctimestr]}
+    commentdict={}#{(lumiid,trgid,hltid):[ctimestr,comment]}
     try:
         qHandle=schema.newQuery()
         qHandle.addToTableList( nameDealer.tagRunsTableName() )
@@ -677,6 +683,9 @@ def dataTagInfoById(schema,tagid,withcomment=False):
         cursor=qHandle.execute()
         while cursor.next():
             runnum=cursor.currentRow()['RUNNUM'].data()
+            if runlist is not None and runnum not in runlist:
+                result[runnum]=[0,0,0]
+                continue
             lumidataid=0
             if not cursor.currentRow()['LUMIDATAID'].isNull():
                 lumidataid=cursor.currentRow()['LUMIDATAID'].data()
@@ -697,11 +706,11 @@ def dataTagInfoById(schema,tagid,withcomment=False):
             if withcomment:
                 comment=''
                 creationtime=''
+                if not cursor.currentRow()['creationtime'].isNull():
+                    creationtime=cursor.currentRow()['creationtime'].data()
                 if not cursor.currentRow()['COMMENT'].isNull():
                     comment=cursor.currentRow()['COMMENT'].data()
-                    creationtime=cursor.currentRow()['creationtime'].data()
-                    comment=creationtime+':'+comment
-                commentdict[(lumidataid,trgdataid,hltdataid)]=comment
+                commentdict[(lumidataid,trgdataid,hltdataid)]=(creationtime,comment)
         del qHandle
         if withcomment:
             for run,resultentry in result.items():
@@ -711,7 +720,7 @@ def dataTagInfoById(schema,tagid,withcomment=False):
                 if commentdict.has_key((lumiid,trgid,hltid)):
                     resultentry.append(commentdict[(lumiid,trgid,hltid)])
                 else:
-                    resultentry.append('')
+                    resultentry.append(())
     except:
         raise
     return result
@@ -720,6 +729,8 @@ def dataTagInfo(schema,tagname):
     '''
     select tagid from tags where tagname=:tagname
     select runnum,comment from tagruns where tagid<=:tagid
+    input:
+        runlist: select run list, if None, all
     output:
        {tagid:(name,minrun,maxrun,creationtime)}
     '''
@@ -773,6 +784,16 @@ def dataTagInfo(schema,tagname):
     except:
         raise
     return tagmap
+
+def dataidsInCurrentTag(schema,runlist):
+    '''
+    select tagid from tags ;
+    dataTagInfoById(tagid)
+    output:
+    {run:(lumidataid,trgdataid,hltdataid,comment)}
+    '''
+    pass
+
 
 if __name__ == "__main__":
     import sessionManager

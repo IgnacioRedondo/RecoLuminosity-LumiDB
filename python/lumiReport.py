@@ -1,3 +1,9 @@
+###########################################################
+# Luminosity/LumiTag/LumiCorrection report API            #
+#                                                         #
+# Author:      Zhen Xie                                   #
+###########################################################
+
 import os,sys
 from RecoLuminosity.LumiDB import tablePrinter, csvReporter,CommonUtil
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
@@ -18,7 +24,7 @@ def toScreenNorm(normdata):
 
 def toScreenTags(tagdata):
     result=[]
-    labels=[('Name','minRun','maxRun','CTime')]
+    labels=[('Name','Min Run','Max Run','Creation Time')]
     print ' ==  = '
     for tagid in sorted(tagdata):
         taginfo=tagdata[tagid]
@@ -36,13 +42,13 @@ def toScreenSingleTag(taginfo):
     input: {run:(lumidataid,trgdataid,hltdataid,comment)}
     '''
     result=[]
-    labels=[('Run','PayloadId','PatchComment')]
+    labels=[('Run','Data Id','Insertion Time','Patch Comment')]
     print ' ==  = '
     for run in sorted(taginfo):
-        (lumidataid,trgdataid,hltdataid,comment)=taginfo[run]
+        (lumidataid,trgdataid,hltdataid,(ctimestr,comment))=taginfo[run]
         payloadid='-'.join([str(lumidataid),str(trgdataid),str(hltdataid)])
-        result.append([str(run),payloadid,comment])
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
+        result.append([str(run),payloadid,ctimestr,comment])
+    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,25) )
     
 def toScreenCorr(corrdata,showglobaldefault=False):
     result=[]
