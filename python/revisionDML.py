@@ -478,7 +478,7 @@ def createBranch(schema,name,parentname,comment=''):
         raise
     
 #
-# Tag DML API
+# Tagging  API
 #
 def createDataTag(schema,tagname):
     '''
@@ -503,29 +503,44 @@ def createDataTag(schema,tagname):
         return (tagname,tagid,creationtime)
     except:
         raise
+
+def currentDataTag(schema):
+    '''
+    select tagid,tagname from tags
+    output:(tagid,tagname)
+    '''
+    tagmap={}
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagsTableName() )
+        qHandle.addToOutputList('TAGID')
+        qHandle.addToOutputList('TAGNAME')
+        qResult=coral.AttributeList()
+        qResult.extend('TAGID','unsigned long long')
+        qResult.extend('TAGNAME','string')
+        qHandle.defineOutput(qResult)
+        cursor=qHandle.execute()
+        currenttagid=0
+        while cursor.next():
+            tagid=cursor.currentRow()['TAGID'].data()
+            tagname=cursor.currentRow()['TAGNAME'].data()
+            tagmap[tagid]=tagname
+        del qHandle
+        if len(tagmap)!=0:
+            currenttagid=max(tagmap.keys())
+        if currenttagid==0:
+            raise 'currentDataTag: no tag available'
+        return (currenttagid,tagmap[currenttagid])
+    except:
+        raise
+        
 def addRunToCurrentDataTag(schema,runnum,lumiid,trgid,hltid,comment=''):
     '''
     select tagid from tags
     insert into tagruns(tagid,runnum,lumidataid,trgdataid,hltdataid,creationtime,comment) values(tagid,runnum,lumiid,trgid,hltid,creationtime,comment)
     '''
+    currenttagid=currentDataTag(schema)[0]
     try:
-        qHandle=schema.newQuery()
-        qHandle.addToTableList( nameDealer.tagrunsTableName() )
-        qCondition=coral.AttributeList()
-        qResult=coral.AttributeList()
-        qResult.extend('TAGID','unsigned long long')
-        qHandle.defineOutput(qResult)
-        cursor=qHandle.execute()
-        tagids=[]
-        currenttagid=0
-        while cursor.next():
-            tagid=cursor.currentRow()['TAGID'].data()
-            tagids.append(tagid)
-        del qHandle
-        if len(tagid)!=0:
-            currenttagid=max(tagid)
-        if currenttagid==0:
-            raise 'no tag available'
         db=dbUtil.dbUtil(schema)
         tabrowDefDict={}
         tabrowDefDict['TAGID']='unsigned long long'
@@ -646,86 +661,8 @@ def dataIdsByTagName(schema,tagname,runlist=None,withcomment=False):
         return {}
     return dataIdsByTagId(schema,tagid,runlist=runlist,withcomment=withcomment)
 
-def dataIdsByTagId(schema,tagid,runlist=None,withcomment=False):
-    '''
-    select runnum,lumidataid,trgdataid,hltdataid,comment from tagruns where TAGID<=:tagid;
-    input:
-        runlist: select run list, if None, all
-    output:
-        {run:(lumidataid,trgdataid,hltdataid,(creationtime,comment))}
-    '''
-    result={}#{run:[lumiid,trgid,hltid,comment(optional)]} 
-    commentdict={}#{(lumiid,trgid,hltid):[ctimestr,comment]}
-    try:
-        qHandle=schema.newQuery()
-        qHandle.addToTableList( nameDealer.tagRunsTableName() )
-        qConditionStr='TAGID<=:tagid'
-        qCondition=coral.AttributeList()
-        qCondition.extend('tagid','unsigned long long')
-        qCondition['tagid'].setData(tagid)
-        qResult=coral.AttributeList()        
-        qResult.extend('RUNNUM','unsigned int')
-        qResult.extend('LUMIDATAID','unsigned long long')
-        qResult.extend('TRGDATAID','unsigned long long')
-        qResult.extend('HLTDATAID','unsigned long long')
-        if withcomment:
-            qResult.extend('COMMENT','string')
-            qResult.extend('creationtime','string')
-        qHandle.defineOutput(qResult)
-        qHandle.setCondition(qConditionStr,qCondition)
-        qHandle.addToOutputList('RUNNUM')
-        qHandle.addToOutputList('LUMIDATAID')
-        qHandle.addToOutputList('TRGDATAID')
-        qHandle.addToOutputList('HLTDATAID')
-        if withcomment:
-            qHandle.addToOutputList('COMMENT')
-            qHandle.addToOutputList("TO_CHAR(CREATIONTIME,\'MM/DD/YY HH24:MI:SS\')",'creationtime')
-        cursor=qHandle.execute()
-        while cursor.next():
-            runnum=cursor.currentRow()['RUNNUM'].data()
-            if runlist is not None and runnum not in runlist:
-                result[runnum]=[0,0,0]
-                continue
-            lumidataid=0
-            if not cursor.currentRow()['LUMIDATAID'].isNull():
-                lumidataid=cursor.currentRow()['LUMIDATAID'].data()
-            trgdataid=0
-            if not cursor.currentRow()['TRGDATAID'].isNull():
-                trgdataid=cursor.currentRow()['TRGDATAID'].data()
-            hltdataid=0
-            if not cursor.currentRow()['HLTDATAID'].isNull():
-                hltdataid=cursor.currentRow()['HLTDATAID'].data()
-            if not result.has_key(runnum):
-                result[runnum]=[0,0,0]
-            if lumidataid>result[runnum][0]:
-                result[runnum][0]=lumidataid
-            if trgdataid>result[runnum][1]:
-                result[runnum][1]=trgdataid
-            if hltdataid>result[runnum][2]:
-                result[runnum][2]=hltdataid    
-            if withcomment:
-                comment=''
-                creationtime=''
-                if not cursor.currentRow()['creationtime'].isNull():
-                    creationtime=cursor.currentRow()['creationtime'].data()
-                if not cursor.currentRow()['COMMENT'].isNull():
-                    comment=cursor.currentRow()['COMMENT'].data()
-                commentdict[(lumidataid,trgdataid,hltdataid)]=(creationtime,comment)
-        del qHandle
-        if withcomment:
-            for run,resultentry in result.items():
-                lumiid=resultentry[0]
-                trgid=resultentry[1]
-                hltid=resultentry[2]
-                if commentdict.has_key((lumiid,trgid,hltid)):
-                    resultentry.append(commentdict[(lumiid,trgid,hltid)])
-                else:
-                    resultentry.append(())
-    except:
-        raise
-    return result
-    
-def dataTagInfo(schema,tagname):
+
+def dataTagInfo(schema,tagname,runlist=None):
     '''
     select tagid from tags where tagname=:tagname
     select runnum,comment from tagruns where tagid<=:tagid
@@ -772,6 +709,8 @@ def dataTagInfo(schema,tagname):
             cursor=qHandle.execute()
             while cursor.next():
                 rnum=cursor.currentRow()['RUNNUM'].data()
+                if runlist is not None and rnum not in runlist:
+                    continue
                 allruns.add(rnum)
             minrun=0
             maxrun=0
@@ -785,15 +724,93 @@ def dataTagInfo(schema,tagname):
         raise
     return tagmap
 
-def dataidsInCurrentTag(schema,runlist):
+def dataIdsByTagId(schema,tagid,runlist=None,withcomment=False):
     '''
-    select tagid from tags ;
-    dataTagInfoById(tagid)
+    select runnum,lumidataid,trgdataid,hltdataid,comment from tagruns where TAGID<=:tagid;
+    input:
+        runlist: select run list, if None, all
     output:
-    {run:(lumidataid,trgdataid,hltdataid,comment)}
+        {run:(lumidataid,trgdataid,hltdataid,(creationtime,comment))}
     '''
-    pass
-
+    result={}#{run:[lumiid,trgid,hltid,comment(optional)]} 
+    commentdict={}#{(lumiid,trgid,hltid):[ctimestr,comment]}
+    try:
+        qHandle=schema.newQuery()
+        qHandle.addToTableList( nameDealer.tagRunsTableName() )
+        qConditionStr='TAGID<=:tagid'
+        qCondition=coral.AttributeList()
+        qCondition.extend('tagid','unsigned long long')
+        qCondition['tagid'].setData(tagid)
+        qResult=coral.AttributeList()        
+        qResult.extend('RUNNUM','unsigned int')
+        qResult.extend('LUMIDATAID','unsigned long long')
+        qResult.extend('TRGDATAID','unsigned long long')
+        qResult.extend('HLTDATAID','unsigned long long')
+        if withcomment:
+            qResult.extend('COMMENT','string')
+            qResult.extend('creationtime','string')
+        qHandle.defineOutput(qResult)
+        qHandle.setCondition(qConditionStr,qCondition)
+        qHandle.addToOutputList('RUNNUM')
+        qHandle.addToOutputList('LUMIDATAID')
+        qHandle.addToOutputList('TRGDATAID')
+        qHandle.addToOutputList('HLTDATAID')
+        if withcomment:
+            qHandle.addToOutputList('COMMENT')
+            qHandle.addToOutputList("TO_CHAR(CREATIONTIME,\'MM/DD/YY HH24:MI:SS\')",'creationtime')
+        cursor=qHandle.execute()
+        while cursor.next():
+            runnum=cursor.currentRow()['RUNNUM'].data()
+            if runlist is not None and runnum not in runlist:
+                continue
+            lumidataid=0
+            if not cursor.currentRow()['LUMIDATAID'].isNull():
+                lumidataid=cursor.currentRow()['LUMIDATAID'].data()
+            trgdataid=0
+            if not cursor.currentRow()['TRGDATAID'].isNull():
+                trgdataid=cursor.currentRow()['TRGDATAID'].data()
+            hltdataid=0
+            if not cursor.currentRow()['HLTDATAID'].isNull():
+                hltdataid=cursor.currentRow()['HLTDATAID'].data()
+            if not result.has_key(runnum):
+                result[runnum]=[0,0,0]
+            if lumidataid>result[runnum][0]:
+                result[runnum][0]=lumidataid
+            if trgdataid>result[runnum][1]:
+                result[runnum][1]=trgdataid
+            if hltdataid>result[runnum][2]:
+                result[runnum][2]=hltdataid    
+            if withcomment:
+                comment=''
+                creationtime=''
+                if not cursor.currentRow()['creationtime'].isNull():
+                    creationtime=cursor.currentRow()['creationtime'].data()
+                if not cursor.currentRow()['COMMENT'].isNull():
+                    comment=cursor.currentRow()['COMMENT'].data()
+                commentdict[(lumidataid,trgdataid,hltdataid)]=(creationtime,comment)
+        del qHandle
+        if withcomment:
+            for run,resultentry in result.items():
+                lumiid=resultentry[0]
+                trgid=resultentry[1]
+                hltid=resultentry[2]
+                if commentdict.has_key((lumiid,trgid,hltid)):
+                    resultentry.append(commentdict[(lumiid,trgid,hltid)])
+                else:
+                    resultentry.append(())
+    except:
+        raise
+    return result
+    
+def dataIdsByCurrentTag(schema,runlist=None):
+    '''
+    dataIdsByTagId(schema,currenttagid,runlist)
+    output:
+       (currenttagname,{run:(lumidataid,trgdataid,hltdataid)})
+    '''
+    (currenttagid,currenttagname)=currentDataTag(schema)
+    result=dataIdsByTagId(schema,currenttagid,runlist=runlist,withcomment=False)
+    return (currenttagname,result)
 
 if __name__ == "__main__":
     import sessionManager

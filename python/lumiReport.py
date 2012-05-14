@@ -4,9 +4,26 @@
 # Author:      Zhen Xie                                   #
 ###########################################################
 
-import os,sys
+import os,sys,datetime
 from RecoLuminosity.LumiDB import tablePrinter, csvReporter,CommonUtil
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
+def toScreenHeader(commandname,commandv,datatagname,normtag):
+    '''
+    input:
+       commandname: commandname
+       commandversion: command cvs version
+       datataginfo: tagname
+       corrinfo: normtag
+       
+    '''
+    today=datetime.date.today()
+    header='***********************************************\n'
+    header+='* '+str(today)+' \n'
+    header+='* '+commandname+' '+commandv+'\n'
+    header+='* datatag: '+datatagname+' , normtag: '+normtag+'\n'
+    header+='***********************************************\n'
+    sys.stdout.write(header)
+    
 def toScreenNorm(normdata):
     result=[]
     labels=[('Name','amode','E(GeV)','Norm','Norm_PU','CONSTFACTOR')]
@@ -1317,3 +1334,5 @@ def toCSVLSBeam(beamdata,filename,resultlines,dumpIntensity=False,isverbose=Fals
         r.writeRow(fieldnames)
         r.writeRows(result)
 
+if __name__ == "__main__":
+    toScreenHeader('lumiCalc2.py','V04-00-00','v0','pp8TeV')

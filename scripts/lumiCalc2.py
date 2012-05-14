@@ -1,8 +1,15 @@
 #!/usr/bin/env python
+
+########################################################################
+# Command to calculate luminosity from HF measurement stored in lumiDB #
+#                                                                      #
+# Author:      Zhen Xie                                                #
+########################################################################
+
 VERSION='2.00'
 import os,sys,time
 import coral
-from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,lumiReport,RegexValidator
+from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,revisionDML,lumiCalcAPI,lumiReport,RegexValidator
         
 beamChoices=['PROTPHYS','IONPHYS','PAPHYS']
 
@@ -158,8 +165,9 @@ if __name__ == '__main__':
                         help='suppress bad for lumi warnings' )
     parser.add_argument('--debug',dest='debug',action='store_true',
                         help='debug')
-    
+
     options=parser.parse_args()
+   
     if options.action=='checkforupdate':
         from RecoLuminosity.LumiDB import checkforupdate
         cmsswWorkingBase=os.environ['CMSSW_BASE']
@@ -215,23 +223,30 @@ if __name__ == '__main__':
                                       siteconfpath=options.siteconfpath,
                                       debugON=options.debug)
     session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
+
     
+    datatagname=options.datatag
     irunlsdict={}
     iresults=[]
     reqTrg=False
     reqHlt=False
+    if not datatagname:
+        session.transaction().start(True)
+        (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
+        session.transaction().commit()
     if options.action=='overview' or options.action=='lumibyls' or options.action=='lumibylsXing':
         reqTrg=True
     if options.action=='recorded':
         reqTrg=True
         reqHlt=True
+        
+    session.transaction().start(True)
+    schema=session.nominalSchema()
     if options.runnumber: # if runnumber specified, do not go through other run selection criteria
         irunlsdict[options.runnumber]=None
     else:
-        session.transaction().start(True)
-        schema=session.nominalSchema()
         runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=reqTrg,requirehlt=reqHlt)
-        session.transaction().commit()
+
         if options.inputfile:
             (irunlsdict,iresults)=parseInputFiles(options.inputfile,runlist,options.action)
         else:
@@ -245,8 +260,6 @@ if __name__ == '__main__':
             else:
                 print '\t%d : all'%run
                 
-    session.transaction().start(True)
-    schema=session.nominalSchema()
     ##################
     # run level      #
     ##################
@@ -255,6 +268,7 @@ if __name__ == '__main__':
     correctionCoeffMap={} #{name:(alpha1,alpha2,drift)}just coefficient, not including drift intglumi
     datatagidMap={}  #{run:(lumiid,trgid,hltid)}
     rruns=irunlsdict.keys()
+    print 'rruns ',rruns
     GrunsummaryData=lumiCalcAPI.runsummaryMap(schema,irunlsdict)
     if len(GrunsummaryData)==0:
         print 'required runs not found in db,do nothing'
@@ -277,7 +291,13 @@ if __name__ == '__main__':
         driftcoeff=0.0
         driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
     dataidmap={}     #{run:(lumiid,trgid,hltid)}
-    dataidmap=lumiCalcAPI.dataidForRange(schema,rruns,withTrg=reqTrg ,withHlt=reqHlt,tagname=options.datatag,lumitype='HF')    
+    currenttagname=datatagname
+    if not datatagname:
+        print 'rruns ',rruns
+        (currenttagname,dataidmap)=revisionDML.dataIdsByTagId(schema,currenttagid,runlist=rruns,withcomment=False)
+    else:
+        dataidmap=revisionDML.dataIdsByTagName(schema,datatagname,runlist=rruns,withcomment=False)
+    lumiReport.toScreenHeader('lumiCalc2.py','V04-00-00',currenttagname,'pp8TeV')
 
     ##################
     # ls level       #

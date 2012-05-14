@@ -3,34 +3,36 @@ from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,Common
 ##
 #dataidForRange
 ##
-def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lumitype='HF'):
-    '''
-    resolve dataids for lumi,trg,hlt in a given run range with specific datatag If no tag, use head
-    input: [run] (required)
-    output: {run:(lumiid,trgid,hltid)}
-    '''
-    if lumitype=='HF':
-        lumitableName=nameDealer.lumidataTableName()
-        lumilstableName=nameDealer.lumisummaryv2TableName()
-    else:
-        lumitableName=nameDealer.pixellumidataTableName()
-        lumilstableName=nameDealer.pixellumisummaryv2TableName()
-    trgtableName=nameDealer.trgdataTableName()
-    hlttableName=nameDealer.hltdataTableName()
-    result={}
-    if not tagname:
-        lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
-        trgdataidMap=dict.fromkeys(inputRange,None)
-        hltdataidMap=dict.fromkeys(inputRange,None)
-        if withTrg:
-            trgdataidMap=dataDML.guessDataIdForRange(schema,inputRange,trgtableName)
-        if withHlt:
-            hltdataidMap=dataDML.guessDataIdForRange(schema,inputRange,hlttableName)
-        for r,lid in lumidataidMap.items():
-            result[r]=(lid,trgdataidMap[r],hltdataidMap[r])
-    else:
-        result=dataDML.dataIdByTagForRange(schema,inputRange,tagname)
-    return result
+#def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lumitype='HF'):
+#    '''
+#    resolve dataids for lumi,trg,hlt in a given run range with specific datatag If no tag, use head
+#    input: [run] (required)
+#    output: {run:(lumiid,trgid,hltid)}
+#    '''
+#    if lumitype=='HF':
+#        lumitableName=nameDealer.lumidataTableName()
+#        lumilstableName=nameDealer.lumisummaryv2TableName()
+#    else:
+#        lumitableName=nameDealer.pixellumidataTableName()
+#        lumilstableName=nameDealer.pixellumisummaryv2TableName()
+#    trgtableName=nameDealer.trgdataTableName()
+#    hlttableName=nameDealer.hltdataTableName()
+#    result={}
+#    if not tagname:
+#        #lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
+#        #trgdataidMap=dict.fromkeys(inputRange,None)
+#        #hltdataidMap=dict.fromkeys(inputRange,None)
+#        #if withTrg:
+#        #    trgdataidMap=dataDML.guessDataIdForRange(schema,inputRange,trgtableName)
+#        #if withHlt:
+#        #    hltdataidMap=dataDML.guessDataIdForRange(schema,inputRange,hlttableName)
+#        #for r,lid in lumidataidMap.items():
+#        #    result[r]=(lid,trgdataidMap[r],hltdataidMap[r])
+#        (currenttagname,result)=revisionDML.dataIdsByTagId(schema,currenttagid,runlist=inputRange,withcomment=False)
+#    else:
+#        result=revisionDML.dataIdsByTagName(schema,tagname,runlist=inputRange,withcomment=False)
+#        
+#    return result
 ##
 #normForRange
 ##
