@@ -478,7 +478,7 @@ def createBranch(schema,name,parentname,comment=''):
         raise
     
 #
-# Tagging  API
+# Data Tagging  API
 #
 def createDataTag(schema,tagname):
     '''
