@@ -250,7 +250,17 @@ def splitlistToRangeString (inPut):
             counter += 1
             result.append ([i])
         last = i
-    return ', '.join (['['+str (min (x))+'-'+str (max (x))+']' for x in result])    
+    return ', '.join (['['+str (min (x))+'-'+str (max (x))+']' for x in result])
+
+def parselumicorrector(correctorStr):
+    '''
+    output: (functionname,parametersinuppercase[])
+    '''
+    cleancorrectorStr=correctorStr.replace(' ','')#in case of whitespace by mistake
+    [correctorFunc,paramsStr]=cleancorrectorStr.split(':')
+    params=paramsStr.split(',')
+    result=[p.upper() for p in params]
+    return result
 
 if __name__=='__main__':
     nested=[[[1,2],[6,6,8]],[[3,4,5],[4,5]]]
