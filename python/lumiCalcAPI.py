@@ -1,41 +1,45 @@
 import os,coral,datetime,fnmatch,time
 from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,CommonUtil,selectionParser,hltTrgSeedMapper,lumiCorrections,lumiParameters,LumiCorrector
-##
-#dataidForRange
-##
-#def dataidForRange(schema,inputRange,withTrg=False,withHlt=False,tagname=None,lumitype='HF'):
-#    '''
-#    resolve dataids for lumi,trg,hlt in a given run range with specific datatag If no tag, use head
-#    input: [run] (required)
-#    output: {run:(lumiid,trgid,hltid)}
-#    '''
-#    if lumitype=='HF':
-#        lumitableName=nameDealer.lumidataTableName()
-#        lumilstableName=nameDealer.lumisummaryv2TableName()
-#    else:
-#        lumitableName=nameDealer.pixellumidataTableName()
-#        lumilstableName=nameDealer.pixellumisummaryv2TableName()
-#    trgtableName=nameDealer.trgdataTableName()
-#    hlttableName=nameDealer.hltdataTableName()
-#    result={}
-#    if not tagname:
-#        #lumidataidMap=dataDML.guessDataIdForRange(schema,inputRange,lumitableName)
-#        #trgdataidMap=dict.fromkeys(inputRange,None)
-#        #hltdataidMap=dict.fromkeys(inputRange,None)
-#        #if withTrg:
-#        #    trgdataidMap=dataDML.guessDataIdForRange(schema,inputRange,trgtableName)
-#        #if withHlt:
-#        #    hltdataidMap=dataDML.guessDataIdForRange(schema,inputRange,hlttableName)
-#        #for r,lid in lumidataidMap.items():
-#        #    result[r]=(lid,trgdataidMap[r],hltdataidMap[r])
-#        (currenttagname,result)=revisionDML.dataIdsByTagId(schema,currenttagid,runlist=inputRange,withcomment=False)
-#    else:
-#        result=revisionDML.dataIdsByTagName(schema,tagname,runlist=inputRange,withcomment=False)
-#        
-#    return result
-##
-#normForRange
-##
+
+########################################################################
+# Lumi data management and calculation API                             #
+#                                                                      #
+# Author:      Zhen Xie                                                #
+########################################################################
+
+#
+# Corrections/Norms  API
+#
+def normByContext(schema,runcontextMap,lumitype='HF'):
+    '''
+    best norm in context
+    input: {run:(amodetag,egev)}
+    output: (normName,{minrun:[normid,formname,occ1norm,occ2norm,etnorm,punorm,drift,a1,a2,a3,a4,a5,c1,c2]}
+    '''
+    result={}
+    tmpresult={}#{(amodetag,egev):normdataid}
+    tmpmap={}
+    normmap={}#{normdataid:normvalues}
+    
+    for run in sorted(runcontextMap):
+        context=runcontextMap[run]
+        mymodetag=context[0]
+        myegev=context[1]
+        if not tmpresult.has_key(mymodetag,myegev):#loop over context
+            []=dataDML.normsByContext(schema,mymodetag,myegev)
+            
+            tmpresult[context]=normdataid
+        tmpmap[run]=tmpresult[context]
+        
+def normByName(schema,normname,runlist,lumitype='HF'):
+    '''
+    input:
+        runlist [run]
+        normname
+    output: {minrun:[normid,formname,occ1norm,occ2norm,etnorm,punorm,drift,a1,a2,a3,a4,a5,c1,c2]}
+    '''
+    pass
+
 def normForRange(schema,runcontextMap):
     '''
     decide from context
