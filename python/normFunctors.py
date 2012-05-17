@@ -1,14 +1,31 @@
 class normFunctionFactory(object):
     def fConst(self,luminonorm,normocc1=1000.0):
         return luminonorm*normocc1
+
+    def fPolyAfterglowDrift(self,luminonorm,nBXs,intglumi,occ1norm=1.0e03,occ2norm=1.0e3,etnorm=1.0e3,punorm=0.0,a1=0.0,a2=0.0,drift=1.0):
+        afterglowmap=[]
+        afterglowmap.append((213,0.992))
+        afterglowmap.append((321,0.990))
+        afterglowmap.append((423,0.988))
+        afterglowmap.append((597,0.985))
+        afterglowmap.append((700,0.984))
+        afterglowmap.append((873,0.981))
+        afterglowmap.append((1041,0.979))
+        afterglowmap.append((1179,0.977)) 
+        afterglowmap.append((1317,0.975))
+        Afterglow=1.0
+        for (bxthreshold,correction) in self.afterglowmap:
+            if nBXs >= bxthreshold :
+                Afterglow = correction
+        driftterm=1.0
+        if intglumi:
+            driftterm=drift*intglumi
+        result=luminonorm*Afterglow/(1+a1*avglumi+a2*avglumi*avglumi)*driftterm
+        return result
     
-    def fPoly(self,luminonorm,normocc1=1000.0,normocc2=30.0,drift=0.07):
-        return luminonorm*normocc1*drift
+    def fPixelAfterglow(self,luminonorm,nBXs,norm=1.0):
+        pass
     
-    def fPolyAfterglow(self,luminonorm,normocc1=1000.0,normocc2=30.0,drift=0.07):
-        afterglow=0.99
-        return luminonorm*normocc1*drift*afterglow
-        
 def normFunctionCaller(funcName,*args,**kwds):
     fac=normFunctionFactory()
     try:
