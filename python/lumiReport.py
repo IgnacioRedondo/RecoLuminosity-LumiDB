@@ -24,19 +24,48 @@ def toScreenHeader(commandname,commandv,datatagname,normtag):
     header+='***********************************************\n'
     sys.stdout.write(header)
     
-def toScreenNorm(normdata):
+def toScreenNormSummary(allnorms):
+    '''
+    list all known norms summary
+    input: {normname:[data_id(0),lumitype(1),istypedefault(2),comment(3),creationtime(4)]}
+    '''
     result=[]
-    labels=[('Name','amode','E(GeV)','Norm','Norm_PU','CONSTFACTOR')]
+    labels=[('Name','Type','IsTypeDefault','Comment','CreationTime')]
     print ' ==  = '
-    names=sorted(normdata)
-    for name in names:
-        thisnorm=normdata[name]
-        amodetag=str(thisnorm[0])
-        normval='%.3f'%thisnorm[1]
-        egev='%d'%thisnorm[2]
-        norm_pu='%.3f'%thisnorm[5]
-        constfactor='%.3f'%thisnorm[6]
-        result.append([name,amodetag,egev,normval,norm_pu,constfactor])
+    sorted_allnorms=sorted(allnorms.iteritems(),key=lambda x:x[0],reverse=True)
+    for (normname,normvalues) in sorted_allnorms:
+        lumitype=normvalues[1]
+        istypedefault=str(normvalues[2])
+        commentStr=normvalues[3]
+        creationtime=normvalues[4]
+        result.append([normname,lumitype,istypedefault,commentStr,creationtime])
+    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
+
+def toScreenNormDetail(normname,norminfo,normvalues):
+    '''
+    list norm detail
+    input:
+        normname
+        norminfo=[data_id[0],lumitype[1],iscontextdefault[2],comment[3],creationtime[4]]
+        normvalues={since:[corrector,{paramname:paramvalue},context]}
+    '''
+    amodetag=norminfo[1]
+    nominalegev=str(norminfo[2])
+    lumitype=norminfo[3]
+    istypedefault=norminfo[4]
+    print '\t== = ==========================================================================='
+    print '\tNorm: '+normname+', Type: '+lumitype+' , isDefault: '+str(istypedefault)
+    print '\t== = ==========================================================================='
+    labels=[('Since','Corrector','Parameters','Context')]
+
+    result=[]
+    print ' ==  = '
+    for since in sorted(normvalues):
+        normdata=normvalues[since]
+        correctorStr=normdata[0]
+        paramDict=str(normdata[1])
+        context=normdata[2]
+        result.append([str(since),correctorStr,paramDict,context])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 
 def toScreenTags(tagdata):
@@ -67,37 +96,38 @@ def toScreenSingleTag(taginfo):
         result.append([str(run),payloadid,ctimestr,comment])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,25) )
     
-def toScreenCorr(corrdata,showglobaldefault=False):
-    result=[]
-    tmpdata={}
-    labels=[('Name','A1','A2','Drift','isDefault')]
-    print ' ==  = '
-    dataidmax=0
-    for name,thiscorr in corrdata.items():
-        dataid=thiscorr[0]
-        if dataid>dataidmax:
-            dataidmax=dataid
-        a1='%.5f'%thiscorr[1]
-        a2='0'
-        if thiscorr[2]:
-            a2='%.5f'%thiscorr[2]
-        drift='0'
-        if thiscorr[3]:
-            drift='%.5f'%thiscorr[3]
-        tmpdata[name]=[dataid,a1,a2,drift]
-    for name,mydata in tmpdata.items():
-        myid=mydata[0]
-        mya1=mydata[1]
-        mya2=mydata[2]
-        mydrift=mydata[3]
-        if showglobaldefault:
-            if myid==dataidmax:
-                result.append([name,mya1,mya2,mydrift,'1'])
-            else:
-                result.append([name,mya1,mya2,mydrift,'0'])
-        else:
-            result.append([name,mya1,mya2,mydrift,''])
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
+#def toScreenCorr(corrdata,showglobaldefault=False):
+#    result=[]
+#    tmpdata={}
+#    labels=[('Name','A1','A2','Drift','isDefault')]
+#    print ' ==  = '
+#    dataidmax=0
+#    for name,thiscorr in corrdata.items():
+#        dataid=thiscorr[0]
+#        if dataid>dataidmax:
+#            dataidmax=dataid
+#        a1='%.5f'%thiscorr[1]
+#        a2='0'
+#        if thiscorr[2]:
+#            a2='%.5f'%thiscorr[2]
+#        drift='0'
+#        if thiscorr[3]:
+#            drift='%.5f'%thiscorr[3]
+#        tmpdata[name]=[dataid,a1,a2,drift]
+#    for name,mydata in tmpdata.items():
+#        myid=mydata[0]
+#        mya1=mydata[1]
+#        mya2=mydata[2]
+#        mydrift=mydata[3]
+#        if showglobaldefault:
+#            if myid==dataidmax:
+#                result.append([name,mya1,mya2,mydrift,'1'])
+#            else:
+#                result.append([name,mya1,mya2,mydrift,'0'])
+#        else:
+#            result.append([name,mya1,mya2,mydrift,''])
+#    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
+
 def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose):
     '''
     inputs:
