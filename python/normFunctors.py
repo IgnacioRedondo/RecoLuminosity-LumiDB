@@ -1,8 +1,19 @@
 class normFunctionFactory(object):
-    def fConst(self,luminonorm,normocc1=1000.0):
-        return luminonorm*normocc1
+    '''
+    luminorm and correction functions.
+    The result of the functions are correction factors, not final luminosity
+    '''
+    
+    def fConst(self,normocc1=1000.0):
+        '''
+        by default only convert /mb to /ub
+        '''
+        return normocc1
 
-    def fPolyAfterglowDrift(self,luminonorm,nBXs,intglumi,occ1norm=1.0e03,occ2norm=1.0e3,etnorm=1.0e3,punorm=0.0,a1=0.0,a2=0.0,drift=1.0):
+    def fPolyAfterglowDrift(self,luminonorm,nBXs,intglumi,normocc1=1.0e03,punorm=0.0,a1=0.0,a2=0.0,drift=1.0):
+        avglumi=0.
+        if nBXs>0:
+            avglumi=punorm*luminonorm/nBXs
         afterglowmap=[]
         afterglowmap.append((213,0.992))
         afterglowmap.append((321,0.990))
@@ -17,14 +28,24 @@ class normFunctionFactory(object):
         for (bxthreshold,correction) in self.afterglowmap:
             if nBXs >= bxthreshold :
                 Afterglow = correction
-        driftterm=1.0
+        driftterm=drift
         if intglumi:
             driftterm=drift*intglumi
-        result=luminonorm*Afterglow/(1+a1*avglumi+a2*avglumi*avglumi)*driftterm
+        result=normocc1*Afterglow/(1+a1*avglumi+a2*avglumi*avglumi)*driftterm
+        return result
+
+    def fPolyDrift(self,luminonorm,intglumi,normocc1=1.0e03,punorm=0.0,a1=0.0,a2=0.0,drift=1.0):
+        avglumi=0.
+        if nBXs>0:
+            avglumi=punorm*luminonorm/nBXs
+        driftterm=drift
+        if intglumi:
+            driftterm=drift*intglumi
+        result=normocc1/(1+a1*avglumi+a2*avglumi*avglumi)*driftterm
         return result
     
-    def fPixelAfterglow(self,luminonorm,nBXs,norm=1.0):
-        pass
+    def fPixelAfterglow(self,nBXs,norm=1.0):
+        return norm
     
 def normFunctionCaller(funcName,*args,**kwds):
     fac=normFunctionFactory()
@@ -35,11 +56,12 @@ def normFunctionCaller(funcName,*args,**kwds):
         raise
     if callable(myfunc):
         return myfunc(*args,**kwds)
-
+    else:
+        raise ValueError('uncallable function '+funcName)
 if __name__ == '__main__':
     luminonorm=23.0
     fConstParams={'normocc1':100.0}
-    print normFunctionCaller('fConst',luminonorm,**fConstParams)
+    print normFunctionCaller('fConst',**fConstParams)
     fPolyParams={'normocc1':6370.0,'drift':0.067,'normocc2':0.93}
-    print normFunctionCaller('fPoly',luminonorm,**fPolyParams)
+    normFunctionCaller('fPolyDrift',luminonorm,0.0,**fPolyParams)
     
