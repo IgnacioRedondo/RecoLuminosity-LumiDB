@@ -183,7 +183,7 @@ def normValueById(schema,normid):
     '''
     select l.*,d.* from luminormsv2 l,luminormsv2data d where d.data_id=l.data_id and l.data_id=normid
     output:
-        {since:[corrector,{paramname:paramvalue},context]}
+        {since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3)]}
     '''
     result={}
     d=nameDealer.luminormv2TableName()
@@ -204,14 +204,13 @@ def normValueById(schema,normid):
             corrector=cursor.currentRow()['CORRECTOR'].data()
             amodetag=cursor.currentRow()['AMODETAG'].data()
             nominalegev=cursor.currentRow()['NOMINALEGEV'].data()
-            context=amodetag+'_'+str(nominalegev)
             (correctorfunc,params)=CommonUtil.parselumicorrector(corrector)
             for param in params:
                 paramvalue=0.0
                 if not cursor.currentRow()[param].isNull():
                     paramvalue=cursor.currentRow()[param].data()
                     paramdict[param]=paramvalue
-            result[since]=[correctorfunc,paramdict,context]
+            result[since]=[correctorfunc,paramdict,amodetag,nominalegev]
     return result
     except:
         raise
@@ -274,7 +273,7 @@ def promoteNormToTypeDefault(schema,normname,lumitype):
     '''
     try:
         thisnormid=normIdByName(schema,normname)
-        olddefaultid=normIdByContext(schema,amodetag,minegev,maxegev,defaultonly=True)
+        olddefaultid=normIdByType(schema,amodetag,minegev,maxegev,defaultonly=True)
         if not thisnormid:
             raise ValueError(normname+' does not exist, nothing to update')
         setClause='ISTYPEDEFAULT=1'
@@ -324,7 +323,36 @@ def insertValueToNormId(schema,normdataid,sincerun,corrector,amodetag,egev,param
     except:
         raise
 ################################################
-#todo: need copy/export/import functionalities 
+# copy/export/import 
 ################################################
     
-    
+def exportNormValue(schema,sourcenormname,destnormname,firstsince=None,lastsince=None):
+    '''
+    copy specified piece of source norm to dest
+    input:
+       time boundary [firstsince, lastsince]
+       if None: open 
+    '''
+    copysince=0
+    if firstsince:
+        copysince=firstsince
+    copylastsince=4294967295
+    if lastsince:
+        copylastsince=lastsince
+    try:
+        destnormid=normIdByName(schema,destnornmae)
+        if not destnormid:
+            raise RuntimeError('[ERROR] destnorm does not exist')
+        sourcenormid=normIdByName(schema,sourcenorname)
+        if not sourcenormid:
+            raise RuntimeError('[ERROR] sourcenorm does not exist')
+        normvalueDict=normValueById(schema,sourcenormid) #{since:[corrector,{paramname:paramvalue},amodetag,egev]}
+        for sincerun,normvalue in normvalueDict.items():
+            if sincerun>copysince and sincerun<copylastsince:
+                corrector=normvalue[0]
+                parameters=normvalue[1]
+                amodetag=normvalue[2]
+                egev=normvalue[3]
+                insertValueToNormId(schema,destnormid,sincerun,corrector,amodetag,egev)
+    except:
+        raise    
