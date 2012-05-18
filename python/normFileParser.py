@@ -5,16 +5,17 @@ import ConfigParser,os.path
 #lines beginning with a semicolon ';' a pound sign '#' or the letters 'REM' (uppercase or lowercase) will be ignored. 
 #section uppercase
 # [NORMDEFINITION] #section required only if first create
-#   name=pp7TeV   #priority to commandline --name option if present
-#   context=PROTPHYS_3500
+#   name=HFtest   #priority to commandline --name option if present
 #   comment=
 #   lumitype=
-#   iscontextdefault=
-# [NORMDATA] # section required
-#   since= #priority to commandline --since option if present
+#   istypedefault=
+# [NORMDATA Since] # section required
+#   since= 
 #   corrector=
 #   norm_occ1=
 #   norm_occ2=
+#   amodetag=
+#   egev=
 #   ...
 #################################
 
@@ -27,31 +28,31 @@ class normFileParser(object):
     def parse(self):
         '''
         output:
-           [{defoption:value},{dataoption:value}]
+           [ {defoption:value},[{dataoption:value}] ]
         '''
         if not os.path.exists(self.__inifilename) or not os.path.isfile(self.__inifilename):
             raise ValueError(self.__inifilename+' is not a file or does not exist')
         self.__parser.read(self.__inifilename)
         result=[]
-        for section in [self.__defsectionname,self.__datasectionname]:
+        defsectionResult={}
+        datasectionResult=[]      
+        sections=self.__parser.sections()
+        for section in sections:
+            thisectionresult={}
             options=self.__parser.options(section)
-            sectionresult={}
             for o in options:
                 try:
-                    sectionresult[o]=self.__parser.get(section,o)
-                    if sectionresult[o]==-1:
-                        print 'skip: %s'%o
+                    thisectionresult[o]=self.__parser.get(section,o)
                 except:
-                    if section==self.__datasectionname:
-                        print self.__datasectionname+' is required'
-                        raise
-                    result.append({})
                     continue
-            result.append(sectionresult)
-        return result
+            if section==self.__defsectionname:
+                defsectionResult=thisectionresult
+            elif self.__datasectionname in section:
+                datasectionResult.append(thisectionresult)
+        return [defsectionResult,datasectionResult]
     
 if __name__ == "__main__":
-    s='testnorm.cfg'
+    s='../test/norm_HFV2.cfg'
     parser=normFileParser(s)
     print parser.parse()
 
