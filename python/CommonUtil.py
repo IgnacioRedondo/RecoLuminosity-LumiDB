@@ -259,8 +259,7 @@ def parselumicorrector(correctorStr):
     cleancorrectorStr=correctorStr.replace(' ','')#in case of whitespace by mistake
     [correctorFunc,paramsStr]=cleancorrectorStr.split(':')
     params=paramsStr.split(',')
-    result=[p.upper() for p in params]
-    return result
+    return (correctorFunc,params)
 
 if __name__=='__main__':
     nested=[[[1,2],[6,6,8]],[[3,4,5],[4,5]]]

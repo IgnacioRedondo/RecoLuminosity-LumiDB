@@ -1,5 +1,5 @@
 import os,coral
-from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML
+from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML,CommonUtil
 
 ########################################################################
 # Norm/Correction/version DML API                                      #
@@ -44,13 +44,13 @@ def allNorms(schema):
             lumitype=cursor.currentRow()['LUMITYPE'].data()
             istypedefault=cursor.currentRow()['ISTYPEDEFAULT'].data()
             comment=''
-            if not cursor.currentRow().isNull():
-                comment==cursor.currentRow()['COMMENT'].data()
+            if not cursor.currentRow()['COMMENT'].isNull():
+                comment=cursor.currentRow()['COMMENT'].data()
             creationtime=cursor.currentRow()['creationtime'].data()
             if len(result[normname])==0:
-                result[normname]=[data_id,lumitype,istypedefault,comment,creationtime]
-            elif len(result[normname])!=0 and data_id>result[normname][0]:
-                result[normname]=[data_id,lumitype,iscontypedefault,comment,creationtime]
+                result[normname]=[dataid,lumitype,istypedefault,comment,creationtime]
+            elif len(result[normname])!=0 and dataid>result[normname][0]:
+                result[normname]=[dataid,lumitype,istypedefault,comment,creationtime]
     except :
         del qHandle
         raise
@@ -96,20 +96,19 @@ def normIdByType(schema,lumitype='HF',defaultonly=True):
         luminormidmap {normname:normid}
     '''
     luminormidmap={}
-    istypedefault=0
-    if defaultonly:
-        istypedefault=1
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList( nameDealer.luminormv2TableName() )
         qHandle.addToOutputList('DATA_ID')
         qHandle.addToOutputList('ENTRY_NAME')
-        qConditionStr='LUMITYPE=:lumitype AND ISTYPEDEFAULT=:istypedefault'
+        qConditionStr='LUMITYPE=:lumitype'
         qCondition=coral.AttributeList()
         qCondition.extend('lumitype','string')
-        qCondition.extend('istypedefault','unsigned int')
         qCondition['lumitype'].setData(lumitype)
-        qCondition['istypedefault'].setData(istypedefault)
+        if defaultonly:
+            qConditionStr+='AND ISTYPEDEFAULT=:istypedefault'
+            qCondition.extend('istypedefault','unsigned int')
+            qCondition['istypedefault'].setData(int(1))
         qResult=coral.AttributeList()
         qResult.extend('DATA_ID','unsigned long long')
         qResult.extend('ENTRY_NAME','string')
@@ -129,7 +128,7 @@ def normIdByType(schema,lumitype='HF',defaultonly=True):
         del qHandle
         raise
     del qHandle
-    return result
+    return luminormidmap
 
 def normInfoByName(schema,normname):
     '''
@@ -137,7 +136,7 @@ def normInfoByName(schema,normname):
     output:
         [data_id[0],lumitype[1],istypedefault[2],comment[3],creationtime[4]]
     '''
-    result=[]
+    result={}
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList( nameDealer.luminormv2TableName() )
@@ -171,28 +170,26 @@ def normInfoByName(schema,normname):
             creationtime=cursor.currentRow()['ctime'].data()
             if not result.has_key(dataid):
                 result[dataid]=[dataid,lumitype,istypedefault,comment,creationtime]
+    except :
+        del qHandle
+        raise
     if len(result)>0:
         maxdataid=max(result.keys())
         return result[maxdataid]
     return result
-    except :
-        del qHandle
-        raise
-    
 def normValueById(schema,normid):
     '''
-    select l.*,d.* from luminormsv2 l,luminormsv2data d where d.data_id=l.data_id and l.data_id=normid
+    select * from luminormsv2data where data_id=normid
     output:
-        {since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3)]}
+        {since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
     '''
     result={}
-    d=nameDealer.luminormv2TableName()
     l=nameDealer.luminormv2dataTableName()
     paramdict={}
+    qHandle=schema.newQuery()
     try:
-        qHandle.addToTableList(d)
         qHandle.addToTableList(l)
-        qConditionStr=d+'.DATA_ID='+l+'.DATA_ID AND '+l+'.DATA_ID=:normid'
+        qConditionStr='DATA_ID=:normid'
         qCondition=coral.AttributeList()
         qCondition.extend('normid','unsigned long long')
         qCondition['normid'].setData(normid)
@@ -204,16 +201,20 @@ def normValueById(schema,normid):
             corrector=cursor.currentRow()['CORRECTOR'].data()
             amodetag=cursor.currentRow()['AMODETAG'].data()
             nominalegev=cursor.currentRow()['NOMINALEGEV'].data()
+            comment=''
+            if not cursor.currentRow()['COMMENT'].isNull():
+                comment=cursor.currentRow()['COMMENT'].data()
             (correctorfunc,params)=CommonUtil.parselumicorrector(corrector)
+            paramdict={}
             for param in params:
                 paramvalue=0.0
-                if not cursor.currentRow()[param].isNull():
-                    paramvalue=cursor.currentRow()[param].data()
+                if not cursor.currentRow()[param.upper()].isNull():
+                    paramvalue=cursor.currentRow()[param.upper()].data()
                     paramdict[param]=paramvalue
-            result[since]=[correctorfunc,paramdict,amodetag,nominalegev]
-    return result
+            result[since]=[correctorfunc,paramdict,amodetag,nominalegev,comment]
     except:
         raise
+    return result
 
 #=======================================================
 #   INSERT/UPDATE requires in update transaction
@@ -232,7 +233,7 @@ def createNorm(schema,normname,lumitype,istypedefault,branchinfo,comment=''):
             (revision_id,data_id)=revisionDML.bookNewRevision( schema,nameDealer.luminormv2TableName() )
             revisionDML.addRevision(schema,nameDealer.luminormv2TableName(),(revision_id,data_id),branchinfo)
         tabrowDefDict={'DATA_ID':'unsigned long long','ENTRY_ID':'unsigned long long','ENTRY_NAME':'string','LUMITYPE':'string','ISTYPEDEFAULT':'unsigned int','COMMENT':'string','CTIME':'time stamp'}
-        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':normname,'LUMITYPE':lumitype,'ISTYPEDEFAULT':istypedefault,'COMMENT':comment,'CTIME':coral.coral.TimeStamp()}
+        tabrowValueDict={'DATA_ID':data_id,'ENTRY_ID':entry_id,'ENTRY_NAME':normname,'LUMITYPE':lumitype,'ISTYPEDEFAULT':istypedefault,'COMMENT':comment,'CTIME':coral.TimeStamp()}
         db=dbUtil.dbUtil(schema)
         db.insertOneRow(nameDealer.luminormv2TableName(),tabrowDefDict,tabrowValueDict)
         return (revision_id,entry_id,data_id)
@@ -273,7 +274,7 @@ def promoteNormToTypeDefault(schema,normname,lumitype):
     '''
     try:
         thisnormid=normIdByName(schema,normname)
-        olddefaultid=normIdByType(schema,amodetag,minegev,maxegev,defaultonly=True)
+        olddefaultid=normIdByType(schema,lumitype=lumitype,defaultonly=True)
         if not thisnormid:
             raise ValueError(normname+' does not exist, nothing to update')
         setClause='ISTYPEDEFAULT=1'
@@ -293,9 +294,9 @@ def promoteNormToTypeDefault(schema,normname,lumitype):
             db.singleUpdate(nameDealer.luminormTable(),setClause,updateCondition,inputData)
     except :
         raise
-def insertValueToNormId(schema,normdataid,sincerun,corrector,amodetag,egev,parameters):
+def insertValueToNormId(schema,normdataid,sincerun,corrector,amodetag,egev,parameters,comment=''):
     '''
-    insert into LUMINORM_DATA(DATA_ID,SINCERUN,CORRECTOR,...) values(normdataid,)sincerun,corrector,...);
+    insert into LUMINORMSV2DATA(DATA_ID,SINCERUN,CORRECTOR,...) values(normdataid,)sincerun,corrector,...);
     require len(parameters)>=1.
     input:
       parameterDict {'NORM_OCC1':normocc1,'NORM_OCC2':normocc2,'NORM_ET':normet,'NORM_PU':normpu,'DRIFT':drift,'A1':a1,...}
@@ -308,18 +309,21 @@ def insertValueToNormId(schema,normdataid,sincerun,corrector,amodetag,egev,param
         tabrowDefDict={}
         tabrowDefDict['DATA_ID']='unsigned long long'
         tabrowDefDict['CORRECTOR']='string'
-        tabrowDefDict['SINCE']='unsigned long long'
+        tabrowDefDict['SINCE']='unsigned int'
         tabrowDefDict['AMODETAG']='string'
         tabrowDefDict['NOMINALEGEV']='unsigned int'
+        tabrowDefDict['COMMENT']='string'
         tabrowValueDict={}
         tabrowValueDict['DATA_ID']=normdataid
         tabrowValueDict['CORRECTOR']=corrector
         tabrowValueDict['SINCE']=sincerun
         tabrowValueDict['AMODETAG']=amodetag
-        tabrowValueDict['EGEV']=egev
+        tabrowValueDict['NOMINALEGEV']=egev
+        tabrowValueDict['COMMENT']=comment
         for paramname,paramvalue in parameters.items():
-            tabrowValueDict[paramname.upper()]=paramvalue
-        db.insertOneRow(revisiontableName,tabrowDefDict,tabrowValueDict)
+            tabrowDefDict[paramname.upper()]='float'
+            tabrowValueDict[paramname.upper()]=float(paramvalue)
+        db.insertOneRow(nameDealer.luminormv2dataTableName(),tabrowDefDict,tabrowValueDict)
     except:
         raise
 ################################################
@@ -346,13 +350,14 @@ def exportNormValue(schema,sourcenormname,destnormname,firstsince=None,lastsince
         sourcenormid=normIdByName(schema,sourcenorname)
         if not sourcenormid:
             raise RuntimeError('[ERROR] sourcenorm does not exist')
-        normvalueDict=normValueById(schema,sourcenormid) #{since:[corrector,{paramname:paramvalue},amodetag,egev]}
+        normvalueDict=normValueById(schema,sourcenormid) #{since:[corrector,{paramname:paramvalue},amodetag,egev,comment]}
         for sincerun,normvalue in normvalueDict.items():
             if sincerun>copysince and sincerun<copylastsince:
                 corrector=normvalue[0]
                 parameters=normvalue[1]
                 amodetag=normvalue[2]
                 egev=normvalue[3]
-                insertValueToNormId(schema,destnormid,sincerun,corrector,amodetag,egev)
+                comment=normvalue[4]
+                insertValueToNormId(schema,destnormid,sincerun,corrector,amodetag,egev,comment=comment)
     except:
         raise    

@@ -46,26 +46,39 @@ def toScreenNormDetail(normname,norminfo,normvalues):
     list norm detail
     input:
         normname
-        norminfo=[data_id[0],lumitype[1],iscontextdefault[2],comment[3],creationtime[4]]
-        normvalues={since:[corrector,{paramname:paramvalue},context]}
+        norminfo=[data_id[0],lumitype(1)istypedefault[2],comment[3],creationtime[4]]
+        normvalues={since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
     '''
-    amodetag=norminfo[1]
-    nominalegev=str(norminfo[2])
-    lumitype=norminfo[3]
-    istypedefault=norminfo[4]
-    print '\t== = ==========================================================================='
-    print '\tNorm: '+normname+', Type: '+lumitype+' , isDefault: '+str(istypedefault)
-    print '\t== = ==========================================================================='
-    labels=[('Since','Corrector','Parameters','Context')]
+    lumitype=norminfo[1]
+    istypedefault=norminfo[2]
+    print '=========================================================='
+    print '* Norm: '+normname
+    print '* Type: '+lumitype
+    print '* isDefault: '+str(istypedefault)
+    print '=========================================================='
+    labels=[('Since','Corrector','Parameters','amodetag','egev','comment')]
 
     result=[]
     print ' ==  = '
     for since in sorted(normvalues):
         normdata=normvalues[since]
         correctorStr=normdata[0]
-        paramDict=str(normdata[1])
-        context=normdata[2]
-        result.append([str(since),correctorStr,paramDict,context])
+        paramDict=normdata[1]
+        paramDictStr=''
+        count=0
+        for pname in sorted(paramDict):
+            pval=paramDict[pname]
+            if count!=0:
+                paramDictStr+=' '
+            if pval<1.:
+                paramDictStr+=pname+':'+'%.4f'%pval
+            else:
+                paramDictStr+=pname+':'+'%.2f'%pval
+            count+=1
+        amodetag=normdata[2]
+        egev=str(normdata[3])
+        comment=normdata[4]
+        result.append([str(since),correctorStr,paramDictStr,amodetag,egev,comment])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
 
 def toScreenTags(tagdata):

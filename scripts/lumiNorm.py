@@ -7,7 +7,7 @@
 #########################################################################
 
 import os,sys
-from RecoLuminosity.LumiDB import normDML,revisionDML,argparse,sessionManager,lumiReport,normFileParser
+from RecoLuminosity.LumiDB import normDML,revisionDML,argparse,sessionManager,lumiReport,normFileParser,CommonUtil
 
 ##############################
 ## ######################## ##
@@ -41,7 +41,6 @@ if __name__ == '__main__':
     parser.add_argument('-f',
                         dest='normfile',
                         action='store',
-                        type=string,
                         help='norm definition file. Required for all update actions')
     parser.add_argument('--siteconfpath',
                         dest='siteconfpath',
@@ -78,8 +77,8 @@ if __name__ == '__main__':
         dbsession=svc.openSession(isReadOnly=False,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
         normfileparser=normFileParser.normFileParser(options.normfile)
         normdata=normfileparser.parse()
-        normdefinitionDict=normdata[0]
-        normvaluesDict=normdata[1]            
+        normdefinitionDict=normdata[0]#{defoption:value}
+        normvalues=normdata[1]        #[{dataoption:value}]         
         dbsession.transaction().start(False)        
         normname=''
         if options.normname:#commandline has priorty
@@ -101,27 +100,28 @@ if __name__ == '__main__':
         commentStr=''
         if normdefinitionDict.has_key('comment'):
             commentStr=normdefinitionDict['comment']
-        sincerun=132440
-        if normvaluesDict.has_key('since') and normvaluesDict['since']:
-            sincerun=normvaluesDict['since']
-        context=''
-        if normvaluesDict.has_key('context') and normvaluesDict['context']:
-            context=normvaluesDict['context']
-        if not context:
-            raise RuntimeError('[ERROR] correction context undefined')
-        [amodetag,egevStr]=context.split('_')
-        egev=int(egevStr)
-        if not normvaluesDict.has_key('corrector') or not normvaluesDict['corrector']:
-            raise RuntimeError('parameter corrector is required for create/insert action')
-        correctorStr=normvaluesDict['corrector']
-        (correctorname,parameterlist)=CommonUtil.parselumicorrector(correctorStr)
+            
         if options.action=='create':
             (revision_id,branch_id)=revisionDML.branchInfoByName(dbsession.nominalSchema(),'NORM')
             branchinfo=(revision_id,'NORM')
             (normrev_id,normentry_id,normdata_id)=normDML.createNorm(dbsession.nominalSchema(),normname,lumitype,istypedefault,branchinfo,comment=commentStr)
         else:
             normdata_id=normDML.normIdByName(dbsession.nominalSchema(),normname)
-        normDML.insertValueToNormId(dbsession.nominalSchema(),normdata_id,sincerun,correctorname,amodetag,egev,parameterlist)
+        for normvalueDict in normvalues:
+            if not normvalueDict.has_key('corrector') or not normvalueDict['corrector']:
+                raise RuntimeError('parameter corrector is required for create/insert action')
+            if not normvalueDict.has_key('since') or not normvalueDict['since']:
+                raise RuntimeError('parameter since is required for create/insert action')
+            correctorStr=normvalueDict['corrector']
+            sincerun=int(normvalueDict['since'])
+            amodetag=normvalueDict['amodetag']
+            egev=int(normvalueDict['egev'])
+            detailcomment=normvalueDict['comment']
+            (correctorname,parameterlist)=CommonUtil.parselumicorrector(correctorStr)
+            parameterDict={}
+            for param in parameterlist:
+                parameterDict[param]=normvalueDict[param]
+            normDML.insertValueToNormId(dbsession.nominalSchema(),normdata_id,sincerun,correctorStr,amodetag,egev,parameterDict,comment=detailcomment)
         dbsession.transaction().commit()
         
     ##############################
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         if options.action=='setdefault':
             normDML.promoteNormToTypeDefault(dbsession.nominalSchema(),normname,lumitype)
         if options.action=='unsetdefault':
-            normDML.demoteNormFromTypeDefault(schema,normname,lumitype):
+            normDML.demoteNormFromTypeDefault(schema,normname,lumitype)
         dbsession.transaction().commit()        
      ##############################
      #  list
@@ -147,10 +147,10 @@ if __name__ == '__main__':
             normvalues=normDML.normValueById(dbsession.nominalSchema(),normdataid)
             lumiReport.toScreenNormDetail(options.normname,norminfo,normvalues)
         elif options.lumitype:
-            luminormidmap=normDML.normIdByType(dbsession.nominalSchema(),lumitype=lumitype,defaultonly=False)
+            luminormidmap=normDML.normIdByType(dbsession.nominalSchema(),lumitype=options.lumitype,defaultonly=False)
             for normname,normid in luminormidmap.items():
-                norminfo=normDML.normInfoByName(dbsession.nominalSchema(),options.normname)
-                normvalues=normDML.normValueById(dbsession.nominalSchema(),normdataid)
+                norminfo=normDML.normInfoByName(dbsession.nominalSchema(),normname)
+                normvalues=normDML.normValueById(dbsession.nominalSchema(),normid)
                 lumiReport.toScreenNormDetail(normname,norminfo,normvalues)
         else:
             allnorms=normDML.allNorms(dbsession.nominalSchema())

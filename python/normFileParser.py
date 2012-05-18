@@ -16,6 +16,7 @@ import ConfigParser,os.path
 #   norm_occ2=
 #   amodetag=
 #   egev=
+#   comment=
 #   ...
 #################################
 
