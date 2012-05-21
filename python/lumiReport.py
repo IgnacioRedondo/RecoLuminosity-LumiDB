@@ -4,23 +4,27 @@
 # Author:      Zhen Xie                                   #
 ###########################################################
 
-import os,sys,datetime
+import os,sys,time
 from RecoLuminosity.LumiDB import tablePrinter, csvReporter,CommonUtil
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
-def toScreenHeader(commandname,commandv,datatagname,normtag):
+def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag):
     '''
     input:
        commandname: commandname
-       commandversion: command cvs version
        datataginfo: tagname
-       corrinfo: normtag
-       
+       normtag: normtag
+       worktag: working version
+       updatetag: updated version if amy
     '''
-    today=datetime.date.today()
+    gmtnowStr=time.asctime(time.gmtime())+' UTC'
+    updatetagStr='None'
+    if updatetag:
+        updatetagStr=updatetag
     header='***********************************************\n'
-    header+='* '+str(today)+' \n'
-    header+='* '+commandname+' '+commandv+'\n'
+    header+='* '+gmtnowStr+'\n'
     header+='* datatag: '+datatagname+' , normtag: '+normtag+'\n'
+    header+='* by: '+commandname+' , '+worktag +'\n'
+    header+='* update info: '+updatetag+'\n'
     header+='***********************************************\n'
     sys.stdout.write(header)
     
