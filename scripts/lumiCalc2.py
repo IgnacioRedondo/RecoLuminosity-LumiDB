@@ -9,7 +9,7 @@
 VERSION='2.00'
 import os,sys,time
 import coral
-from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,revisionDML,lumiCalcAPI,lumiReport,RegexValidator
+from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,revisionDML,lumiCalcAPI,lumiReport,RegexValidator,normDML
         
 beamChoices=['PROTPHYS','IONPHYS','PAPHYS']
 
@@ -43,16 +43,17 @@ def parseInputFiles(inputfilename,dbrunlist,optaction):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),description = "Lumi Calculation",formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    allowedActions = ['overview', 'delivered', 'recorded', 'lumibyls','lumibylsXing','status','checkforupdate']
+    allowedActions = ['overview', 'delivered', 'recorded', 'lumibyls','lumibylsXing']
     beamModeChoices = [ "stable", "quiet", "either"]
     amodetagChoices = [ "PROTPHYS","IONPHYS",'PAPHYS' ]
     xingAlgoChoices =[ "OCC1","OCC2","ET"]
+
     #
     # parse arguments
     #  
-    #
+    ################################################
     # basic arguments
-    #
+    ################################################
     parser.add_argument('action',choices=allowedActions,
                         help='command actions')
     parser.add_argument('-c',dest='connect',action='store',
@@ -61,33 +62,40 @@ if __name__ == '__main__':
                         default='frontier://LumiCalc/CMS_LUMI_PROD')
     parser.add_argument('-P',dest='authpath',action='store',
                         required=False,
-                        help='path to authentication file (optional)')
+                        help='path to authentication file')
     parser.add_argument('-r',dest='runnumber',action='store',
                         type=int,
                         required=False,
-                        help='run number (optional)')
+                        help='run number')
     parser.add_argument('-o',dest='outputfile',action='store',
                         required=False,
-                        help='output to csv file (optional)')
-    #
-    #optional arg to select exact run and ls
-    #
+                        help='output to csv file' )
+    
+    #################################################
+    #arg to select exact run and ls
+    #################################################
     parser.add_argument('-i',dest='inputfile',action='store',
                         required=False,
-                        help='lumi range selection file (optional)')
-    #
-    #optional arg to select exact hltpath or pattern
-    #
+                        help='lumi range selection file')
+    #################################################
+    #arg to select exact hltpath or pattern
+    #################################################
     parser.add_argument('--hltpath',dest='hltpath',action='store',
                         default=None,required=False,
-                        help='specific hltpath or hltpath pattern to calculate the effectived luminosity (optional)')
-    #
-    #optional args to filter *runs*, they do not select on LS level.
-    #
-    parser.add_argument('-b',dest='beammode',action='store',
-                        choices=beamModeChoices,
+                        help='specific hltpath or hltpath pattern to calculate the effectived luminosity')
+    #################################################
+    #versions control
+    #################################################
+    parser.add_argument('--correctiontag',dest='correctiontag',action='store',
                         required=False,
-                        help='beam mode choices [stable] (optional)')
+                        help='version of lumi correction coefficients')
+    parser.add_argument('--datatag',dest='datatag',action='store',
+                        required=False,
+                        help='version of lumi/trg/hlt data')
+
+    ###############################################
+    # run filters
+    ###############################################
     parser.add_argument('-f','--fill',dest='fillnum',action='store',
                         default=None,required=False,
                         help='fill number (optional) ')
@@ -95,12 +103,6 @@ if __name__ == '__main__':
                         choices=amodetagChoices,
                         required=False,
                         help='specific accelerator mode choices [PROTOPHYS,IONPHYS,PAPHYS] (optional)')
-    parser.add_argument('--correctiontag',dest='correctiontag',action='store',
-                        required=False,
-                        help='version of lumi correction coefficients')
-    parser.add_argument('--datatag',dest='datatag',action='store',
-                        required=False,
-                        help='version of lumi/trg/hlt data')
     parser.add_argument('--beamenergy',dest='beamenergy',action='store',
                         type=float,
                         default=None,
@@ -109,56 +111,62 @@ if __name__ == '__main__':
                         type=float,action='store',
                         default=0.2,
                         required=False,
-                        help='fluctuation in fraction allowed to nominal beam energy, default 0.2, to be used together with -beamenergy  (optional)'
-                        )
+                        help='fluctuation in fraction allowed to nominal beam energy, default 0.2, to be used together with -beamenergy  (optional)')
+                        
     parser.add_argument('--begin',dest='begin',action='store',
                         default=None,
                         required=False,
                         type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='min run start time, mm/dd/yy hh:mm:ss (optional)'
-                        )
+                        help='min run start time, mm/dd/yy hh:mm:ss (optional)' )
+                        
     parser.add_argument('--end',dest='end',action='store',
                         default=None,
                         required=False,
                         type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='max run start time, mm/dd/yy hh:mm:ss (optional)'
-                        )    
-    #
-    #optional args to filter ls
-    #
+                        help='max run start time, mm/dd/yy hh:mm:ss (optional)' )
+                            
+    #############################################
+    #ls filter 
+    #############################################
+    parser.add_argument('-b',dest='beammode',action='store',
+                        choices=beamModeChoices,
+                        required=False,
+                        help='beam mode choices [stable]')
+
     parser.add_argument('--xingMinLum', dest = 'xingMinLum',
                         type=float,
                         default=1e-03,
                         required=False,
                         help='Minimum luminosity considered for lumibylsXing action, default=1e-03')
+    
     parser.add_argument('--xingAlgo', dest = 'xingAlgo',
                         default='OCC1',
                         required=False,
                         help='algorithm name for per-bunch lumi ')
-    #
-    #optional args for data and normalization version control
-    #
-    parser.add_argument('--norm',dest='normfactor',action='store',
-                        default=None,
-                        required=False,
-                        help='use specify the name or the value of the normalization to use,optional')
+    
+    #############################################
+    #global scale factor
+    #############################################        
     parser.add_argument('-n',dest='scalefactor',action='store',
                         type=float,
                         default=1.0,
                         required=False,
                         help='user defined global scaling factor on displayed lumi values,optional')
-    #
+
+    #################################################
     #command configuration 
-    #
+    #################################################
     parser.add_argument('--siteconfpath',dest='siteconfpath',action='store',
                         default=None,
                         required=False,
                         help='specific path to site-local-config.xml file, optional. If path undefined, fallback to cern proxy&server')
-    #
+    #################################################
     #switches
-    #
+    #################################################
     parser.add_argument('--without-correction',dest='withoutFineCorrection',action='store_true',
-                        help='without fine correction on calibration' )
+                        help='without any correction/calibration' )
+    parser.add_argument('--without-checkforupdate',dest='withoutCheckforupdate',action='store_true',
+                        help='without check for update' )                    
     parser.add_argument('--verbose',dest='verbose',action='store_true',
                         help='verbose mode for printing' )
     parser.add_argument('--nowarning',dest='nowarning',action='store_true',
@@ -167,16 +175,61 @@ if __name__ == '__main__':
                         help='debug')
 
     options=parser.parse_args()
-   
-    if options.action=='checkforupdate':
+
+    #
+    # check working environment
+    #
+    workingversion='UNKNOWN'
+    updateversion='NONE'
+    if not options.withoutCheckforupdate:
         from RecoLuminosity.LumiDB import checkforupdate
         cmsswWorkingBase=os.environ['CMSSW_BASE']
+        if not cmsswWorkingBase:
+            print 'Please check out RecoLuminosity/LumiDB from CVS,scram b,cmsenv'
+            sys.exit(0)
         c=checkforupdate.checkforupdate()
-        workingversion=c.runningVersion(cmsswWorkingBase,'lumiCalc2.py')
-        c.checkforupdate(workingversion)
-        exit(0)
+        workingversion=c.runningVersion(cmsswWorkingBase,'lumiCalc2.py',isverbose=False)
+        if workingversion:
+            updateversionList=c.checkforupdate(workingversion,isverbose=False)
+            if updateversionList:
+                updateversion='#'.join(updateversionList)
+    #
+    # check DB environment
+    #
     if options.authpath:
         os.environ['CORAL_AUTH_PATH'] = options.authpath
+    svc=sessionManager.sessionManager(options.connect,
+                                      authpath=options.authpath,
+                                      siteconfpath=options.siteconfpath,
+                                      debugON=options.debug)
+    session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
+    
+        
+    #
+    # check datatag
+    #
+    datatagname=options.datatag
+    if not datatagname:
+        session.transaction().start(True)
+        (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
+        session.transaction().commit()
+    
+    #
+    # check correctiontag
+    #
+    session.transaction().start(True)
+    normname=options.correctiontag
+    normid=0
+    if not normname:
+        normmap=normDML.normIdByType(session.nominalSchema(),lumitype='HF',defaultonly=True)
+        if len(normmap):
+            normname=normmap.keys()[0]
+            normid=normmap[normname]
+    else:
+        normid=normDML.normIdByname(session.nominalSchema(),lumitype='HF',defaultonly=False)
+    session.transaction().commit()
+    lumiReport.toScreenHeader('lumiCalc2.py',datatagname,normname,workingversion,updateversion)
+    sys.exit(0)
         
     pbeammode = None
     normfactor=options.normfactor
@@ -218,22 +271,12 @@ if __name__ == '__main__':
         if options.action=='lumibylsXing':
             print '\tLS filter for lumibylsXing xingMinLum: ',options.xingMinLum
         
-    svc=sessionManager.sessionManager(options.connect,
-                                      authpath=options.authpath,
-                                      siteconfpath=options.siteconfpath,
-                                      debugON=options.debug)
-    session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
 
-    
-    datatagname=options.datatag
+ 
     irunlsdict={}
     iresults=[]
     reqTrg=False
     reqHlt=False
-    if not datatagname:
-        session.transaction().start(True)
-        (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
-        session.transaction().commit()
     if options.action=='overview' or options.action=='lumibyls' or options.action=='lumibylsXing':
         reqTrg=True
     if options.action=='recorded':
@@ -297,7 +340,6 @@ if __name__ == '__main__':
         (currenttagname,dataidmap)=revisionDML.dataIdsByTagId(schema,currenttagid,runlist=rruns,withcomment=False)
     else:
         dataidmap=revisionDML.dataIdsByTagName(schema,datatagname,runlist=rruns,withcomment=False)
-    lumiReport.toScreenHeader('lumiCalc2.py','V04-00-00',currenttagname,'pp8TeV')
 
     ##################
     # ls level       #
