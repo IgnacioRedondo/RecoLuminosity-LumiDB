@@ -6,7 +6,6 @@
 # Author:      Zhen Xie                                                #
 ########################################################################
 
-VERSION='2.00'
 import os,sys,time
 import coral
 from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,revisionDML,lumiCalcAPI,lumiReport,RegexValidator,normDML
@@ -86,9 +85,9 @@ if __name__ == '__main__':
     #################################################
     #versions control
     #################################################
-    parser.add_argument('--correctiontag',dest='correctiontag',action='store',
+    parser.add_argument('--normtag',dest='normtag',action='store',
                         required=False,
-                        help='version of lumi correction coefficients')
+                        help='version of lumi norm/correction')
     parser.add_argument('--datatag',dest='datatag',action='store',
                         required=False,
                         help='version of lumi/trg/hlt data')
@@ -163,7 +162,7 @@ if __name__ == '__main__':
     #################################################
     #switches
     #################################################
-    parser.add_argument('--without-correction',dest='withoutFineCorrection',action='store_true',
+    parser.add_argument('--without-correction',dest='withoutNorm',action='store_true',
                         help='without any correction/calibration' )
     parser.add_argument('--without-checkforupdate',dest='withoutCheckforupdate',action='store_true',
                         help='without check for update' )                    
@@ -203,77 +202,63 @@ if __name__ == '__main__':
                                       siteconfpath=options.siteconfpath,
                                       debugON=options.debug)
     session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
-    
         
     #
     # check datatag
     #
+    irunlsdict={}
+    session.transaction().start(True)
+    if options.runnumber: # if runnumber specified, do not go through other run selection criteria
+        irunlsdict[options.runnumber]=None
+    else:
+        runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
+
+        if options.inputfile:
+            (irunlsdict,iresults)=parseInputFiles(options.inputfile,runlist,options.action)
+        else:
+            for run in runlist:
+                irunlsdict[run]=None
+    rruns=irunlsdict.keys()
     datatagname=options.datatag
     if not datatagname:
-        session.transaction().start(True)
         (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
-        session.transaction().commit()
-    
-    #
-    # check correctiontag
-    #
-    session.transaction().start(True)
-    normname=options.correctiontag
-    normid=0
-    if not normname:
-        normmap=normDML.normIdByType(session.nominalSchema(),lumitype='HF',defaultonly=True)
-        if len(normmap):
-            normname=normmap.keys()[0]
-            normid=normmap[normname]
+        dataidmap=revisionDML.dataIdsByTagId(session.nominalSchema(),datatagid,runlist=rruns,withcomment=False)
+        #{run:(lumidataid,trgdataid,hltdataid,())}
     else:
-        normid=normDML.normIdByname(session.nominalSchema(),lumitype='HF',defaultonly=False)
+        dataidmap=revisionDML.dataIdsByTagName(session.nominalSchema(),datatagname,runlist=rruns,withcomment=False)
+                                #{run:(lumidataid,trgdataid,hltdataid,())}
+    #
+    # check normtag and get norm values if required
+    #
+    normname='NONE'
+    normid=0
+    normvalueDict={}
+    if not options.withoutNorm:
+        normname=options.normtag
+        if not normname:
+            normmap=normDML.normIdByType(session.nominalSchema(),lumitype='HF',defaultonly=True)
+            if len(normmap):
+                normname=normmap.keys()[0]
+                normid=normmap[normname]
+        else:
+            normid=normDML.normIdByname(session.nominalSchema(),lumitype='HF',defaultonly=False)
+        if not normid:
+            raise RuntimeError('[ERROR] cannot resolve norm/correction')
+            sys.exit(-1)
+        normvalueDict=normDML.normValueById(session.nominalSchema(),normid) #{since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
+    #print normvalueDict    
     session.transaction().commit()
     lumiReport.toScreenHeader(thiscmmd,datatagname,normname,workingversion,updateversion)
+    if not dataidmap:
+        print '[INFO] No qualified data found, do nothing'
+        sys.exit(0)
+    #print normvalueDict
+    #print dataidmap
     sys.exit(0)
-        
+    
     pbeammode = None
-    normfactor=options.normfactor
     if options.beammode=='stable':
         pbeammode    = 'STABLE BEAMS'
-    if options.verbose:
-        print 'General configuration'
-        print '\tconnect: ',options.connect
-        print '\tauthpath: ',options.authpath
-        print '\tcorrection tag: ',options.correctiontag
-        print '\tlumi data tag: ',options.datatag
-        print '\tsiteconfpath: ',options.siteconfpath
-        print '\toutputfile: ',options.outputfile
-        print '\tscalefactor: ',options.scalefactor        
-        if options.action=='recorded' and options.hltpath:
-            print 'Action: effective luminosity in hltpath: ',options.hltpath
-        else:
-            print 'Action: ',options.action
-        if options.normfactor:
-            if CommonUtil.is_floatstr(normfactor):
-                print '\tuse norm factor value ',normfactor                
-            else:
-                print '\tuse specific norm factor name ',normfactor
-        else:
-            print '\tuse norm factor in context (amodetag,beamenergy)'
-        if options.runnumber: # if runnumber specified, do not go through other run selection criteria
-            print '\tselect specific run== ',options.runnumber
-        else:
-            print '\trun selections == '
-            print '\tinput selection file: ',options.inputfile
-            print '\tbeam mode: ',options.beammode
-            print '\tfill: ',options.fillnum
-            print '\tamodetag: ',options.amodetag
-            print '\tbegin: ',options.begin
-            print '\tend: ',options.end
-            print '\tbeamenergy: ',options.beamenergy 
-            if options.beamenergy:
-                print '\tbeam energy: ',str(options.beamenergy)+'+/-'+str(options.beamfluctuation*options.beamenergy)+'(GeV)'
-        if options.action=='lumibylsXing':
-            print '\tLS filter for lumibylsXing xingMinLum: ',options.xingMinLum
-        
-
- 
-    irunlsdict={}
     iresults=[]
     reqTrg=False
     reqHlt=False
@@ -282,83 +267,25 @@ if __name__ == '__main__':
     if options.action=='recorded':
         reqTrg=True
         reqHlt=True
-        
-    session.transaction().start(True)
-    schema=session.nominalSchema()
-    if options.runnumber: # if runnumber specified, do not go through other run selection criteria
-        irunlsdict[options.runnumber]=None
-    else:
-        runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=reqTrg,requirehlt=reqHlt)
-
-        if options.inputfile:
-            (irunlsdict,iresults)=parseInputFiles(options.inputfile,runlist,options.action)
-        else:
-            for run in runlist:
-                irunlsdict[run]=None
-    if options.verbose:
-        print 'Selected run:ls'
-        for run in sorted(irunlsdict):
-            if irunlsdict[run] is not None:
-                print '\t%d : %s'%(run,','.join([str(ls) for ls in irunlsdict[run]]))
-            else:
-                print '\t%d : all'%run
                 
-    ##################
-    # run level      #
-    ##################
-    #resolve data/correction/norm versions, if not specified use default or guess
-    normmap={}       #{run:(norm1,occ2norm,etnorm,punorm,constfactor)}
-    correctionCoeffMap={} #{name:(alpha1,alpha2,drift)}just coefficient, not including drift intglumi
-    datatagidMap={}  #{run:(lumiid,trgid,hltid)}
-    rruns=irunlsdict.keys()
-    print 'rruns ',rruns
-    GrunsummaryData=lumiCalcAPI.runsummaryMap(schema,irunlsdict)
-    if len(GrunsummaryData)==0:
-        print 'required runs not found in db,do nothing'
-        session.transaction().commit()
-        del session
-        del svc
-        sys.exit(-1)
-    if not normfactor:#if no specific norm,decide from context
-        runcontextMap={}
-        for rdata in sorted(GrunsummaryData):
-            mymodetag=GrunsummaryData[rdata][1]
-            myegev=GrunsummaryData[rdata][2]
-            runcontextMap[rdata]=(mymodetag,myegev)
-            normmap=lumiCalcAPI.normForRange(schema,runcontextMap)            
-    else:
-        normvalue=lumiCalcAPI.normByName(schema,normfactor)
-        normmap=dict.fromkeys(rruns,normvalue)
-    if not options.withoutFineCorrection:
-        correctionCoeffs=lumiCalcAPI.correctionByName(schema,tagname=options.correctiontag)
-        driftcoeff=0.0
-        driftcorrectionMap=lumiCalcAPI.driftCorrectionForRange(schema,rruns,driftcoeff)
-    dataidmap={}     #{run:(lumiid,trgid,hltid)}
-    currenttagname=datatagname
-    if not datatagname:
-        print 'rruns ',rruns
-        (currenttagname,dataidmap)=revisionDML.dataIdsByTagId(schema,currenttagid,runlist=rruns,withcomment=False)
-    else:
-        dataidmap=revisionDML.dataIdsByTagName(schema,datatagname,runlist=rruns,withcomment=False)
-
     ##################
     # ls level       #
     ##################
     if options.action == 'delivered':
-        result=lumiCalcAPI.deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
         else:
             lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'overview':
-        result=lumiCalcAPI.lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
             lumiReport.toScreenOverview(result,iresults,options.scalefactor,options.verbose)
         else:
             lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibyls':
         if not options.hltpath:
-            result=lumiCalcAPI.lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
             if not options.outputfile:
                 lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
             else:
@@ -371,7 +298,7 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-            result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
+            result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
             if not options.outputfile:
                 lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
             else:
@@ -385,13 +312,13 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-        result=lumiCalcAPI.effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
+        result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
         if not options.outputfile:
             lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
         else:
             lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibylsXing':
-        result=lumiCalcAPI.lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normmap,correctioncoeffs=correctionCoeffs,lumitype='HF')
+        result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
             lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
         else:

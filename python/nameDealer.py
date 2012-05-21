@@ -3,7 +3,7 @@
 central place for all the table names
 '''
 def schemaV2Tables():
-       return ['REVISIONS','LUMIDATA','PIXELLUMIDATA','LUMISUMMARYV2','LUMINORMS','TRGDATA','LSTRG', 'HLTDATA', 'LSHLT','INTGLUMI','PIXELLUMISUMMARYV2']
+       return ['REVISIONS','LUMIDATA','PIXELLUMIDATA','LUMISUMMARYV2','LUMINORMS','TRGDATA','LSTRG', 'HLTDATA', 'LSHLT','INTGLUMIV2','PIXELLUMISUMMARYV2']
 def schemaV1Tables():
        return [ 'LUMISUMMARY','LUMIDETAIL','TRG','HLT']
 def commonTables():
@@ -81,6 +81,9 @@ def lumivalidationTableName():
 
 def intglumiTableName():
        return 'INTGLUMI'
+
+def intglumiv2TableName():
+       return 'INTGLUMIV2'
        
 def idTableName( dataTableName ):
 	return dataTableName+"_ID"

@@ -338,8 +338,8 @@ def runList(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=None,l
 
 def runsummary(schema,runnum,sessionflavor=''):
     '''
-    select l1key,amodetag,egev,hltkey,fillnum,sequence,to_char(starttime),to_char(stoptime) from cmsrunsummary where runnum=:runnum
-    output: [l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]
+    select l1key,amodetag,egev,hltkey,fillnum,fillscheme,to_char(starttime),to_char(stoptime) from cmsrunsummary where runnum=:runnum
+    output: [l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]
     '''
     result=[]
     qHandle=schema.newQuery()
@@ -354,7 +354,7 @@ def runsummary(schema,runnum,sessionflavor=''):
         qHandle.addToOutputList('EGEV','egev')
         qHandle.addToOutputList('HLTKEY','hltkey')
         qHandle.addToOutputList('FILLNUM','fillnum')
-        qHandle.addToOutputList('SEQUENCE','sequence')
+        qHandle.addToOutputList('FILLSCHEME','fillscheme')
         if sessionflavor=='SQLite':
             qHandle.addToOutputList('STARTTIME','starttime')
             qHandle.addToOutputList('STOPTIME','stoptime')
@@ -368,7 +368,7 @@ def runsummary(schema,runnum,sessionflavor=''):
         qResult.extend('egev','unsigned int')
         qResult.extend('hltkey','string')
         qResult.extend('fillnum','unsigned int')
-        qResult.extend('sequence','string')
+        qResult.extend('fillscheme','string')
         qResult.extend('starttime','string')
         qResult.extend('stoptime','string')
         qHandle.defineOutput(qResult)
@@ -379,7 +379,10 @@ def runsummary(schema,runnum,sessionflavor=''):
             result.append(cursor.currentRow()['egev'].data())
             result.append(cursor.currentRow()['hltkey'].data())
             result.append(cursor.currentRow()['fillnum'].data())
-            result.append(cursor.currentRow()['sequence'].data())
+            fillscheme=''
+            if not cursor.currentRow()['fillscheme'].isNull():
+                fillscheme=cursor.currentRow()['fillscheme'].data()
+            result.append(fillscheme)
             result.append(cursor.currentRow()['starttime'].data())
             result.append(cursor.currentRow()['stoptime'].data())
     except :
@@ -1350,6 +1353,72 @@ def hltLSById(schema,dataid,hltpathname=None,hltpathpattern=None,withL1Pass=Fals
     #print 'tot hltLSById time ',t1-t0
     return (runnum,result)
 
+def intglumiForRange(schema,runlist):
+    '''
+    output: {run:intglumi_in_fb}
+    '''
+    result={}
+    if not runlist:
+        return result
+    minrun=min(runlist)
+    maxrun=max(runlist)
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(nameDealer.intglumiv2TableName())
+        qResult=coral.AttributeList()
+        qResult.extend('RUNNUM','unsigned int')
+        qResult.extend('INTGLUMI','float')
+        qConditionStr='RUNNUM>=:minrun AND RUNNUM<=:maxrun'
+        qCondition=coral.AttributeList()
+        qCondition.extend('minrun','unsigned int')
+        qCondition.extend('maxrun','unsigned int')
+        qCondition['minrun'].setData(minrun)
+        qCondition['maxrun'].setData(maxrun)
+        qHandle.addToOutputList('RUNNUM')
+        qHandle.addToOutputList('INTGLUMI')
+        qHandle.setCondition(qConditionStr,qCondition)
+        qHandle.defineOutput(qResult)
+        cursor=qHandle.execute()
+        while cursor.next():
+            runnum=cursor.currentRow()['RUNNUM'].data()
+            intglumi=cursor.currentRow()['INTGLUMI'].data()
+            result[runnum]=intglumi
+    except :
+        del qHandle
+        raise
+    del qHandle
+    return result
+
+def fillschemePatternMap(schema,lumitype):
+    '''
+    output:(patternStr:correctionFac)
+    '''
+    if lumitype not in ['PIXEL','HF']:
+        raise ValueError('[ERROR] unsupported lumitype '+lumitype)
+    correctorField='CORRECTIONFACTOR'
+    if lumitype=='PIXEL':
+        correctorField='PIXELCORRECTIONFACTOR'
+    result={}
+    qHandle=schema.newQuery()
+    try:
+        qHandle.addToTableList(nameDealer.fillschemeTableName())
+        qResult=coral.AttributeList()
+        qResult.extend('FILLSCHEMEPATTERN','string')
+        qResult.extend('CORRECTIONFACTOR','float')
+        qHandle.defineOutput(qResult)
+        qHandle.addToOutputList('FILLSCHEMEPATTERN')
+        qHandle.addToOutputList(correctorField)
+        cursor=qHandle.execute()
+        while cursor.next():
+            fillschemePattern=cursor.currentRow()['FILLSCHEMEPATTERN'].data()
+            afterglowfac=cursor.currentRow()['CORRECTIONFACTOR'].data()
+            result[fillschemePattern]=afterglowfac
+    except :
+        del qHandle
+        raise
+    del qHandle
+    return result
+
 def guessLumiDataIdByRunInBranch(schema,runnum,tablename,branchName):
     revlist=revisionDML.revisionsInBranchName(schema,branchName)
     lumientry_id=revisionDML.entryInBranch(schema,tablename,str(runnum),branchName)
@@ -1636,6 +1705,7 @@ def latestdataIdByEntry(schema,entryid,datatype,branchfilter):
     del qHandle
     if len(dataids)!=0:return max(dataids)
     return None
+
 
 #=======================================================
 #   INSERT requires in update transaction

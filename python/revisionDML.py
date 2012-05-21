@@ -635,7 +635,7 @@ def dataIdsByTagName(schema,tagname,runlist=None,withcomment=False):
     input:
         runlist: select run list, if None, all
     output:
-        {run:(lumidataid,trgdataid,hltdataid,comment)}
+        {run:(lumidataid,trgdataid,hltdataid,(creationtime,comment)}
     '''
     tagid=None
     try:

@@ -1,5 +1,5 @@
 import os,coral,datetime,fnmatch,time
-from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,CommonUtil,selectionParser,hltTrgSeedMapper,lumiCorrections,lumiParameters,LumiCorrector
+from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,CommonUtil,selectionParser,hltTrgSeedMapper,normFunctors,lumiParameters
 
 ########################################################################
 # Lumi data management and calculation API                             #
@@ -10,26 +10,26 @@ from RecoLuminosity.LumiDB import nameDealer,revisionDML,dataDML,lumiTime,Common
 #
 # Corrections/Norms  API
 #
-def normByContext(schema,runcontextMap,lumitype='HF'):
-    '''
-    best norm in context
-    input: {run:(amodetag,egev)}
-    output: (normName,{minrun:[normid,formname,occ1norm,occ2norm,etnorm,punorm,drift,a1,a2,a3,a4,a5,c1,c2]}
-    '''
-    result={}
-    tmpresult={}#{(amodetag,egev):normdataid}
-    tmpmap={}
-    normmap={}#{normdataid:normvalues}
-    
-    for run in sorted(runcontextMap):
-        context=runcontextMap[run]
-        mymodetag=context[0]
-        myegev=context[1]
-        if not tmpresult.has_key(mymodetag,myegev):#loop over context
-            []=dataDML.normsByContext(schema,mymodetag,myegev)
-            
-            tmpresult[context]=normdataid
-        tmpmap[run]=tmpresult[context]
+#def normByContext(schema,runcontextMap,lumitype='HF'):
+#    '''
+#    best norm in context
+#    input: {run:(amodetag,egev)}
+#    output: (normName,{minrun:[normid,formname,occ1norm,occ2norm,etnorm,punorm,drift,a1,a2,a3,a4,a5,c1,c2]}
+#    '''
+#    result={}
+#    tmpresult={}#{(amodetag,egev):normdataid}
+#    tmpmap={}
+#    normmap={}#{normdataid:normvalues}
+#    
+#    for run in sorted(runcontextMap):
+#        context=runcontextMap[run]
+#        mymodetag=context[0]
+#        myegev=context[1]
+#        if not tmpresult.has_key(mymodetag,myegev):#loop over context
+#            []=dataDML.normsByContext(schema,mymodetag,myegev)
+#            
+#            tmpresult[context]=normdataid
+#        tmpmap[run]=tmpresult[context]
         
 def normByName(schema,normname,runlist,lumitype='HF'):
     '''
@@ -142,7 +142,7 @@ def driftCorrectionForRange(schema,inputRange,driftcoeff):
 
 def runsummary(schema,irunlsdict):
     '''
-    output  [[run(0),l1key(1),amodetag(2),egev(3),hltkey(4),fillnum(5),sequence(6),starttime(7),stoptime(8)]]
+    output  [[run(0),l1key(1),amodetag(2),egev(3),hltkey(4),fillnum(5),fillscheme(6),starttime(7),stoptime(8)]]
     '''
     result=[]
     for run in sorted(irunlsdict):
@@ -153,12 +153,12 @@ def runsummary(schema,irunlsdict):
 
 def runsummaryMap(schema,irunlsdict):
     '''
-    output  {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+    output  {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
     '''
     result={}
     seqresult=runsummary(schema,irunlsdict)
-    for [run,l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime] in seqresult:
-        result[run]=[l1key,amodetag,egev,hltkey,fillnum,sequence,starttime,stoptime]
+    for [run,l1key,amodetag,egev,hltkey,fillnum,fillscheme,starttime,stoptime] in seqresult:
+        result[run]=[l1key,amodetag,egev,hltkey,fillnum,fillscheme,starttime,stoptime]
     return result
 
 def fillInRange(schema,fillmin=1000,fillmax=9999,amodetag='PROTPHYS',startT=None,stopT=None):
@@ -452,21 +452,21 @@ def trgForIds(schema,irunlsdict,dataidmap,trgbitname=None,trgbitnamepattern=None
                 result[run].append(lsdata)
     return result
 
-def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',datatag=None):
+def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF'):
     '''
     FROM ROOT FILE NO CORRECTION AT ALL 
     input:
            irunlsdict: {run:[cmsls]} 
            dataidmap: {run:(lumiid,trgid,hltid)}
-           runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+           runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
            beamstatus: LS filter on beamstatus (optional)
            withBXInfo: get per bunch info (optional)
            bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
            xingMinLum: cut on bx lumi value (optional)
            withBeamIntensity: get beam intensity info (optional)
            lumitype: luminosity measurement source
-           datatag: data version
     output:
+           instlumi unit in Hz/mb
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11)]}}
            lumi unit: HZ/ub
     '''
@@ -547,6 +547,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
             del perlsdata[:]
         result[run]=lsresult
     return result
+
 def instLumiForRange(schema,inputRange,lumirundataMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF',branchName=None):
     '''
     DIRECTLY FROM ROOT FIME NO CORRECTION AT ALL 
@@ -747,22 +748,20 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
             del perlsdata[:]
     return result
 
-def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,correctioncoeffs=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF',datatag=None):
+def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,rundataMap,beamstatusfilter=None,normmap=None,correctioncoeffs=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF'):
     '''
     delivered lumi (including calibration,time integral)
     input:
        irunlsdict:  {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
        dataidmap : {run:(lumiid,trgid,hltid)}
-       runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+       runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
        beamstatus: LS filter on beamstatus 
-       normmap: {run:(lumiid,trgid,hltid)}
-       correctioncoeffs: {name:(alpha1,alpha2,drift)}
+       normmap: {since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
        withBXInfo: get per bunch info (optional)
        bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
        xingMinLum: cut on bx lumi value (optional)
        withBeamIntensity: get beam intensity info (optional)
        lumitype: luminosity source
-       datatag: data version 
     output:
        result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
        lumi unit: 1/ub
@@ -770,26 +769,44 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
     result = {}
     lumip=lumiParameters.ParametersObject()
     lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
-    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,datatag=datatag)
+    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
+    
+    intglumimap={}
+    if lumitype=='HF':
+        intglumimap=dataDML.intglumiForRange(schema,irunlsdict.keys())#some runs need drift correction
+        
+    allsince=[]
+    if normmap:
+        allsince=normmap.keys().sort()
+    correctorname='fConst' #HF default
+    correctionparams={'norm_occ1':1000.0}#default:only to convert unit Hz/mb to Hz/ub
+    runfillschemeMap={}
+    fillschemePatternMap={}
+    if lumitype='PIXEL':
+        correctorname='fPixelFillScheme' #PIXEL default
+        correctionparams={'norm_occ1':1.0}
+        fillschemePatternMap=dataDML.fillschemePatternMap(schema,'PIXEL')
     for run,perrundata in instresult.items():
         if perrundata is None:
             result[run]=None
             continue
+        intglumi=0.
+        if intglumimap and intglumimap.has_key(run) and intglumimap[run]:
+            intglumi=intglumimap[run]
+        nBXs=0
+        if lumirundata and lumirundata.has_key(run) and lumirundata[run][2]:
+            nBXs=lumirundata[run][2]
+        fillschemeStr=''
+        if runsummaryMap and runsummaryMap.has_key(run) and runsummaryMap[run][5]:
+            fillschemeStr=runsummaryMap[run][5]
+        if allsince:
+            for since in allsince:
+                if run>=since:
+                    correctorname=normmap[since][0]
+                    correctionparams=normmap[since][1]
+                    break            
+        correctioninput=[0.,intglumi,nBXs,fillschemeStr,fillschemePatternMap]
         result[run]=[]
-        (amodetag,normval,egev,norm_occ2,norm_et,norm_pu,constfactor)=normmap[run].values()[0]
-        if not normval:
-            normval=6.52e3
-            occ2norm=1.0
-            norm_et=1.0
-            occ1constfactor=1.0
-            norm_pu=0.0
-            alpha1=0.0
-            alpha2=0.0
-            print '[Warning] using default normalization ',normval
-        corrToUse=correctioncoeffs.values()[0]
-        lctor=LumiCorrector.LumiCorrector(occ1norm=normval,occ2norm=norm_occ2,etnorm=norm_et,occ1constfactor=constfactor,punorm=norm_pu,alpha1=corrToUse[1],alpha2=corrToUse[2])
-        drifter=corrToUse[3]
-        nBXs=lumirundata[run][2]
         for perlsdata in perrundata:#loop over ls
             lumilsnum=perlsdata[0]
             cmslsnum=perlsdata[1]
@@ -797,13 +814,10 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             bs=perlsdata[3]
             beamenergy=perlsdata[4]
             instluminonorm=perlsdata[5]
+            correctioninput[0]=instluminonorm
+            totcorrectionFac=normFunctors.normFunctionCaller(correctorname,*correctioninput,**correctionparams)
             fillnum=perlsdata[11]
-            totcorrection=1.0
-            if lumitype=='HF':
-                totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)
-            if lumitype=='PIXEL':
-                totcorrection=instluminonorm*lctor.PixelAfterglowFactor(self,nBXs)
-            instcorrectedlumi=totcorrection*instluminonorm
+            instcorrectedlumi=totcorrectionFac*instluminonorm
             numorbit=perlsdata[8]
             numbx=lumip.NBX
             lslen=lumip.lslengthsec()
@@ -813,7 +827,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             if withBXInfo:
                 (bxidx,bxvalues,bxerrs)=perlsdata[9]
                 if lumitype=='HF':
-                    totcorrection=lctor.TotalNormOcc1(instluminonorm,nBXs)/1000.0
+                    totcorrection=totcorrectionFac/1000.0
                     calibratedbxdata=[totcorrection*x for x in bxvalues]
                     calibratedlumierr=[totcorrection*x for x in bxerrs]
                 del bxidx[:]
@@ -825,7 +839,6 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             result[run].append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,calibratedlumierr,calibratedbxdata,beamdata,fillnum])
             del perlsdata[:]
     return result
-
 
 def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,norm=None,datatag='DATA',finecorrections=None,driftcorrections=None,usecorrectionv2=False,lumitype='HF',branchName=None):
     '''
@@ -1090,7 +1103,7 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
     input:
        irunlsdict:  {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
        dataidmap : {run:(lumiid,trgid,hltid)}
-       runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+       runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
        beamstatus: LS filter on beamstatus 
        normmap: {run:(lumiid,trgid,hltid)}
        correctioncoeffs: {name:(alpha1,alpha2,drift)}
@@ -1195,7 +1208,7 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
     input:
            irunlsdict: {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
            dataidmap : {run:(lumiid,trgid,hltid)}
-           runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),sequence(5),starttime(6),stoptime(7)]}
+           runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
            beamstatusfilter: LS filter on beamstatus
            normmap: {run:(lumiid,trgid,hltid)}
            correctioncoeffs: {name:(alpha1,alpha2,drift)}
