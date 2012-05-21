@@ -20,12 +20,15 @@ def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag):
     updatetagStr='None'
     if updatetag:
         updatetagStr=updatetag
-    header='***********************************************\n'
+    header='***************************************************************\n'
     header+='* '+gmtnowStr+'\n'
     header+='* datatag: '+datatagname+' , normtag: '+normtag+'\n'
-    header+='* by: '+commandname+' , '+worktag +'\n'
-    header+='* update info: '+updatetag+'\n'
-    header+='***********************************************\n'
+    header+='* \n'
+    header+='* by:\n'
+    header+='* '+commandname+' , '+worktag +'\n'
+    header+='* \n'
+    header+='* update: '+updatetag+'\n'
+    header+='***************************************************************\n'
     sys.stdout.write(header)
     
 def toScreenNormSummary(allnorms):

@@ -175,12 +175,12 @@ if __name__ == '__main__':
                         help='debug')
 
     options=parser.parse_args()
-
     #
     # check working environment
     #
     workingversion='UNKNOWN'
     updateversion='NONE'
+    thiscmmd=sys.argv[0]
     if not options.withoutCheckforupdate:
         from RecoLuminosity.LumiDB import checkforupdate
         cmsswWorkingBase=os.environ['CMSSW_BASE']
@@ -228,7 +228,7 @@ if __name__ == '__main__':
     else:
         normid=normDML.normIdByname(session.nominalSchema(),lumitype='HF',defaultonly=False)
     session.transaction().commit()
-    lumiReport.toScreenHeader('lumiCalc2.py',datatagname,normname,workingversion,updateversion)
+    lumiReport.toScreenHeader(thiscmmd,datatagname,normname,workingversion,updateversion)
     sys.exit(0)
         
     pbeammode = None
