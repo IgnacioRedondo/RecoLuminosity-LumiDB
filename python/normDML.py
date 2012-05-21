@@ -106,7 +106,7 @@ def normIdByType(schema,lumitype='HF',defaultonly=True):
         qCondition.extend('lumitype','string')
         qCondition['lumitype'].setData(lumitype)
         if defaultonly:
-            qConditionStr+='AND ISTYPEDEFAULT=:istypedefault'
+            qConditionStr+=' AND ISTYPEDEFAULT=:istypedefault'
             qCondition.extend('istypedefault','unsigned int')
             qCondition['istypedefault'].setData(int(1))
         qResult=coral.AttributeList()
