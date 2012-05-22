@@ -63,7 +63,7 @@ def toScreenNormDetail(normname,norminfo,normvalues):
     print '* Type: '+lumitype
     print '* isDefault: '+str(istypedefault)
     print '=========================================================='
-    labels=[('Since','Corrector','Parameters','amodetag','egev','comment')]
+    labels=[('Since','Func','Parameters','amodetag','egev','comment')]
 
     result=[]
     print ' ==  = '
@@ -77,16 +77,20 @@ def toScreenNormDetail(normname,norminfo,normvalues):
             pval=paramDict[pname]
             if count!=0:
                 paramDictStr+=' '
-            if pval<1.:
-                paramDictStr+=pname+':'+'%.4f'%pval
-            else:
-                paramDictStr+=pname+':'+'%.2f'%pval
+            try:
+                fpval=float(pval)
+                if fpval<1.:
+                    paramDictStr+=pname+':'+'%.4f'%fpval
+                else:
+                    paramDictStr+=pname+':'+'%.2f'%fpval
+            except ValueError:
+                paramDictStr+=pname+':'+pval
             count+=1
         amodetag=normdata[2]
         egev=str(normdata[3])
         comment=normdata[4]
         result.append([str(since),correctorStr,paramDictStr,amodetag,egev,comment])
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) ) 
+    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,40) ) 
 
 def toScreenTags(tagdata):
     result=[]

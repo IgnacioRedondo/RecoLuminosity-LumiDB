@@ -321,8 +321,13 @@ def insertValueToNormId(schema,normdataid,sincerun,corrector,amodetag,egev,param
         tabrowValueDict['NOMINALEGEV']=egev
         tabrowValueDict['COMMENT']=comment
         for paramname,paramvalue in parameters.items():
-            tabrowDefDict[paramname.upper()]='float'
-            tabrowValueDict[paramname.upper()]=float(paramvalue)
+            try:
+                floatparam=float(paramvalue)
+                tabrowDefDict[paramname.upper()]='float'
+                tabrowValueDict[paramname.upper()]=float(paramvalue)
+            except ValueError:
+                tabrowDefDict[paramname.upper()]='string'
+                tabrowValueDict[paramname.upper()]=paramvalue
         db.insertOneRow(nameDealer.luminormv2dataTableName(),tabrowDefDict,tabrowValueDict)
     except:
         raise
