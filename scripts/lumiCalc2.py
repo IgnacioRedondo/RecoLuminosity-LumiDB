@@ -254,7 +254,7 @@ if __name__ == '__main__':
         sys.exit(0)
     #print normvalueDict
     #print dataidmap
-    sys.exit(0)
+    #sys.exit(0)
     
     pbeammode = None
     if options.beammode=='stable':
@@ -271,6 +271,8 @@ if __name__ == '__main__':
     ##################
     # ls level       #
     ##################
+    session.transaction().start(True)
+    GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict)
     if options.action == 'delivered':
         result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:

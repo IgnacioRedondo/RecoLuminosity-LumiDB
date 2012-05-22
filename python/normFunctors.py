@@ -6,11 +6,11 @@ class normFunctionFactory(object):
     all functions take 5 run time parameters, and arbituary named params
     '''
 
-    def fPoly(self,luminonorm,intglumi,nBXs,whatev,whatav,a0=1.0e03,c1=0.0,a1=0.0,a2=0.0,drift=0.0,afterglow=''):
+    def fPoly(self,luminonorm,intglumi,nBXs,whatev,whatav,a0=1.0e03,a1=0.0,a2=0.0,drift=0.0,c1=0.0,afterglow=''):
         '''
         default is just a /mb to /ub converter
         input: luminonorm in /mb
-
+        
         '''
         avglumi=0.
         if c1 and nBXs>0:
@@ -27,7 +27,7 @@ class normFunctionFactory(object):
         result=a0*Afterglow/(1+a1*avglumi+a2*avglumi*avglumi)*driftterm
         return result
 
-    def fPolyScheme(self,luminonorm,intglumi,nBXs,fillschemeStr,fillschemePatterns,a0=1.0e03,c1=0.0,a1=0.0,a2=0.0,drift=0.0):
+    def fPolyScheme(self,luminonorm,intglumi,nBXs,fillschemeStr,fillschemePatterns,a0=1.0e03,a1=0.0,a2=0.0,drift=0.0,c1=0.0):
         '''
         input: fillschemePatterns [(patternStr,afterglow])
         '''

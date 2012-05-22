@@ -748,7 +748,7 @@ def instCalibratedLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,e
             del perlsdata[:]
     return result
 
-def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,rundataMap,beamstatusfilter=None,normmap=None,correctioncoeffs=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF'):
+def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF'):
     '''
     delivered lumi (including calibration,time integral)
     input:
@@ -777,14 +777,15 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,rundataMap,bea
         
     allsince=[]
     if normmap:
-        allsince=normmap.keys().sort()
-    correctorname='fConst' #HF default
-    correctionparams={'norm_occ1':1000.0}#default:only to convert unit Hz/mb to Hz/ub
+        allsince=normmap.keys()
+        allsince.sort()
+    correctorname='fPoly' #HF default
+    correctionparams={'a0':1000.0}#default:only to convert unit Hz/mb to Hz/ub
     runfillschemeMap={}
     fillschemePatternMap={}
-    if lumitype='PIXEL':
-        correctorname='fPixelFillScheme' #PIXEL default
-        correctionparams={'norm_occ1':1.0}
+    if lumitype=='PIXEL':
+        correctorname='fPolyScheme' #PIXEL default
+        correctionparams={'a0':1.0}
         fillschemePatternMap=dataDML.fillschemePatternMap(schema,'PIXEL')
     for run,perrundata in instresult.items():
         if perrundata is None:
@@ -800,11 +801,13 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,rundataMap,bea
         if runsummaryMap and runsummaryMap.has_key(run) and runsummaryMap[run][5]:
             fillschemeStr=runsummaryMap[run][5]
         if allsince:
+            lastsince=allsince[0]
             for since in allsince:
-                if run>=since:
-                    correctorname=normmap[since][0]
-                    correctionparams=normmap[since][1]
-                    break            
+                if run>=lastsince:
+                    lastsince=since
+            correctorname=normmap[lastsince][0]
+            correctionparams=normmap[lastsince][1]
+                                
         correctioninput=[0.,intglumi,nBXs,fillschemeStr,fillschemePatternMap]
         result[run]=[]
         for perlsdata in perrundata:#loop over ls
@@ -814,8 +817,14 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,rundataMap,bea
             bs=perlsdata[3]
             beamenergy=perlsdata[4]
             instluminonorm=perlsdata[5]
+            print 'instluminonorm ',instluminonorm
             correctioninput[0]=instluminonorm
+            print 'correctorname ',correctorname
+            print 'correctioninput ',correctioninput
+            print 'correctionparams ',correctionparams
             totcorrectionFac=normFunctors.normFunctionCaller(correctorname,*correctioninput,**correctionparams)
+            print 'instluminonorm ',instluminonorm
+            print 'totcorrectionFac ',totcorrectionFac
             fillnum=perlsdata[11]
             instcorrectedlumi=totcorrectionFac*instluminonorm
             numorbit=perlsdata[8]
