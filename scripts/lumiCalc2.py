@@ -43,7 +43,7 @@ def parseInputFiles(inputfilename,dbrunlist,optaction):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),description = "Lumi Calculation",formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     allowedActions = ['overview', 'delivered', 'recorded', 'lumibyls','lumibylsXing']
-    beamModeChoices = [ "stable", "quiet", "either"]
+    beamModeChoices = [ "stable"]
     amodetagChoices = [ "PROTPHYS","IONPHYS",'PAPHYS' ]
     xingAlgoChoices =[ "OCC1","OCC2","ET"]
 
@@ -197,6 +197,16 @@ if __name__ == '__main__':
     #
     if options.authpath:
         os.environ['CORAL_AUTH_PATH'] = options.authpath
+        
+    #############################################################
+    #pre-check option compatibility
+    #############################################################
+    if not options.runnumber and not options.inputfile and not options.fillnum and not options.begin :
+        raise RuntimeError('at least one run selection argument is required')
+    if options.action=='recorded':
+        if not options.hltpath:
+            raise RuntimeError('argument --hltpath normname is required for recorded action')
+        
     svc=sessionManager.sessionManager(options.connect,
                                       authpath=options.authpath,
                                       siteconfpath=options.siteconfpath,
@@ -212,7 +222,6 @@ if __name__ == '__main__':
         irunlsdict[options.runnumber]=None
     else:
         runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
-
         if options.inputfile:
             (irunlsdict,iresults)=parseInputFiles(options.inputfile,runlist,options.action)
         else:
@@ -226,7 +235,7 @@ if __name__ == '__main__':
         #{run:(lumidataid,trgdataid,hltdataid,())}
     else:
         dataidmap=revisionDML.dataIdsByTagName(session.nominalSchema(),datatagname,runlist=rruns,withcomment=False)
-                                #{run:(lumidataid,trgdataid,hltdataid,())}
+        #{run:(lumidataid,trgdataid,hltdataid,())}
     #
     # check normtag and get norm values if required
     #
@@ -246,13 +255,12 @@ if __name__ == '__main__':
             raise RuntimeError('[ERROR] cannot resolve norm/correction')
             sys.exit(-1)
         normvalueDict=normDML.normValueById(session.nominalSchema(),normid) #{since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
-    #print normvalueDict    
     session.transaction().commit()
     lumiReport.toScreenHeader(thiscmmd,datatagname,normname,workingversion,updateversion)
     if not dataidmap:
         print '[INFO] No qualified data found, do nothing'
         sys.exit(0)
-    #print normvalueDict
+    print normvalueDict
     #print dataidmap
     #sys.exit(0)
     
@@ -276,7 +284,7 @@ if __name__ == '__main__':
     if options.action == 'delivered':
         result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
-            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,options.verbose)
+            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,isverbose=options.verbose)
         else:
             lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'overview':

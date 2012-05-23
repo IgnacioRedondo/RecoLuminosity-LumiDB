@@ -120,59 +120,29 @@ def toScreenSingleTag(taginfo):
         result.append([str(run),payloadid,ctimestr,comment])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,25) )
     
-#def toScreenCorr(corrdata,showglobaldefault=False):
-#    result=[]
-#    tmpdata={}
-#    labels=[('Name','A1','A2','Drift','isDefault')]
-#    print ' ==  = '
-#    dataidmax=0
-#    for name,thiscorr in corrdata.items():
-#        dataid=thiscorr[0]
-#        if dataid>dataidmax:
-#            dataidmax=dataid
-#        a1='%.5f'%thiscorr[1]
-#        a2='0'
-#        if thiscorr[2]:
-#            a2='%.5f'%thiscorr[2]
-#        drift='0'
-#        if thiscorr[3]:
-#            drift='%.5f'%thiscorr[3]
-#        tmpdata[name]=[dataid,a1,a2,drift]
-#    for name,mydata in tmpdata.items():
-#        myid=mydata[0]
-#        mya1=mydata[1]
-#        mya2=mydata[2]
-#        mydrift=mydata[3]
-#        if showglobaldefault:
-#            if myid==dataidmax:
-#                result.append([name,mya1,mya2,mydrift,'1'])
-#            else:
-#                result.append([name,mya1,mya2,mydrift,'0'])
-#        else:
-#            result.append([name,mya1,mya2,mydrift,''])
-#    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
-
-def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose):
+def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose=False):
     '''
     inputs:
-    lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierror(6),(bxidx,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum)(9)]}
+    lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierror(6),(bxidx,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum)(9)]}  
     resultlines [[resultrow1],[resultrow2],...,] existing result row
+                ('Run:Fill', 'N_LS', 'Delivered','UTCTime','E(GeV)','Selected LS')
+    irunlsdict: run/ls selection list. irunlsdict=None means no filter
     '''
     result=[]
     totOldDeliveredLS=0
     totOldDelivered=0.0
     for r in resultlines:
         dl=0.0
-        if(r[2]!='n/a'):            
+        if(r[2]!='n/a'):            #delivered
             dl=float(r[2])#in /ub because it comes from file!
             (rr,lumiu)=CommonUtil.guessUnit(dl)
-            r[2]='%.3f'%(rr)+' ('+lumiu+')'
+            r[2]='%.3f'%(rr)+' ('+lumiu+')'            
         sls=0
-        if(r[1]!='n/a'):
+        if(r[1]!='n/a'): #n_ls
             sls=int(r[1])
         totOldDeliveredLS+=sls
         totOldDelivered+=dl
-        if(r[4]!='n/a'):
+        if(r[4]!='n/a'): #egev
             egv=float(r[4])
             r[4]='%.1f'%egv
         result.append(r)
