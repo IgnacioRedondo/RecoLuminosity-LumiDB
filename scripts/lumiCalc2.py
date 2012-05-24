@@ -162,16 +162,31 @@ if __name__ == '__main__':
     #################################################
     #switches
     #################################################
-    parser.add_argument('--without-correction',dest='withoutNorm',action='store_true',
-                        help='without any correction/calibration' )
-    parser.add_argument('--without-checkforupdate',dest='withoutCheckforupdate',action='store_true',
-                        help='without check for update' )                    
-    parser.add_argument('--verbose',dest='verbose',action='store_true',
-                        help='verbose mode for printing' )
-    parser.add_argument('--nowarning',dest='nowarning',action='store_true',
-                        help='suppress bad for lumi warnings' )
-    parser.add_argument('--debug',dest='debug',action='store_true',
-                        help='debug')
+    parser.add_argument('--without-correction',
+                        dest='withoutNorm',
+                        action='store_true',
+                        help='without any correction/calibration'
+                        )
+    parser.add_argument('--without-checkforupdate',
+                        dest='withoutCheckforupdate',
+                        action='store_true',
+                        help='without check for update'
+                        )                    
+    parser.add_argument('--verbose',
+                        dest='verbose',
+                        action='store_true',
+                        help='verbose mode for printing'
+                        )
+    parser.add_argument('--nowarning',
+                        dest='nowarning',
+                        action='store_true',
+                        help='suppress bad for lumi warnings'
+                        )
+    parser.add_argument('--debug',
+                        dest='debug',
+                        action='store_true',
+                        help='debug'
+                        )
 
     options=parser.parse_args()
     #
@@ -305,7 +320,7 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-            result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
+            result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
             if not options.outputfile:
                 lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
             else:
@@ -319,7 +334,7 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-        result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF',datatag=None)
+        result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
         if not options.outputfile:
             lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
         else:
