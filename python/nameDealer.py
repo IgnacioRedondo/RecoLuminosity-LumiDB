@@ -67,6 +67,12 @@ def tagRunsTableName():
 def tagsTableName():
        return 'TAGS'
 
+def pixeltagRunsTableName():
+       return 'PIXELTAGRUNS'
+
+def pixeltagsTableName():
+       return 'PIXELTAGS'
+
 def trghltMapTableName():
         return 'TRGHLTMAP'
 
