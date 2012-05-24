@@ -392,10 +392,14 @@ def toCSVOverview(lumidata,filename,resultlines,scalefactor,isverbose):
         r=csvReporter.csvReporter(filename)
         r.writeRow(fieldnames)
         r.writeRows(sortedresult)
-def toScreenLumiByLS(lumidata,resultlines,scalefactor,isverbose):
+def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,isverbose=False):
     '''
     input:
     lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
+    {run:None}  None means no run in lumiDB, 
+    {run:[]} [] means no lumi for this run in lumiDB
+    {run:[....deliveredlumi(5),recordedlumi(6)None]} means no trigger in lumiDB
+    {run:cmslsnum(1)==0} means either not cmslsnum or is cms but not selected, therefore set recordedlumi=0,efflumi=0
     resultlines [[resultrow1],[resultrow2],...,] existing result row
     '''
     result=[]
@@ -436,6 +440,8 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,isverbose):
         rundata=lumidata[run]
         if rundata is None:
             result.append([str(run),'n/a','n/a','n/a','n/a','n/a','n/a'])
+            if irunlsdict and irunlsdict[run]:
+                print '[WARNING] selected but no lumi data for run '+str(run)
             continue
         fillnum=0
         if rundata[0][10]:
@@ -449,6 +455,8 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,isverbose):
             deliveredlumi=lsdata[5]            
             if deliveredlumi>maxlslumi: maxlslumi=deliveredlumi
             recordedlumi=lsdata[6]
+            if recordedlumi is None:
+                recordedlumi=0.
             result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
             totalDelivered+=deliveredlumi
             totalRecorded+=recordedlumi

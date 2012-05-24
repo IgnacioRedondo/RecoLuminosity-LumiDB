@@ -260,10 +260,7 @@ if __name__ == '__main__':
     if not dataidmap:
         print '[INFO] No qualified data found, do nothing'
         sys.exit(0)
-    print normvalueDict
-    #print dataidmap
-    #sys.exit(0)
-    
+
     pbeammode = None
     if options.beammode=='stable':
         pbeammode    = 'STABLE BEAMS'

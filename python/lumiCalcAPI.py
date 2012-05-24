@@ -233,8 +233,13 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
            withBeamIntensity: get beam intensity info (optional)
            lumitype: luminosity measurement source
     output:
+           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11)]}}
+           
+           special meanings:
+           {run:None}  None means selected run not in lumiDB, 
+           {run:[]} [] means no lumi data for this run in lumiDB
+           {run:cmslsnum(1)==0} means either not cmslsnum or iscms but not selected
            instlumi unit in Hz/ub
-           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),instlumi(5),instlumierr(6),startorbit(7),numorbit(8),(bxidx,bxvalues,bxerrs)(9),(bxidx,b1intensities,b2intensities)(10),fillnum(11)]}}           
     '''
     if lumitype not in ['HF','PIXEL']:
         raise ValueError('unknown lumitype '+lumitype)
@@ -250,12 +255,11 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
     for run,(lumidataid,trgid,hltid ) in dataidmap.items():
         lslist=irunlsdict[run]
         if lslist is not None and len(lslist)==0:
-            result[run]=[]#if no LS is selected for a run
+            result[run]=[]#no lumi data for this run in lumiDB
             continue
-
         fillnum=runsummaryMap[run][4]
         runstarttimeStr=runsummaryMap[run][6]
-        if lumidataid is None: #if run not found in lumidata
+        if lumidataid is None: #selected run not in lumiDB
             result[run]=None
             continue
         (lumirunnum,perlsresult)=dataDML.lumiLSById(schema,lumidataid,beamstatus=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,tableName=lumilstableName)
@@ -264,7 +268,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
         for lumilsnum in perlsresult.keys():
             perlsdata=perlsresult[lumilsnum]
             cmslsnum=perlsdata[0]
-            if lslist is not None and lumilsnum not in lslist:
+            if lslist is not None and lumilsnum not in lslist: #ls exists but not selected
                 cmslsnum=0
             numorbit=perlsdata[6]
             startorbit=perlsdata[7]
@@ -334,8 +338,11 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
        lumitype: luminosity source
     output:
        result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
+       
+       special meanings:
        {run:None}  None means no run in lumiDB, 
        {run:[]} [] means no lumi for this run in lumiDB
+       {run:cmslsnum(1)==0} means either not cmslsnum or iscms but not selected 
        lumi unit: /ub
     '''
     result = {}
@@ -428,42 +435,45 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
        lumitype: luminosity source
     output:
        result {run:[[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]...]}
-             result special meanings:
-             {run:None}  None means no run in lumiDB, 
-             {run:[]} [] means no lumi for this run in lumiDB
-             {run:[....deliveredlumi(5),None]} means no trigger in lumiDB
+       special meanings:
+       {run:None}  None means no run in lumiDB, 
+       {run:[]} [] means no lumi for this run in lumiDB
+       {run:[....deliveredlumi(5),recordedlumi(6)None]} means no trigger in lumiDB
+       {run:cmslsnum(1)==0} means either not cmslsnum or is cms but not selected, therefore set recordedlumi=0,efflumi=0
        lumi unit: 1/ub
     '''
     deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
     trgresult=trgForIds(schema,irunlsdict,dataidmap)
-    #print 'trgresult ',trgresult
-    for run in deliveredresult.keys():#loop over delivered
+    for run in deliveredresult.keys():#loop over delivered,already selected
         perrundata=deliveredresult[run]
-        if perrundata is None or len(perrundata)==0:
+        if perrundata is None or len(perrundata)==0: #pass through 
             continue
         alltrgls=[]
-        if trgresult.has_key(run):
+        if trgresult.has_key(run) and trgresult[run]:
             alltrgls=[x[0] for x in trgresult[run]]
         for perlsdata in perrundata:#loop over ls
-            if not perlsdata: continue #no lumi for this ls
+            if not perlsdata: continue #no lumi data for this ls
             perlsdata.insert(6,None)
-            if not alltrgls: continue  #no trg for this run
+            if not alltrgls: continue  #no trg for this run,recorded=None 
             cmslsnum=perlsdata[1]
-            try:
-                trglsidx=alltrgls.index(cmslsnum)
-                deadfrac=1.0
-                deadfrac=trgresult[run][trglsidx][1]
-                if deadfrac<0 or deadfrac>1.0:
-                    deadfrac=1.0
-                deliveredlumi=perlsdata[5]
-                recordedlumi=(1.0-deadfrac)*deliveredlumi
-                perlsdata[6]=recordedlumi
-            except ValueError:
-                print '[WARNING] no trigger for LS=',cmslsnum
+            if cmslsnum==0:#if not a cmsls or not selected by cms list, set recordedlumi to 0
+                recordedlumi=0.0
+            else:
+                try:
+                    trglsidx=alltrgls.index(cmslsnum)
+                    deadfrac=trgresult[run][trglsidx][1]
+                    if deadfrac<0 or deadfrac>1.0: deadfrac=1.0
+                    deliveredlumi=perlsdata[5]
+                    recordedlumi=(1.0-deadfrac)*deliveredlumi
+                except ValueError:
+                    print '[WARNING] no trigger for LS=',cmslsnum
+                    recordedlumi=None
+            perlsdata[6]=recordedlumi
     return deliveredresult
 
 def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatusfilter=None,normmap=None,hltpathname=None,hltpathpattern=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF'):
     '''
+    delivered/recorded/eff lumi in selected hlt path  (including calibration,time integral)
     input:
            irunlsdict: {run:[lsnum]}, where [lsnum]==None means all ; [lsnum]==[] means selected ls
            dataidmap : {run:(lumiid,trgid,hltid)}
@@ -481,57 +491,62 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
            result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),{hltpath:[l1name,l1prescale,hltprescale,efflumi]}(8),bxdata,beamdata,fillnum]}
            {run:None}  None means no run in lumiDB, 
            {run:[]} [] means no lumi for this run in lumiDB
-           {run:[....deliveredlumi(5),None]} means no trigger in lumiDB
-           {run:[....deliveredlumi(5),recorded(6),calibratedlumierror(7),None]} means no hlt in lumiDB
+           {run:[....deliveredlumi(5),recorded(6)==None,]} means no trigger in lumiDB
+           {run:[....deliveredlumi(5),recorded(6),calibratedlumierror(7)==None]} means no hlt in lumiDB
+           
            lumi unit: 1/ub
     '''
-    deliveredresult=deliveredForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
+    deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
     trgresult=trgForIds(schema,irunlsdict,dataidmap,withPrescale=True) #{run:[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(bitname,prescale,counts)]]}
     hltresult=hltForIds(schema,irunlsdict,dataidmap,hltpathname=hltpathname,hltpathpattern=hltpathpattern,withL1Pass=False,withHLTAccept=False) #{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     for run in deliveredresult.keys(): #loop over delivered
         perrundata=deliveredresult[run]
-        if perrundata is None or len(perrundata)==0:
+        if perrundata is None or len(perrundata)==0:#pass through 
             continue
         alltrgls=[]
-        if trgresult.has_key(run):
+        if trgresult.has_key(run) and trgresult[run]:
             alltrgls=[x[0] for x in trgresult[run]]
         allhltls=[]
-        if hltresult.has_key(run):
+        if hltresult.has_key(run) and hltresult[run]:
             allhltls=[x[0] for x in hltresult[run]]            
         l1bitinfo=[]
         hltpathinfo=[]
-        hlttrgmap=dataDML.hlttrgMappingByrun(schema,run)
+        hlttrgmap=dataDML.hlttrgMappingByrun(schema,run,hltpathname=hltpathname,hltpathpattern=hltpathpattern)
         for perlsdata in perrundata: #loop over ls
             if not perlsdata: continue #no lumi for this ls
             perlsdata.insert(6,None)
-            perlsdata.inert(8,None)
+            perlsdata.insert(8,None)
             if not alltrgls: continue  #no trg for this run
             cmslsnum=perlsdata[1]
+            recordedlumi=0.0
+            if cmslsnum==0:#if not a cmsls or not selected by cms list, set recordedlumi,efflumi to 0
+                continue
+            else:
+                try:
+                    trglsidx=alltrgls.index(cmslsnum)
+                    deadfrac=trgresult[run][trglsidx][1]
+                    l1bitinfo=trgresult[run][trglsidx][5]
+                    if deadfrac<0 or deadfrac>1.0:deadfrac=1.0
+                    deliveredlumi=perlsdata[5]
+                    recordedlumi=(1.0-deadfrac)*deliveredlumi
+                except ValueError:
+                    print '[WARNING] no trigger for LS=',cmslsnum
+                    continue #do not go further
+            perlsdata[6]=recordedlumi
+            if not allhltls: continue #no hlt for this run
             try:
-                trglsidx=alltrgls.index(cmslsnum)
-                deadfrac=1.0
-                deadfrac=trgresult[run][trglsidx][1]
-                if deadfrac<0 or deadfrac>1.0:
-                    deadfrac=1.0
-                deliveredlumi=perlsdata[5]
-                recordedlumi=(1.0-deadfrac)*deliveredlumi
-                perlsdata[6]=recordedlumi
+                hltlsidx=allhltls.index(cmslsnum)
             except ValueError:
-                print '[WARNING] no trigger for LS=',cmslsnum
-                continue 
-            l1bitinfo=trgresult[run][trglsidx][5]
+                print '[WARNING] no hlt for LS=',cmslsnum
+                continue #do not go further
             trgprescalemap={} #{bitname:l1prescale} for this lumi section
             if l1bitinfo:
                 for thisbitinfo in l1bitinfo:
                     thisbitname=thisbitinfo[0]
                     thisbitprescale=thisbitinfo[2]
                     trgprescalemap['"'+thisbitname+'"']=thisbitprescale
-            if not allhltls: continue #no hlt for this run
-            try:
-                hltlsidx=allhltls.index(cmslsnum)
-            except ValueError:
-                print '[WARNING] no hlt for LS=',cmslsnum
-                continue 
+            else:
+                continue
             hltpathdata=hltresult[run][hltlsidx][1]
             for pathidx,thispathinfo in enumerate(hltpathdata):
                 thispathname=thispathinfo[0]

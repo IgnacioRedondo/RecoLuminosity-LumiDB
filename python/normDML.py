@@ -165,6 +165,7 @@ def normInfoByName(schema,normname):
                 continue
             lumitype=cursor.currentRow()['LUMITYPE'].data()
             istypedefault=cursor.currentRow()['ISTYPEDEFAULT'].data()
+            comment=''
             if not cursor.currentRow()['COMMENT'].isNull():
                 comment=cursor.currentRow()['COMMENT'].data()
             creationtime=cursor.currentRow()['ctime'].data()
