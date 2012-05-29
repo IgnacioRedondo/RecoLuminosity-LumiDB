@@ -842,8 +842,15 @@ def dataIdsByTagId(schema,tagid,runlist=None,withcomment=False,lumitype='HF'):
                 hltid=resultentry[2]
                 if commentdict.has_key((lumiid,trgid,hltid)):
                     resultentry.append(commentdict[(lumiid,trgid,hltid)])
+                elif commentdict.has_key((lumiid,0,0)):
+                    resultentry.append(commentdict[(lumiid,0,0)])
+                elif commentdict.has_ley((0,trgid,0)):
+                    resultentry.append(commentdict[(0,trgid,0)])
+                elif commentdict.has_ley((0,0,hltid)):
+                    resultentry.append(commentdict[(0,0,hltid)])
                 else:
                     resultentry.append(())
+                    
     except:
         raise
     return result
