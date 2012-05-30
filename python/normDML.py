@@ -67,7 +67,7 @@ def normIdByName(schema,normname):
     try:
         qHandle.addToTableList( nameDealer.luminormv2TableName() )
         qHandle.addToOutputList('DATA_ID')
-        if tagname:
+        if normname:
             qConditionStr='ENTRY_NAME=:normname '
             qCondition=coral.AttributeList()
             qCondition.extend('normname','string')
@@ -75,7 +75,7 @@ def normIdByName(schema,normname):
         qResult=coral.AttributeList()
         qResult.extend('DATA_ID','unsigned long long')
         qHandle.defineOutput(qResult)
-        if tagname:
+        if normname:
             qHandle.setCondition(qConditionStr,qCondition)
         cursor=qHandle.execute()
         while cursor.next():
