@@ -22,10 +22,10 @@ def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag):
         updatetagStr=updatetag
     header='***************************************************************\n'
     header+='* '+gmtnowStr+'\n'
-    header+='* datatag: '+datatagname+' , normtag: '+normtag+'\n'
+    header+='* datatag: '+datatagname+' , normtag: '+normtag+' , worktag: '+worktag+'\n'
     header+='* \n'
     header+='* by:\n'
-    header+='* '+commandname+' , '+worktag +'\n'
+    header+='* '+commandname+'\n'
     header+='* \n'
     header+='* update: '+updatetag+'\n'
     header+='***************************************************************\n'

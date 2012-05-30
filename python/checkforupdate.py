@@ -38,7 +38,7 @@ class checkforupdate:
             return []
         w=workingtag.lstrip('V').split('-')
         if len(w)!=3:
-            print workingtag+' is not a release tag, can not compare'
+            #print workingtag+' is not a release tag, can not compare'
             return []
         w=[int(r) for r in w]
         updatetags=[]
