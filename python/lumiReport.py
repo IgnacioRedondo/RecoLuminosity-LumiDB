@@ -496,16 +496,18 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,isverbose=
                                wrapfunc = lambda x: wrap_onspace (x, 20))    
 
                   
-def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,isverbose):
+def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,irunlsdict=None,isverbose=False):
     result=[]
     fieldnames=['Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered(/ub)','Recorded(/ub)']
     for rline in resultlines:
         result.append(rline)
         
-    for run in sorted(lumidata):
+    for run in lumidata.keys():
         rundata=lumidata[run]
         if rundata is None:
-            result.append([run,'n/a','n/a','n/a','n/a','n/a'])
+            result.append([run,'n/a','n/a','n/a','n/a','n/a','n/a'])
+            if irunlsdict and irunlsdict[run]:
+                print '[WARNING] selected but no lumi data for run '+str(run)
             continue
         fillnum=0
         if rundata[0][10]:
@@ -518,8 +520,9 @@ def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,isverbose):
             begev=lsdata[4]
             deliveredlumi=lsdata[5]
             recordedlumi=lsdata[6]
-            if cmslsnum!=0:
-                result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,begev,deliveredlumi*scalefactor,recordedlumi*scalefactor])
+            if recordedlumi is None:
+                recordedlumi=0.
+            result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,begev,deliveredlumi*scalefactor,recordedlumi*scalefactor])
     sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
     assert(filename)
     if filename.upper()=='STDOUT':
