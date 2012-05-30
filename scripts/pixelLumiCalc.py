@@ -218,13 +218,12 @@ if __name__ == '__main__':
                 normname=normmap.keys()[0]
                 normid=normmap[normname]
         else:
-            normid=normDML.normIdByname(session.nominalSchema(),lumitype='PIXEL',defaultonly=False)
+            normid=normDML.normIdByName(session.nominalSchema(),normname)
         if not normid:
             raise RuntimeError('[ERROR] cannot resolve norm/correction')
             sys.exit(-1)
         normvalueDict=normDML.normValueById(session.nominalSchema(),normid) #{since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
-        print normvalueDict
-    lumiReport.toScreenHeader(thiscmmd,datatagname,normname,workingversion,updateversion)
+    lumiReport.toScreenHeader(thiscmmd,datatagname,normname,workingversion,updateversion,'PIXEL')
     if not dataidmap:
         print '[INFO] No qualified data found, do nothing'
         sys.exit(0)

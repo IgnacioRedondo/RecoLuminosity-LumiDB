@@ -7,7 +7,7 @@
 import os,sys,time
 from RecoLuminosity.LumiDB import tablePrinter, csvReporter,CommonUtil
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
-def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag):
+def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag,lumitype):
     '''
     input:
        commandname: commandname
@@ -20,15 +20,15 @@ def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag):
     updatetagStr='None'
     if updatetag:
         updatetagStr=updatetag
-    header='***************************************************************\n'
+    header=''.join(['*']*80)+'\n'
     header+='* '+gmtnowStr+'\n'
-    header+='* datatag: '+datatagname+' , normtag: '+normtag+' , worktag: '+worktag+'\n'
+    header+='* lumitype: '+lumitype+' , datatag: '+datatagname+' , normtag: '+normtag+' , worktag: '+worktag+'\n'
     header+='* \n'
     header+='* by:\n'
     header+='* '+commandname+'\n'
     header+='* \n'
     header+='* update: '+updatetag+'\n'
-    header+='***************************************************************\n'
+    header+=''.join(['*']*80)+'\n'
     sys.stdout.write(header)
     
 def toScreenNormSummary(allnorms):
