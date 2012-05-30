@@ -147,6 +147,8 @@ def hltForIds(schema,irunlsdict,dataidmap,hltpathname=None,hltpathpattern=None,w
         if lslist is not None and len(lslist)==0:
             result[run]=[]#if no LS is selected for a run
             continue
+        if not dataidmap.has_key(run):
+            continue
         hltdataid=dataidmap[run][2]
         if hltdataid is None:
             result[run]=None
@@ -188,7 +190,9 @@ def trgForIds(schema,irunlsdict,dataidmap,trgbitname=None,trgbitnamepattern=None
         result[run]=[]
         lslist=irunlsdict[run]
         if lslist is not None and len(lslist)==0:
-                            #if no LS is selected for a run
+            #if no LS is selected for a run
+            continue
+        if not dataidmap.has_key(run):
             continue
         trgdataid=dataidmap[run][1]
         if trgdataid is None:
@@ -466,7 +470,7 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
                     deliveredlumi=perlsdata[5]
                     recordedlumi=(1.0-deadfrac)*deliveredlumi
                 except ValueError:
-                    print '[WARNING] no trigger for LS=',cmslsnum
+                    #print '[WARNING] no trigger for LS=',cmslsnum
                     recordedlumi=None
             perlsdata[6]=recordedlumi
     return deliveredresult
@@ -530,14 +534,14 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
                     deliveredlumi=perlsdata[5]
                     recordedlumi=(1.0-deadfrac)*deliveredlumi
                 except ValueError:
-                    print '[WARNING] no trigger for LS=',cmslsnum
+                    #print '[WARNING] no trigger for LS=',cmslsnum
                     continue #do not go further
             perlsdata[6]=recordedlumi
             if not allhltls: continue #no hlt for this run
             try:
                 hltlsidx=allhltls.index(cmslsnum)
             except ValueError:
-                print '[WARNING] no hlt for LS=',cmslsnum
+                #print '[WARNING] no hlt for LS=',cmslsnum
                 continue #do not go further
             trgprescalemap={} #{bitname:l1prescale} for this lumi section
             if l1bitinfo:
@@ -625,7 +629,7 @@ def deliveredLumiForRange(schema,inputRange,beamstatus=None,amodetag=None,egev=N
         if not normval:#still not found? resort to global default (should never come here)
             normval=6370
             perbunchnormval=6.37
-            print '[Warning] using default normalization '+str(normval)
+            #print '[Warning] using default normalization '+str(normval)
         for perlsdata in perrundata:#loop over ls
             lumilsnum=perlsdata[0]
             cmslsnum=perlsdata[1]

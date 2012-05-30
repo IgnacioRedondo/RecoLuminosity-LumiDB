@@ -12,7 +12,7 @@ from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csv
         
 beamChoices=['PROTPHYS','IONPHYS','PAPHYS']
 
-def parseInputFiles(inputfilename,dbrunlist,optaction):
+def parseInputFiles(inputfilename,optaction):
     '''
     output ({run:[cmsls,cmsls,...]},[[resultlines]])
     '''
@@ -24,8 +24,6 @@ def parseInputFiles(inputfilename,dbrunlist,optaction):
     selectedNonProcessedRuns=p.selectedRunsWithoutresult()
     resultlines=p.resultlines()
     for runinfile in selectedNonProcessedRuns:
-        if runinfile not in dbrunlist:
-            continue
         if optaction=='delivered':#for delivered we care only about selected runs
             selectedrunlsInDB[runinfile]=None
         else:
@@ -232,17 +230,25 @@ if __name__ == '__main__':
     # check datatag
     #
     irunlsdict={}
+    rruns=[]
     session.transaction().start(True)
     if options.runnumber: # if runnumber specified, do not go through other run selection criteria
         irunlsdict[options.runnumber]=None
+        rruns=irunlsdict.keys()
     else:
-        runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
         if options.inputfile:
-            (irunlsdict,iresults)=parseInputFiles(options.inputfile,runlist,options.action)
+            (irunlsdict,iresults)=parseInputFiles(options.inputfile,options.action)
+            #apply further filter only if specified
+            if options.fillnum or options.begin or options.end or options.amodetag or options.beamenergy:
+                runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
+                rruns=[val for val in runlist if val in irunlsdict.keys()]
+            else:
+                rruns=irunlsdict.keys()
         else:
+            runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
             for run in runlist:
                 irunlsdict[run]=None
-    rruns=irunlsdict.keys()
+            rruns=irunlsdict.keys()
     datatagname=options.datatag
     if not datatagname:
         (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
@@ -302,7 +308,7 @@ if __name__ == '__main__':
     if options.action == 'overview':
         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
-            lumiReport.toScreenOverview(result,iresults,options.scalefactor,options.verbose)
+            lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
             lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'lumibyls':

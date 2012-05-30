@@ -256,7 +256,7 @@ def toCSVTotDelivered(lumidata,filename,resultlines,scalefactor,isverbose):
         r.writeRow(fieldnames)
         r.writeRows(sortedresult)
 
-def toScreenOverview(lumidata,resultlines,scalefactor,isverbose):
+def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
     input:
     lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
@@ -274,8 +274,13 @@ def toScreenOverview(lumidata,resultlines,scalefactor,isverbose):
     totalSelectedLS = 0
     totalDelivered = 0.0
     totalRecorded = 0.0
-
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
     for r in resultlines:
+        if irunlsdict and not noWarning:
+            runfillstr=r[0]
+            [runnumstr,fillnumstr]=runfillstr.split(':')
+            if r[1] is not 'n/a':
+                datarunlsdict[int(runnumstr)]=[]
         dl=0.0
         if(r[2]!='n/a'):            
             dl=float(r[2])#delivered in /ub because it comes from file!
@@ -302,16 +307,21 @@ def toScreenOverview(lumidata,resultlines,scalefactor,isverbose):
             r[4]='%.3f'%(rrcd)+' ('+rlumiu+')'
         totOldRecorded+=rcd
         result.append(r)
-    
+
     for run in lumidata.keys():
         lsdata=lumidata[run]
         if lsdata is None:
             result.append([str(run),'n/a','n/a','n/a','n/a'])
+            if irunlsdict and not noWarning:
+                datarunlsdict[run]=None
             continue
         fillnum=0
         if lsdata[0][10]:
             fillnum=lsdata[0][10]
         nls=len(lsdata)
+        if irunlsdict and not noWarning:
+            existdata=[x[1] for x in lsdata if x[1] ]
+            datarunlsdict[run]=existdata
         deliveredData=[x[5] for x in lsdata]
         totdelivered=sum(deliveredData)
         totalDelivered+=totdelivered
@@ -330,7 +340,16 @@ def toScreenOverview(lumidata,resultlines,scalefactor,isverbose):
         else:
             selectedlsStr = CommonUtil.splitlistToRangeString(selectedcmsls)
         result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totdeliveredlumi*scalefactor)+' ('+deliveredlumiunit+')',selectedlsStr,'%.3f'%(totrecordedlumi*scalefactor)+' ('+recordedlumiunit+')'])
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))    
+    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    if irunlsdict and not noWarning:
+        for run,cmslslist in irunlsdict.items():
+            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
+                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
+                continue
+            if cmslslist:
+                for ss in cmslslist:
+                    if ss not in datarunlsdict[run]:
+                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
     print ' ==  = '
     print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
                                prefix = '| ', postfix = ' |', justify = 'right',
