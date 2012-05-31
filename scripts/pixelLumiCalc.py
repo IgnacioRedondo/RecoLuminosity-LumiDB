@@ -11,7 +11,7 @@ import coral
 
 from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,revisionDML,normDML,lumiReport,lumiCorrections,RegexValidator
 
-def parseInputFiles(inputfilename,dbrunlist,optaction):
+def parseInputFiles(inputfilename,optaction):
     '''
     output ({run:[cmsls,cmsls,...]},[[resultlines]])
     '''
@@ -23,8 +23,6 @@ def parseInputFiles(inputfilename,dbrunlist,optaction):
     selectedNonProcessedRuns=p.selectedRunsWithoutresult()
     resultlines=p.resultlines()
     for runinfile in selectedNonProcessedRuns:
-        if runinfile not in dbrunlist:
-            continue
         if optaction=='delivered':#for delivered we care only about selected runs
             selectedrunlsInDB[runinfile]=None
         else:
@@ -182,19 +180,31 @@ if __name__ == '__main__':
     # check datatag
     #
     irunlsdict={}
+    rruns=[]
     iresults=[]
     session.transaction().start(True)
     if options.runnumber: # if runnumber specified, do not go through other run selection criteria
         irunlsdict[options.runnumber]=None
-    else:
-        runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL')        
+        rruns=irunlsdict.keys()
+    else:  
         if options.inputfile:
-            (irunlsdict,iresults)=parseInputFiles(options.inputfile,runlist,options.action)
-        else:
+            (irunlsdict,iresults)=parseInputFiles(options.inputfile,options.action)
+            #apply further filter only if specified
+            if options.fillnum or options.begin or options.end:
+                runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL') 
+                rruns=[val for val in runlist if val in irunlsdict.keys()]
+                for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
+                    if selectedrun not in rruns:
+                        del irunlsdict[selectedrun]
+            else:
+                rruns=irunlsdict.keys()
+        else:                        
+            runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL')      
             for run in runlist:
                 irunlsdict[run]=None
+            rruns=irunlsdict.keys()
+            
     GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict)
-    rruns=irunlsdict.keys()
     datatagname=options.datatag
     if not datatagname:
         (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema(),lumitype='PIXEL')
@@ -203,7 +213,6 @@ if __name__ == '__main__':
     else:
         dataidmap=revisionDML.dataIdsByTagName(session.nominalSchema(),datatagname,runlist=rruns,lumitype='PIXEL',withcomment=False)
         #{run:(lumidataid,trgdataid,hltdataid,())}
-        
     #
     # check normtag and get norm values if required
     #
@@ -224,24 +233,24 @@ if __name__ == '__main__':
             sys.exit(-1)
         normvalueDict=normDML.normValueById(session.nominalSchema(),normid) #{since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
     lumiReport.toScreenHeader(thiscmmd,datatagname,normname,workingversion,updateversion,'PIXEL')
+    session.transaction().commit()
     if not dataidmap:
         print '[INFO] No qualified data found, do nothing'
         sys.exit(0)
-            
+    session.transaction().start(True)
     if options.action == 'overview':
        result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,lumitype='PIXEL')
        if not options.outputfile:
-           lumiReport.toScreenOverview(result,iresults,options.scalefactor,options.verbose)
+           lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
        else:
-           lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+           lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     if options.action == 'lumibyls':
        if not options.hltpath:
-           session.transaction().start(True)
            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,lumitype='PIXEL')
            if not options.outputfile:
-               lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
+               lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
            else:
-               lumiReport.toCSVLumiByLS(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+               lumiReport.toCSVLumiByLS(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
        else:
            hltname=options.hltpath
            hltpat=None
@@ -256,7 +265,6 @@ if __name__ == '__main__':
            else:
                lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
-       session.transaction().start(True)
        hltname=options.hltpath
        hltpat=None
        if hltname is not None:
