@@ -151,7 +151,7 @@ def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose=False):
     totaltable=[]
     for run in lumidata.keys():
         lsdata=lumidata[run]
-        if lsdata is None:
+        if not lsdata:
             result.append([str(run),'n/a','n/a','n/a','n/a','n/a'])
             if isverbose:
                 result.extend(['n/a'])
@@ -184,7 +184,7 @@ def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose=False):
                 result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totlumival*scalefactor)+' ('+lumiunit+')',runstarttime,'%.1f'%(avgbeamenergy)])
             else:
                 result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totlumival*scalefactor)+' ('+lumiunit+')','n/a','%.1f'%(avgbeamenergy)])
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     #print 'sortedresult ',sortedresult
     print ' ==  = '
     if isverbose:
@@ -218,7 +218,7 @@ def toCSVTotDelivered(lumidata,filename,resultlines,scalefactor,isverbose):
         result.append(rline)
     for run in lumidata.keys():
         lsdata=lumidata[run]
-        if lsdata is None:
+        if not lsdata:
             result.append([run,'n/a','n/a','n/a','n/a'])
             if isverbose:
                 result.extend(['n/a'])
@@ -243,7 +243,7 @@ def toCSVTotDelivered(lumidata,filename,resultlines,scalefactor,isverbose):
             result.append([str(run)+':'+str(fillnum),nls,totlumival*scalefactor,runstarttime,avgbeamenergy, str(selectedls)])
         else:
             result.append([str(run)+':'+str(fillnum),nls,totlumival*scalefactor,runstarttime,avgbeamenergy])
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     r=None
     assert(filename)
     if filename.upper()=='STDOUT':
@@ -309,9 +309,9 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         result.append(r)
 
     for run in lumidata.keys():
-        lsdata=lumidata[run]
-        if lsdata is None:
-            result.append([str(run),'n/a','n/a','n/a','n/a'])
+        lsdata=lumidata[run]        
+        if not lsdata:
+            result.append([str(run)+':0','n/a','n/a','n/a','n/a'])
             if irunlsdict and not noWarning:
                 datarunlsdict[run]=None
             continue
@@ -340,7 +340,7 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         else:
             selectedlsStr = CommonUtil.splitlistToRangeString(selectedcmsls)
         result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totdeliveredlumi*scalefactor)+' ('+deliveredlumiunit+')',selectedlsStr,'%.3f'%(totrecordedlumi*scalefactor)+' ('+recordedlumiunit+')'])
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
             if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
@@ -363,7 +363,7 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
                                postfix = ' |', justify = 'right', delim = ' | ',
                                wrapfunc = lambda x: wrap_onspace (x, 20))
     
-def toCSVOverview(lumidata,filename,resultlines,scalefactor,isverbose):
+def toCSVOverview(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
     input:
     lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
@@ -372,15 +372,24 @@ def toCSVOverview(lumidata,filename,resultlines,scalefactor,isverbose):
     result=[]
     fieldnames = ['Run:Fill', 'DeliveredLS', 'Delivered(/ub)','SelectedLS','Recorded(/ub)']
     r=csvReporter.csvReporter(filename)
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
     for rline in resultlines:
+        if irunlsdict and not noWarning:
+            runfillstr=r[0]
+            [runnumstr,fillnumstr]=runfillstr.split(':')
+            if r[1] is not 'n/a':
+                datarunlsdict[int(runnumstr)]=[]
         result.append(rline)
         
     for run in lumidata.keys():
         lsdata=lumidata[run]
-        if lsdata is None:
-            result.append([run,'n/a','n/a','n/a','n/a'])
+        if not lsdata:
+            result.append([str(run)+':0','n/a','n/a','n/a','n/a'])
             continue
         nls=len(lsdata)
+        if irunlsdict and not noWarning:
+            existdata=[x[1] for x in lsdata if x[1] ]
+            datarunlsdict[run]=existdata
         fillnum=0
         if lsdata[0][10]:
             fillnum=lsdata[0][10]
@@ -398,8 +407,16 @@ def toCSVOverview(lumidata,filename,resultlines,scalefactor,isverbose):
         else:
             selectedlsStr = CommonUtil.splitlistToRangeString(selectedcmsls)
         result.append([str(run)+':'+str(fillnum),nls,totdeliveredlumi*scalefactor,selectedlsStr,totrecordedlumi*scalefactor])
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
-    
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
+    if irunlsdict and not noWarning:
+        for run,cmslslist in irunlsdict.items():
+            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
+                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
+                continue
+            if cmslslist:
+                for ss in cmslslist:
+                    if ss not in datarunlsdict[run]:
+                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
     r=None
     assert(filename)
     if filename.upper()=='STDOUT':
@@ -457,7 +474,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,isverbose=
         
     for run in lumidata.keys():
         rundata=lumidata[run]
-        if rundata is None:
+        if not rundata:
             result.append([str(run),'n/a','n/a','n/a','n/a','n/a','n/a'])
             if irunlsdict and irunlsdict[run]:
                 print '[WARNING] selected but no lumi data for run '+str(run)
@@ -485,7 +502,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,isverbose=
     #guess ls lumi unit
     (lsunitstring,unitdenomitor)=CommonUtil.lumiUnitForPrint(maxlslumi*scalefactor)
     labels = [ ('Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered('+lsunitstring+')','Recorded('+lsunitstring+')') ]
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     perlsresult=[]
     for entry in sortedresult:
         delumi=entry[5]
@@ -542,7 +559,7 @@ def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,irunlsdict=None,isve
             if recordedlumi is None:
                 recordedlumi=0.
             result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,begev,deliveredlumi*scalefactor,recordedlumi*scalefactor])
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     assert(filename)
     if filename.upper()=='STDOUT':
         r=sys.stdout
@@ -628,7 +645,7 @@ def toScreenLSEffective(lumidata,resultlines,scalefactor,isverbose):
     #guess ls lumi unit
     (lsunitstring,unitdenomitor)=CommonUtil.lumiUnitForPrint(maxlslumi*scalefactor)
     labels = [('Run:Fill','LS','HLTpath','L1bit','HLTpresc','L1presc','Recorded('+lsunitstring+')','Effective('+lsunitstring+')')]
-    sortedresult=sorted(result,key=lambda x : int(x[0].split(':')[0]))
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     perlsresult=[]
     for entry in sortedresult:
         reclumi=entry[6]
