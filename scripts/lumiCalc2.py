@@ -242,6 +242,9 @@ if __name__ == '__main__':
             if options.fillnum or options.begin or options.end or options.amodetag or options.beamenergy:
                 runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
                 rruns=[val for val in runlist if val in irunlsdict.keys()]
+                for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
+                    if selectedrun not in rruns:
+                        del irunlsdict[selectedrun]
             else:
                 rruns=irunlsdict.keys()
         else:
@@ -315,9 +318,9 @@ if __name__ == '__main__':
         if not options.hltpath:
             result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
             if not options.outputfile:
-                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
+                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
             else:
-                lumiReport.toCSVLumiByLS(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+                lumiReport.toCSVLumiByLS(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
             hltname=options.hltpath
             hltpat=None
