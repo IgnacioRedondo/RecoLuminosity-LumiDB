@@ -331,9 +331,9 @@ if __name__ == '__main__':
                 hltname=None
             result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
             if not options.outputfile:
-                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
+                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
             else:
-                lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+                lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
         hltname=options.hltpath
         hltpat=None
@@ -345,15 +345,15 @@ if __name__ == '__main__':
                 hltname=None
         result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
         if not options.outputfile:
-            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
+            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
-            lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+            lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     if options.action == 'lumibylsXing':
         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
-            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,options.verbose)
+            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)#we do not print per Xing data to screen...
         else:
-            lumiReport.toCSVLumiByLSXing(result,options.scalefactor,options.outputfile)
+            lumiReport.toCSVLumiByLSXing(result,options.scalefactor,options.outputfile,irunlsdict=irunlsdict,noWarning=options.nowarning)
     session.transaction().commit()
     del session
     del svc 
