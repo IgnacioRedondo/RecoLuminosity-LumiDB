@@ -1071,7 +1071,7 @@ def toCSVTotEffective(lumidata,filename,resultlines,scalefactor,irunlsdict=None,
                 lprescs=list(set(lprescdict[lname]))
                 lprescStr='('+','.join(['%d'%(x) for x in lprescs])+')'
                 cleanlname=lname.replace('"','')
-                result.append([str(run)+':'+str(fillnum),selectedlsStr,totrecordedinrun*scalefactor,name+hprescStr,cleanname+lprescStr,totefflumiDict[name]*scalefactor])
+                result.append([str(run)+':'+str(fillnum),selectedlsStr,totrecordedinrun*scalefactor,name+hprescStr,cleanlname+lprescStr,totefflumiDict[name]*scalefactor])
     sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
@@ -1092,7 +1092,7 @@ def toCSVTotEffective(lumidata,filename,resultlines,scalefactor,irunlsdict=None,
     else:
         r=csvReporter.csvReporter(filename)
         r.writeRow(fieldnames)
-        r.writeRows(result)
+        r.writeRows(sortedresult)
         
 def toCSVLumiByLSXing(lumidata,scalefactor,filename):
     '''

@@ -259,11 +259,11 @@ if __name__ == '__main__':
            elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
               hltpat=hltname
               hltname=None
-           result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='PIXEL')
+           result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,withBeamIntensity=False,lumitype='PIXEL')
            if not options.outputfile:
-               lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,options.verbose)
+               lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
            else:
-               lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+               lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
        hltname=options.hltpath
        hltpat=None
@@ -273,11 +273,11 @@ if __name__ == '__main__':
           elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
               hltpat=hltname
               hltname=None
-       result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='PIXEL')
+       result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,withBeamIntensity=False,lumitype='PIXEL')
        if not options.outputfile:
-           lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,options.verbose)
+           lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
        else:
-           lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+           lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     session.transaction().commit()
     del session
     del svc 
