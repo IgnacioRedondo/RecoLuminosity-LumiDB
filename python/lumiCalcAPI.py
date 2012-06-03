@@ -272,7 +272,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
         for lumilsnum in perlsresult.keys():
             perlsdata=perlsresult[lumilsnum]
             cmslsnum=perlsdata[0]
-            if lslist is not None and lumilsnum not in lslist: #ls exists but not selected
+            if lslist is not None and cmslsnum not in lslist: #ls exists but not selected
                 cmslsnum=0
             numorbit=perlsdata[6]
             startorbit=perlsdata[7]

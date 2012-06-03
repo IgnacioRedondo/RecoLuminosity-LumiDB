@@ -120,47 +120,66 @@ def toScreenSingleTag(taginfo):
         result.append([str(run),payloadid,ctimestr,comment])
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,25) )
     
-def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose=False):
+def toScreenTotDelivered(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
     inputs:
     lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierror(6),(bxidx,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum)(9)]}  
     resultlines [[resultrow1],[resultrow2],...,] existing result row
-                ('Run:Fill', 'N_LS', 'Delivered','UTCTime','E(GeV)','Selected LS')
+                ('Run:Fill', 'N_LS','N_CMSLS','Delivered','UTCTime','E(GeV)')
     irunlsdict: run/ls selection list. irunlsdict=None means no filter
     '''
     result=[]
     totOldDeliveredLS=0
+    totOldCMSLS=0
     totOldDelivered=0.0
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
     for r in resultlines:
+        runfillstr=r[0]
+        [runnumstr,fillnumstr]=runfillstr.split(':')
+        if irunlsdict and not noWarning:
+            if r[1] is not 'n/a':
+                datarunlsdict[int(runnumstr)]=[]
         dl=0.0
-        if(r[2]!='n/a'):            #delivered
-            dl=float(r[2])#in /ub because it comes from file!
+        if(r[3]!='n/a'):            #delivered
+            dl=float(r[3])#in /ub because it comes from file!
             (rr,lumiu)=CommonUtil.guessUnit(dl)
-            r[2]='%.3f'%(rr)+' ('+lumiu+')'            
+            r[3]='%.3f'%(rr)+' ('+lumiu+')'            
         sls=0
         if(r[1]!='n/a'): #n_ls
             sls=int(r[1])
+        totcmsls=0
+        if(r[2]!='n/a'):#n_cmsls
+            totcmsls=int(r[2])
         totOldDeliveredLS+=sls
+        totOldCMSLS+=totcmsls
         totOldDelivered+=dl
-        if(r[4]!='n/a'): #egev
-            egv=float(r[4])
-            r[4]='%.1f'%egv
+        if(r[5]!='n/a'): #egev
+            egv=float(r[5])
+            r[5]='%.1f'%egv
         result.append(r)
     totls=0
+    totcmsls=0
     totdelivered=0.0
-    totaltable=[]
+    totaltable=[]    
     for run in lumidata.keys():
         lsdata=lumidata[run]
         if not lsdata:
-            result.append([str(run),'n/a','n/a','n/a','n/a','n/a'])
-            if isverbose:
-                result.extend(['n/a'])
+            result.append([str(run)+':0','n/a','n/a','n/a','n/a','n/a'])
+            if irunlsdict and not noWarning:
+                datarunlsdict[run]=None
             continue
-        nls=0
-        if len(lsdata):
-            nls=len(lsdata)
+        fillnum=0
+        if lsdata[0] and lsdata[0][9]:
+            fillnum=lsdata[0][9]
+        nls=len(lsdata)
+        ncmsls=0
+        ncmsls=len([x[1] for x in lsdata if x[1]])
+        if irunlsdict and not noWarning:
+            existdata=[x[1] for x in lsdata if x[1]]
+            datarunlsdict[run]=existdata
         totls+=nls
-        totlumi=sum([x[5] for x in lsdata])
+        totcmsls+=ncmsls
+        totlumi=sum([x[5] for x in lsdata if x[5]])
         totdelivered+=totlumi
         (totlumival,lumiunit)=CommonUtil.guessUnit(totlumi)
         beamenergyPerLS=[float(x[4]) for x in lsdata if x[3]=='STABLE BEAMS']
@@ -168,81 +187,66 @@ def toScreenTotDelivered(lumidata,resultlines,scalefactor,isverbose=False):
         if len(beamenergyPerLS):
             avgbeamenergy=sum(beamenergyPerLS)/len(beamenergyPerLS)
         runstarttime='n/a'
-        if nls!=0:
+        if lsdata[0] and lsdata[0][2]:
             runstarttime=lsdata[0][2]
             runstarttime=runstarttime.strftime("%m/%d/%y %H:%M:%S")
-            fillnum=0
-            if lsdata[0][9]:
-                fillnum=lsdata[0][9]
-        if isverbose:
-            selectedls='n/a'
-            if nls:
-                selectedls=[(x[0],x[1]) for x in lsdata]
-            result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totlumival*scalefactor)+' ('+lumiunit+')',runstarttime,'%.1f'%(avgbeamenergy), str(selectedls)])
-        else:
-            if runstarttime!='n/a':
-                result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totlumival*scalefactor)+' ('+lumiunit+')',runstarttime,'%.1f'%(avgbeamenergy)])
-            else:
-                result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totlumival*scalefactor)+' ('+lumiunit+')','n/a','%.1f'%(avgbeamenergy)])
+        result.append([str(run)+':'+str(fillnum),str(nls),str(ncmsls),'%.3f'%(totlumival*scalefactor)+' ('+lumiunit+')',runstarttime,'%.1f'%(avgbeamenergy)])
     sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     #print 'sortedresult ',sortedresult
     print ' ==  = '
-    if isverbose:
-        labels = [('Run:Fill', 'N_LS', 'Delivered','UTCTime','E(GeV)','Selected LS')]
-        print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'right',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
-    else:
-        labels = [('Run:Fill', 'N_LS', 'Delivered','UTCTime','E(GeV)')]
-        print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
+    labels = [('Run:Fill', 'N_LS','N_CMSLS','Delivered','UTCTime','E(GeV)')]
+    print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
                                prefix = '| ', postfix = ' |', justify = 'right',
                                delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,40) )
     print ' ==  =  Total : '
     #if (totdelivered+totOldDelivered)!=0:
     (totalDeliveredVal,totalDeliveredUni)=CommonUtil.guessUnit(totdelivered+totOldDelivered)
-    totrowlabels = [('Delivered LS','Delivered('+totalDeliveredUni+')')]
-    totaltable.append([str(totls+totOldDeliveredLS),'%.3f'%(totalDeliveredVal*scalefactor)])
+    totrowlabels = [('Delivered LS','Total CMS LS','Delivered('+totalDeliveredUni+')')]
+    totaltable.append([str(totls+totOldDeliveredLS),str(totcmsls+totOldCMSLS),'%.3f'%(totalDeliveredVal*scalefactor)])
     print tablePrinter.indent (totrowlabels+totaltable, hasHeader = True, separateRows = False, prefix = '| ',
                                postfix = ' |', justify = 'right', delim = ' | ',
                                wrapfunc = lambda x: wrap_onspace (x, 20))
     
-def toCSVTotDelivered(lumidata,filename,resultlines,scalefactor,isverbose):
+def toCSVTotDelivered(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
     input:  {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierror(6),(bxidx,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
     '''
     result=[]
-    fieldnames = ['Run:Fill', 'N_LS', 'Delivered(/ub)','UTCTime','E(GeV)']
-    if isverbose:
-        fieldnames.append('Selected LS')
+    fieldnames = ['Run:Fill', 'N_LS','N_CMSLS','Delivered(/ub)','UTCTime','E(GeV)']
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
     for rline in resultlines:
+        runfillstr=rline[0]
+        [runnumstr,fillnumstr]=runfillstr.split(':')
+        myls=rline[1]
+        if irunlsdict and not noWarning:
+            if myls is not 'n/a':
+                datarunlsdict[int(runnumstr)]=[]
         result.append(rline)
     for run in lumidata.keys():
         lsdata=lumidata[run]
         if not lsdata:
-            result.append([run,'n/a','n/a','n/a','n/a'])
-            if isverbose:
-                result.extend(['n/a'])
+            result.append([run,'n/a','n/a','n/a','n/a','n/a'])
+            if irunlsdict and not noWarning:
+                datarunlsdict[run]=None
             continue
-        nls=len(lsdata)
         fillnum=0
-        if lsdata[0][9]:
+        if lsdata[0] and lsdata[0][9]:
             fillnum=lsdata[0][9]
-        totlumival=sum([x[5] for x in lsdata])
+        nls=len(lsdata)
+        ncmsls=len([x[1] for x in lsdata if x[1]])
+        if irunlsdict and not noWarning:
+            existdata=[x[1] for x in lsdata if x[1]]
+            datarunlsdict[run]=existdata
+        totlumival=sum([x[5] for x in lsdata if x[5]])
         beamenergyPerLS=[float(x[4]) for x in lsdata if x[3]=='STABLE BEAMS' ]
         avgbeamenergy=0.0
         if len(beamenergyPerLS):
             avgbeamenergy=sum(beamenergyPerLS)/len(beamenergyPerLS)
         runstarttime='n/a'
-        if nls!=0:
+        if lsdata[0] and lsdata[0][2]:
             runstarttime=lsdata[0][2]
             runstarttime=runstarttime.strftime("%m/%d/%y %H:%M:%S")
-        if isverbose:
-            selectedls='n/a'
-            if nls:
-                selectedls=[(x[0],x[1]) for x in lsdata]
-            result.append([str(run)+':'+str(fillnum),nls,totlumival*scalefactor,runstarttime,avgbeamenergy, str(selectedls)])
-        else:
-            result.append([str(run)+':'+str(fillnum),nls,totlumival*scalefactor,runstarttime,avgbeamenergy])
+        result.append([str(run)+':'+str(fillnum),nls,ncmsls,totlumival*scalefactor,runstarttime,avgbeamenergy])
     sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     r=None
     assert(filename)

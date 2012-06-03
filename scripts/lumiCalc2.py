@@ -12,7 +12,7 @@ from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csv
         
 beamChoices=['PROTPHYS','IONPHYS','PAPHYS']
 
-def parseInputFiles(inputfilename,optaction):
+def parseInputFiles(inputfilename):
     '''
     output ({run:[cmsls,cmsls,...]},[[resultlines]])
     '''
@@ -24,10 +24,7 @@ def parseInputFiles(inputfilename,optaction):
     selectedNonProcessedRuns=p.selectedRunsWithoutresult()
     resultlines=p.resultlines()
     for runinfile in selectedNonProcessedRuns:
-        if optaction=='delivered':#for delivered we care only about selected runs
-            selectedrunlsInDB[runinfile]=None
-        else:
-            selectedrunlsInDB[runinfile]=runlsbyfile[runinfile]
+        selectedrunlsInDB[runinfile]=runlsbyfile[runinfile]
     return (selectedrunlsInDB,resultlines)
 
 ##############################
@@ -218,7 +215,7 @@ if __name__ == '__main__':
         raise RuntimeError('at least one run selection argument is required')
     if options.action=='recorded':
         if not options.hltpath:
-            raise RuntimeError('argument --hltpath normname is required for recorded action')
+            raise RuntimeError('argument --hltpath pathname is required for recorded action')
         
     svc=sessionManager.sessionManager(options.connect,
                                       authpath=options.authpath,
@@ -237,7 +234,7 @@ if __name__ == '__main__':
         rruns=irunlsdict.keys()
     else:
         if options.inputfile:
-            (irunlsdict,iresults)=parseInputFiles(options.inputfile,options.action)
+            (irunlsdict,iresults)=parseInputFiles(options.inputfile)
             #apply further filter only if specified
             if options.fillnum or options.begin or options.end or options.amodetag or options.beamenergy:
                 runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
@@ -305,9 +302,9 @@ if __name__ == '__main__':
     if options.action == 'delivered':
         result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
-            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,isverbose=options.verbose)
+            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
-            lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,options.verbose)
+            lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     if options.action == 'overview':
         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:

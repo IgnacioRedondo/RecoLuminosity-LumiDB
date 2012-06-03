@@ -11,7 +11,7 @@ import coral
 
 from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,lumiCalcAPI,revisionDML,normDML,lumiReport,lumiCorrections,RegexValidator
 
-def parseInputFiles(inputfilename,optaction):
+def parseInputFiles(inputfilename):
     '''
     output ({run:[cmsls,cmsls,...]},[[resultlines]])
     '''
@@ -23,10 +23,7 @@ def parseInputFiles(inputfilename,optaction):
     selectedNonProcessedRuns=p.selectedRunsWithoutresult()
     resultlines=p.resultlines()
     for runinfile in selectedNonProcessedRuns:
-        if optaction=='delivered':#for delivered we care only about selected runs
-            selectedrunlsInDB[runinfile]=None
-        else:
-            selectedrunlsInDB[runinfile]=runlsbyfile[runinfile]
+        selectedrunlsInDB[runinfile]=runlsbyfile[runinfile]
     return (selectedrunlsInDB,resultlines)
 
 ##############################
@@ -169,7 +166,7 @@ if __name__ == '__main__':
         raise RuntimeError('at least one run selection argument is required')
     if options.action=='recorded':
         if not options.hltpath:
-            raise RuntimeError('argument --hltpath normname is required for recorded action')
+            raise RuntimeError('argument --hltpath pathname is required for recorded action')
 
     svc=sessionManager.sessionManager(options.connect,
                                       authpath=options.authpath,
@@ -188,7 +185,7 @@ if __name__ == '__main__':
         rruns=irunlsdict.keys()
     else:  
         if options.inputfile:
-            (irunlsdict,iresults)=parseInputFiles(options.inputfile,options.action)
+            (irunlsdict,iresults)=parseInputFiles(options.inputfile)
             #apply further filter only if specified
             if options.fillnum or options.begin or options.end:
                 runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL') 
