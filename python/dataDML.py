@@ -1207,7 +1207,7 @@ def hltRunById(schema,dataid,hltpathname=None,hltpathpattern=None):
 
 def hlttrgMappingByrun(schema,runnum,hltpathname=None,hltpathpattern=None):
     '''
-    select m.hltkey,m.hltpathname,m.l1seed from cmsrunsummary r,trghltmap m where r.runnum=:runnum and m.hltkey=r.hltkey and [m.hltpathname=:hltpathname] 
+    select m.hltpathname,m.l1seed from cmsrunsummary r,trghltmap m where r.runnum=:runnum and m.hltkey=r.hltkey and [m.hltpathname=:hltpathname] 
     output: {hltpath:l1seed}
     '''
     result={}
@@ -1228,18 +1228,16 @@ def hlttrgMappingByrun(schema,runnum,hltpathname=None,hltpathpattern=None):
         conditionStr=r+'.RUNNUM=:runnum and '+m+'.HLTKEY='+r+'.HLTKEY'
         if hltpathname:
             hltpathpattern=None
-            conditionStr+=m+'.HLTPATHNAME=:hltpathname'
+            conditionStr+=' AND '+m+'.HLTPATHNAME=:hltpathname'
             queryCondition.extend('hltpathname','string')
             queryCondition['hltpathname'].setData(hltpathname)
         queryHandle.setCondition(conditionStr,queryCondition)
         queryResult=coral.AttributeList()
-        #queryResult.extend('hltkey','string')
         queryResult.extend('pname','string')
         queryResult.extend('l1seed','string')
         queryHandle.defineOutput(queryResult)
         cursor=queryHandle.execute()
         while cursor.next():
-            #hltkey=cursor.currentRow()['hltkey'].data()
             pname=cursor.currentRow()['pname'].data()
             l1seed=cursor.currentRow()['l1seed'].data()
             if not result.has_key(hltpathname):
