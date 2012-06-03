@@ -506,7 +506,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
             deliveredlumi=lsdata[5]            
             if deliveredlumi>maxlslumi: maxlslumi=deliveredlumi
             recordedlumi=0.
-            if  lsdata[6] is not None:
+            if  lsdata[6]:
                 recordedlumi=lsdata[6]
             if irunlsdict and irunlsdict[run]:
                 if run in irunlsdict and cmslsnum in irunlsdict[run]:
@@ -519,7 +519,6 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
                         totalSelectedLS+=1
             else:
                 result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
-                
                 totalDelivered+=deliveredlumi
                 totalRecorded+=recordedlumi
                 totalDeliveredLS+=1
@@ -585,7 +584,7 @@ def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWa
     for run in lumidata.keys():
         rundata=lumidata[run]
         if rundata is None:
-            result.append([run,'n/a','n/a','n/a','n/a','n/a','n/a'])
+            result.append([str(run)+':0','n/a','n/a','n/a','n/a','n/a','n/a'])
             if irunlsdict and irunlsdict[run]:
                 print '[WARNING] selected but no lumi data for run '+str(run)
             continue
@@ -602,15 +601,14 @@ def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWa
             bs=lsdata[3]
             begev=lsdata[4]
             deliveredlumi=lsdata[5]
-            recordedlumi=lsdata[6]
-            if recordedlumi is None:
-                recordedlumi=0.
+            recordedlumi=0.
+            if lsdata[6]:
+                recordedlumi=lsdata[6]
             if irunlsdict and irunlsdict[run]:
                 if run in irunlsdict and cmslsnum in irunlsdict[run]:
-                    result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,begev,deliveredlumi*scalefactor,recordedlumi*scalefactor])
+                    result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
             else:
-                if run in irunlsdict and cmslsnum in irunlsdict[run]:
-                    result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,begev,deliveredlumi*scalefactor,recordedlumi*scalefactor])
+                result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
     sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
@@ -1098,38 +1096,62 @@ def toCSVTotEffective(lumidata,filename,resultlines,scalefactor,irunlsdict=None,
         r.writeRow(fieldnames)
         r.writeRows(sortedresult)
         
-def toCSVLumiByLSXing(lumidata,scalefactor,filename):
+def toCSVLumiByLSXing(lumidata,scalefactor,filename,irunlsdict=None,noWarning=True):
     '''
     input:{run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),bxdata(8),beamdata(9),fillnum(10)]}
     output:
-    fieldnames=['Run:Fill','CMSLS','Delivered(/ub)','Recorded(/ub)','BX']
+    fieldnames=['Run:Fill','LS','UTCTime','Delivered(/ub)','Recorded(/ub)','BX']
     '''
     result=[]
     assert(filename)
     fieldnames=['run:fill','ls','UTCTime','delivered(/ub)','recorded(/ub)','bx']
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with     
     for run in sorted(lumidata):
         rundata=lumidata[run]
         if rundata is None:
-            result.append([run,'n/a','n/a','n/a','n/a','n/a'])
+            result.append([str(run)+':0','n/a','n/a','n/a','n/a','n/a'])
+            if irunlsdict and irunlsdict[run]:
+                print '[WARNING] selected but no lumi data for run '+str(run)
             continue
         fillnum=0
-        if rundata[0][10]:
+        if rundata and rundata[0][10]:
             fillnum=rundata[0][10]
+        if irunlsdict and not noWarning:
+            existdata=[x[1] for x in rundata if x[1] ]
+            datarunlsdict[run]=existdata
         for lsdata in rundata:
-            cmslsnum=lsdata[1]
-            ts=lsdata[2]
-            if cmslsnum==0:
-                continue
-            deliveredlumi=lsdata[5]
-            recordedlumi=lsdata[6]
+            lumilsnum=lsdata[0]
+            cmslsnum=0
+            if lsdata and lsdata[1]:
+                cmslsnum=lsdata[1]
+            tsStr='n/a'
+            if lsdata and lsdata[2]:
+                ts=lsdata[2]
+                tsStr=ts.strftime('%m/%d/%y %H:%M:%S')
+            deliveredlumi=0.
+            if lsdata[5]:
+                deliveredlumi=lsdata[5]
+            recordedlumi=0.
+            if lsdata[6]:
+                recordedlumi=lsdata[6]
             (bxidxlist,bxvaluelist,bxerrorlist)=lsdata[8]
-            bxresult=[]
-            if bxidxlist and bxvaluelist:
-                bxinfo=CommonUtil.transposed([bxidxlist,bxvaluelist])
-                bxresult=CommonUtil.flatten([str(run)+':'+str(fillnum),cmslsnum,ts.strftime('%m/%d/%y %H:%M:%S'),deliveredlumi*scalefactor,recordedlumi*scalefactor,bxinfo])
-                result.append(bxresult)
+            if irunlsdict and irunlsdict[run]:
+                if run in irunlsdict and cmslsnum in irunlsdict[run]:
+                    if bxidxlist and bxvaluelist:
+                        bxresult=[]
+                        bxinfo=CommonUtil.transposed([bxidxlist,bxvaluelist])
+                        bxresult=CommonUtil.flatten([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),tsStr,deliveredlumi*scalefactor,recordedlumi*scalefactor,bxinfo])
+                        result.append(bxresult)
+                    else:
+                        result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),tsStr,deliveredlumi*scalefactor,recordedlumi*scalefactor])
             else:
-                result.append([str(run)+':'+str(fillnum),cmslsnum,ts.strftime('%m/%d/%y %H:%M:%S'),deliveredlumi*scalefactor,recordedlumi*scalefactor])
+                if bxidxlist and bxvaluelist:
+                    bxresult=[]
+                    bxinfo=CommonUtil.transposed([bxidxlist,bxvaluelist])
+                    bxresult=CommonUtil.flatten([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),tsStr,deliveredlumi*scalefactor,recordedlumi*scalefactor,bxinfo])
+                    result.append(bxresult)
+                else:
+                    result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),tsStr,deliveredlumi*scalefactor,recordedlumi*scalefactor])
     r=None
     if filename.upper()=='STDOUT':
         r=sys.stdout

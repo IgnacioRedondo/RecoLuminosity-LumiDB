@@ -223,7 +223,7 @@ def trgForIds(schema,irunlsdict,dataidmap,trgbitname=None,trgbitnamepattern=None
                 result[run].append(lsdata)
     return result
 
-def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF'):
+def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
     '''
     FROM ROOT FILE NO CORRECTION AT ALL 
     input:
@@ -233,7 +233,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
            beamstatus: LS filter on beamstatus (optional)
            withBXInfo: get per bunch info (optional)
            bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
-           xingMinLum: cut on bx lumi value (optional)
+           xingMinLum: None means apply no cut
            withBeamIntensity: get beam intensity info (optional)
            lumitype: luminosity measurement source
     output:
@@ -297,11 +297,16 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
                 if bxinfo:
                     bxvalueArray=bxinfo[0]
                     bxerrArray=bxinfo[1]
-                    for idx,bxval in enumerate(bxvalueArray):
-                        if bxval>xingMinLum:
-                            bxidxlist.append(idx)
-                            bxvaluelist.append(bxval)
-                            bxerrorlist.append(bxerrArray[idx])
+                    if xingMinLum :
+                        for idx,bxval in enumerate(bxvalueArray):
+                            if bxval>xingMinLum:
+                                bxidxlist.append(idx)
+                                bxvaluelist.append(bxval)
+                                bxerrorlist.append(bxerrArray[idx])
+                    else:
+                        bxidxlist=range(0,len(bxvalueArray))
+                        bxvaluelist=bxvalueArray.tolist()
+                        bxerrorlist=bxerrArray.tolist()
                     del bxvalueArray[:]
                     del bxerrArray[:]
                 bxdata=(bxidxlist,bxvaluelist,bxerrorlist)
@@ -326,7 +331,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
         result[run]=lsresult
     return result
 
-def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF'):
+def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
     '''
     delivered lumi (including calibration,time integral)
     input:
@@ -352,7 +357,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
     result = {}
     lumip=lumiParameters.ParametersObject()
     lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
-    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
+    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
     
     intglumimap={}
     if lumitype=='HF':
@@ -408,14 +413,23 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             deliveredlumi=instcorrectedlumi*lslen
             calibratedbxdata=None
             beamdata=None
-            if withBXInfo:
-                (bxidx,bxvalues,bxerrs)=perlsdata[9]
+            if withBXInfo:                
+                (bxidxData,bxvaluesData,bxerrsData)=perlsdata[9]
                 if lumitype=='HF':
-                    calibratedbxdata=[totcorrectionFac*x for x in bxvalues]
-                    calibratedlumierr=[totcorrectionFac*x for x in bxerrs]
-                del bxidx[:]
-                del bxvalues[:]
-                del bxerrs[:]
+                    if xingMinLum:
+                        bxidxList=[]
+                        bxvalueList=[]
+                        bxerrList=[]
+                        for idx,bxval in enumerate(bxvaluesData):
+                            if totcorrectionFac*bxval>xingMinLum:
+                                bxidxList.append(bxidxData[idx])
+                                bxvalueList.append(totcorrectionFac*bxval)
+                                bxerrList.append(totcorrectionFac*bxerrsData[idx])
+                        calibratedbxdata=(bxidxList,bxvalueList,bxerrList)
+                    else:
+                        calibratedbxvalue=[totcorrectionFac*x for x in bxvaluesData]
+                        calibratedlumierr=[totcorrectionFac*x for x in bxerrsData]
+                        calibratedbxdata=(bxidxData,calibratedbxvalue,calibratedlumierr)
             if withBeamIntensity:
                 beamdata=perlsdata[10]
             calibratedlumierr=0.0
@@ -423,7 +437,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             del perlsdata[:]
     return result
 
-def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=0,withBeamIntensity=False,lumitype='HF'):
+def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
     '''
     delivered/recorded lumi  (including calibration,time integral)
     input:
@@ -475,7 +489,7 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
             perlsdata[6]=recordedlumi
     return deliveredresult
 
-def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatusfilter=None,normmap=None,hltpathname=None,hltpathpattern=None,withBXInfo=False,bxAlgo=None,xingMinLum=0.0,withBeamIntensity=False,lumitype='HF'):
+def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatusfilter=None,normmap=None,hltpathname=None,hltpathpattern=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
     '''
     delivered/recorded/eff lumi in selected hlt path  (including calibration,time integral)
     input:

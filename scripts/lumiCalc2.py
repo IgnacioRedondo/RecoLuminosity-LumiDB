@@ -131,7 +131,7 @@ if __name__ == '__main__':
                         type=float,
                         default=1e-03,
                         required=False,
-                        help='Minimum luminosity considered for lumibylsXing action, default=1e-03')
+                        help='Minimum perbunch luminosity to print, default=1e-03/ub')
     
     parser.add_argument('--xingAlgo', dest = 'xingAlgo',
                         default='OCC1',
@@ -346,10 +346,12 @@ if __name__ == '__main__':
         else:
             lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
     if options.action == 'lumibylsXing':
-        result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
-            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)#we do not print per Xing data to screen...
+            print '[WARNING] no output file given. lumibylsXing writes per-bunch lumi only to a file specified by the -o option'
+            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
+            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
+            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,withBXInfo=True,bxAlgo=options.xingAlgo,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
             lumiReport.toCSVLumiByLSXing(result,options.scalefactor,options.outputfile,irunlsdict=irunlsdict,noWarning=options.nowarning)
     session.transaction().commit()
     del session
