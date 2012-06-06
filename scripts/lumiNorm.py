@@ -131,9 +131,9 @@ if __name__ == '__main__':
         dbsession=svc.openSession(isReadOnly=False,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
         dbsession.transaction().start(False)      
         if options.action=='setdefault':
-            normDML.promoteNormToTypeDefault(dbsession.nominalSchema(),normname,lumitype)
+            normDML.promoteNormToTypeDefault(dbsession.nominalSchema(),options.normname,options.lumitype)
         if options.action=='unsetdefault':
-            normDML.demoteNormFromTypeDefault(schema,normname,lumitype)
+            normDML.demoteNormFromTypeDefault(dbsession.nominalSchema(),options.normname,options.lumitype)
         dbsession.transaction().commit()        
      ##############################
      #  list

@@ -257,7 +257,7 @@ def demoteNormFromTypeDefault(schema,normname,lumitype):
         inputData['thisnormid'].setData(thisnormid)
         inputData['LUMITYPE'].setData(lumitype)
         db=dbUtil.dbUtil(schema)
-        db.singleUpdate(nameDealer.luminormv2Table(),setClause,updateCondition,inputData)
+        db.singleUpdate(nameDealer.luminormv2TableName(),setClause,updateCondition,inputData)
     except :
         raise
     
