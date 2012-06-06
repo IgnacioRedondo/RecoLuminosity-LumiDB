@@ -188,7 +188,7 @@ if __name__ == '__main__':
             (irunlsdict,iresults)=parseInputFiles(options.inputfile)
             #apply further filter only if specified
             if options.fillnum or options.begin or options.end:
-                runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL') 
+                runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL') 
                 rruns=[val for val in runlist if val in irunlsdict.keys()]
                 for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
                     if selectedrun not in rruns:
@@ -196,7 +196,7 @@ if __name__ == '__main__':
             else:
                 rruns=irunlsdict.keys()
         else:                        
-            runlist=lumiCalcAPI.runList(schema,options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL')      
+            runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL')      
             for run in runlist:
                 irunlsdict[run]=None
             rruns=irunlsdict.keys()
