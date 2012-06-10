@@ -311,7 +311,6 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
             r[4]='%.3f'%(rrcd)+' ('+rlumiu+')'
         totOldRecorded+=rcd
         result.append(r)
-
     for run in lumidata.keys():
         lsdata=lumidata[run]        
         if not lsdata:
@@ -488,7 +487,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         rundata=lumidata[run]
         if not rundata:
             result.append([str(run),'n/a','n/a','n/a','n/a','n/a','n/a'])
-            if irunlsdict and irunlsdict[run]:
+            if irunlsdict and irunlsdict[run] and not noWarning:
                 print '[WARNING] selected but no lumi data for run '+str(run)
             continue
         fillnum=0
@@ -1163,74 +1162,101 @@ def toCSVLumiByLSXing(lumidata,scalefactor,filename,irunlsdict=None,noWarning=Tr
         r.writeRow(fieldnames)
         r.writeRows(result)
     
-def toScreenLSTrg(trgdata,iresults=[],isverbose=False):
+def toScreenLSTrg(trgdata,iresults=[],irunlsdict=None,noWarning=True):
     '''
     input:{run:[[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(name,count,presc),]],..]
     '''
     result=[]
-    for r in iresults:
-        result.append(r)
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
+    for rline in iresults:
+        runnumStr=rline[0]
+        cmslsnumStr=rline[1]
+        if irunlsdict and not noWarning:
+            if runnumStr is not 'n/a' and not datarunlsdict.has_key(int(runnumStr)):
+                datarunlsdict[int(runnumstr)]=[]
+            if cmslsnumStr!='n/a':
+                datarunlsdict[int(runnumStr)].append(int(cmslsnumStr))
+        result.append(rline)
     for run in trgdata.keys():
-        if trgdata[run] is None:
+        rundata=trgdata[run]
+        if not rundata:
             ll=[str(run),'n/a','n/a','n/a']
-            if isverbose:
-                ll.append('n/a')
             result.append(ll)
+            if irunlsdict and not noWarning:
+                print '[WARNING] selected but no trg data for run '+str(run)
             continue
-        perrundata=trgdata[run]
+        if irunlsdict and not noWarning:
+            existdata=[x[0] for x in rundata if x[0] ]
+            datarunlsdict[run]=existdata
         deadfrac=0.0
-        bitdataStr='n/a'
-        for lsdata in perrundata:
+        #bitdataStr='n/a'
+        for lsdata in rundata:
             cmslsnum=lsdata[0]
             deadfrac=lsdata[1]
             deadcount=lsdata[2]
-            bitdata=lsdata[5]# already sorted by name
-            flatbitdata=["("+x[0]+',%d'%x[1]+',%d'%x[2]+")" for x in bitdata if x[0]!='False']
-            bitdataStr=', '.join(flatbitdata)
+            #bitdata=lsdata[5]# already sorted by name
+            #flatbitdata=["("+x[0]+',%d'%x[1]+',%d'%x[2]+")" for x in bitdata if x[0]!='False']
+            #bitdataStr=', '.join(flatbitdata)
             #print 'bitdataStr ',bitdataStr
-            if isverbose:
-                result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),'%d'%deadcount,bitdataStr])
+            if irunlsdict and irunlsdict[run]:
+                if run in irunlsdict and cmslsnum in irunlsdict[run]:
+                    result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),'%d'%deadcount])
             else:
                 result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),'%d'%deadcount])
     print ' ==  = '
-    if isverbose:
-        labels = [('Run', 'LS', 'dfrac','dcount','(bit,count,presc)')]
-    else:
-        labels = [('Run', 'LS', 'dfrac','dcount')]
+    labels = [('Run', 'LS', 'dfrac','dcount')]
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
                                prefix = '| ', postfix = ' |', justify = 'left',
                                delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
-    
-def toCSVLSTrg(trgdata,filename,iresults=[],isverbose=False):
+    if irunlsdict and not noWarning:
+        for run,cmslslist in irunlsdict.items():
+            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
+                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
+                continue
+            if cmslslist:
+                for ss in cmslslist:
+                    if ss not in datarunlsdict[run]:
+                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
+                                            
+def toCSVLSTrg(trgdata,filename,iresults=[],irunlsdict=None,noWarning=True):
     '''
     input:{run:[[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(name,count,presc),]],..]
     '''
     result=[]
-    fieldnames=['Run','LS','dfrac','dcount','bit,cout,presc']
+    fieldnames=['Run','LS','dfrac','dcount']
+    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
     for rline in iresults:
+        runnumStr=rline[0]
+        cmslsnumStr=rline[1]
+        if irunlsdict and not noWarning:
+            if runnumStr is not 'n/a' and not datarunlsdict.has_key(int(runnumStr)):
+                datarunlsdict[int(runnumstr)]=[]
+            if cmslsnumStr!='n/a':
+                datarunlsdict[int(runnumStr)].append(int(cmslsnumStr))
         result.append(rline)
-    for run in sorted(trgdata):
+    for run in trgdata.keys():
         rundata=trgdata[run]
-        if rundata is None:
+        if not rundata:
             ll=[run,'n/a','n/a','n/a',]
-            if isverbose:
-                ll.append('n/a')
             result.append(ll)
+            if irunlsdict and not noWarning:
+                print '[WARNING] selected but no trg data for run '+str(run)
             continue
+        if irunlsdict and not noWarning:
+            existdata=[x[0] for x in rundata if x[0] ]
+            datarunlsdict[run]=existdata
         deadfrac=0.0
         bitdataStr='n/a'
         for lsdata in rundata:
             cmslsnum=lsdata[0]
             deadfrac=lsdata[1]
             dcount=lsdata[2]
-            bitdata=lsdata[5]
-            flatbitdata=[x[0]+',%d'%x[1]+',%d'%x[2] for x in bitdata if x[0]!='False']
-            bitdataStr=';'.join(flatbitdata)
-            if isverbose:                
-                result.append([run,cmslsnum,deadfrac,dcount,bitdataStr])
-            else:
-                result.append([run,cmslsnum,deadfrac,dcount])
+            #bitdata=lsdata[5]
+            #flatbitdata=[x[0]+',%d'%x[1]+',%d'%x[2] for x in bitdata if x[0]!='False']
+            #bitdataStr=';'.join(flatbitdata)
+            result.append([run,cmslsnum,deadfrac,dcount])
     assert(filename)
+    
     if filename.upper()=='STDOUT':
         r=sys.stdout
         r.write(','.join(fieldnames)+'\n')
@@ -1240,7 +1266,15 @@ def toCSVLSTrg(trgdata,filename,iresults=[],isverbose=False):
         r=csvReporter.csvReporter(filename)
         r.writeRow(fieldnames)
         r.writeRows(result)
-    
+    if irunlsdict and not noWarning:
+        for run,cmslslist in irunlsdict.items():
+            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
+                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
+                continue
+            if cmslslist:
+                for ss in cmslslist:
+                    if ss not in datarunlsdict[run]:
+                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
 def toScreenConfTrg(trgconfdata,iresults=[],isverbose=False):
     '''
     input:{run:[datasource,normbitname,[allbits]]}

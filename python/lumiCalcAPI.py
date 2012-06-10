@@ -183,7 +183,7 @@ def trgForIds(schema,irunlsdict,dataidmap,trgbitname=None,trgbitnamepattern=None
             trgbitname exact match  trgbitname (optional)
             trgbitnamepattern match trgbitname (optional)
     output
-            result {run:[cmslsnum(0),deadfrac(1),deadtimecount(2),bitzero_count(3),bitzero_prescale(4),[(bitname,prescale,counts)](5)]}
+            result {run:[[cmslsnum(0),deadfrac(1),deadtimecount(2),bitzero_count(3),bitzero_prescale(4),[(bitname,prescale,counts)](5)]]}
     '''
     result={}
     for run in irunlsdict.keys():
