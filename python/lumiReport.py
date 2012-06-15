@@ -1189,22 +1189,22 @@ def toScreenLSTrg(trgdata,iresults=[],irunlsdict=None,noWarning=True):
             existdata=[x[0] for x in rundata if x[0] ]
             datarunlsdict[run]=existdata
         deadfrac=0.0
-        #bitdataStr='n/a'
+        bitdataStr='n/a'
         for lsdata in rundata:
             cmslsnum=lsdata[0]
             deadfrac=lsdata[1]
             deadcount=lsdata[2]
-            #bitdata=lsdata[5]# already sorted by name
-            #flatbitdata=["("+x[0]+',%d'%x[1]+',%d'%x[2]+")" for x in bitdata if x[0]!='False']
-            #bitdataStr=', '.join(flatbitdata)
-            #print 'bitdataStr ',bitdataStr
+            bitdata=lsdata[5]# already sorted by name
+            if bitdata:
+              flatbitdata=["("+x[0]+',%d'%x[1]+',%d'%x[2]+")" for x in bitdata if x[0]!='False']
+              bitdataStr=' '.join(flatbitdata)
             if irunlsdict and irunlsdict[run]:
                 if run in irunlsdict and cmslsnum in irunlsdict[run]:
-                    result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),'%d'%deadcount])
+                    result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),bitdataStr])
             else:
-                result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),'%d'%deadcount])
+                result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),bitdataStr])
     print ' ==  = '
-    labels = [('Run', 'LS', 'dfrac','dcount')]
+    labels = [('Run', 'LS', 'dfrac','(bitname,count,presc)')]
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
                                prefix = '| ', postfix = ' |', justify = 'left',
                                delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
@@ -1223,7 +1223,7 @@ def toCSVLSTrg(trgdata,filename,iresults=[],irunlsdict=None,noWarning=True):
     input:{run:[[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(name,count,presc),]],..]
     '''
     result=[]
-    fieldnames=['Run','LS','dfrac','dcount']
+    fieldnames=['Run','LS','dfrac','(bitname,count,presc)']
     datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
     for rline in iresults:
         runnumStr=rline[0]
@@ -1251,10 +1251,15 @@ def toCSVLSTrg(trgdata,filename,iresults=[],irunlsdict=None,noWarning=True):
             cmslsnum=lsdata[0]
             deadfrac=lsdata[1]
             dcount=lsdata[2]
-            #bitdata=lsdata[5]
-            #flatbitdata=[x[0]+',%d'%x[1]+',%d'%x[2] for x in bitdata if x[0]!='False']
-            #bitdataStr=';'.join(flatbitdata)
-            result.append([run,cmslsnum,deadfrac,dcount])
+            bitdata=lsdata[5]
+            if bitdata:
+                flatbitdata=["("+x[0]+',%d'%x[1]+',%d'%x[2]+")" for x in bitdata if x[0]!='False']
+                bitdataStr=' '.join(flatbitdata)
+            if irunlsdict and irunlsdict[run]:
+                if run in irunlsdict and cmslsnum in irunlsdict[run]:
+                    result.append([run,cmslsnum,deadfrac,bitdataStr])                    
+            else:
+                result.append([run,cmslsnum,deadfrac,bitdataStr])                    
     assert(filename)
     
     if filename.upper()=='STDOUT':
