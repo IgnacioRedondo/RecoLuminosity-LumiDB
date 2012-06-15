@@ -694,7 +694,10 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
                     if fnmatch.fnmatch(trgname,trgbitnamepattern):
                         bitnamedict.append((trgnameidx,trgname))
                 else:
-                    bitnamedict.append((trgnameidx,trgname))
+                    if trgname==bitzeroname:
+                        bitnamedict.append((trgnameidx,trgname))
+                        break
+                    #bitnamedict.append((trgnameidx,trgname))
         result=[runnum,source,bitzeroname,bitnamedict]
     except :
         del qHandle
@@ -706,12 +709,10 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
     '''
     output: (runnum,{cmslsnum:[deadtimecount(0),bitzerocount(1),bitzeroprescale(2),deadfrac(3),[(bitname,trgcount,prescale)](4)]})
     '''
-#    print 'entering trgLSById ',dataid
-#    t0=time.time()
     runnum=0
     result={}
     trgnamedict=[]
-    if  withPrescale or withL1Count:
+    if  trgbitname or trgbitnamepattern or withPrescale or withL1Count:
         trgrundata=trgRunById(schema,dataid,trgbitname=trgbitname,trgbitnamepattern=trgbitnamepattern)
         trgnamedict=trgrundata[3]
 
@@ -721,8 +722,8 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
         qHandle.addToOutputList('RUNNUM','runnum')
         qHandle.addToOutputList('CMSLSNUM','cmslsnum')
         qHandle.addToOutputList('DEADTIMECOUNT','deadtimecount')
-        qHandle.addToOutputList('BITZEROCOUNT','bitzerocount')
-        qHandle.addToOutputList('BITZEROPRESCALE','bitzeroprescale')
+        #qHandle.addToOutputList('BITZEROCOUNT','bitzerocount')
+        #qHandle.addToOutputList('BITZEROPRESCALE','bitzeroprescale')
         qHandle.addToOutputList('DEADFRAC','deadfrac')
         if withPrescale:
             qHandle.addToOutputList('PRESCALEBLOB','prescalesblob')
@@ -736,8 +737,8 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
         qResult.extend('runnum','unsigned int')
         qResult.extend('cmslsnum','unsigned int')
         qResult.extend('deadtimecount','unsigned long long')
-        qResult.extend('bitzerocount','unsigned int')
-        qResult.extend('bitzeroprescale','unsigned int')
+        #qResult.extend('bitzerocount','unsigned int')
+        #qResult.extend('bitzeroprescale','unsigned int')
         qResult.extend('deadfrac','float')
         if withPrescale:
             qResult.extend('prescalesblob','blob')
@@ -750,8 +751,10 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
             runnum=cursor.currentRow()['runnum'].data()
             cmslsnum=cursor.currentRow()['cmslsnum'].data()
             deadtimecount=cursor.currentRow()['deadtimecount'].data()
-            bitzerocount=cursor.currentRow()['bitzerocount'].data()
-            bitzeroprescale=cursor.currentRow()['bitzeroprescale'].data()
+            #bitzerocount=cursor.currentRow()['bitzerocount'].data()
+            #bitzeroprescale=cursor.currentRow()['bitzeroprescale'].data()
+            bitzerocount=0
+            bitzeroprescale=0
             deadfrac=cursor.currentRow()['deadfrac'].data()
             if not result.has_key(cmslsnum):
                 result[cmslsnum]=[]
