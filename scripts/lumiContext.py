@@ -227,6 +227,9 @@ if __name__ == '__main__':
     #print result
         sys.exit(0)
     if options.action == 'hltbyls':
+        if not options.name:
+            print '[ERROR] --name option is required by hltbyls, do nothing'
+            sys.exit(0)
         withL1Pass=True
         withHLTAccept=True
         session.transaction().start(True)
