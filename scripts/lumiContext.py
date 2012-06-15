@@ -34,7 +34,7 @@ def parseInputFiles(inputfilename):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),description = "Additional information needed in the lumi calculation",formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    allowedActions = ['hltbyls','hltconf','trgconf','trgbyls', 'beambyls','runsummary']
+    allowedActions = ['hltbyls','hltmenu','trgbyls', 'beambyls','runsummary']
     amodetagChoices = [ "PROTPHYS","IONPHYS","PAPHYS" ]
     beamModeChoices = ["stable"]
     #
@@ -227,34 +227,24 @@ if __name__ == '__main__':
     #print result
         sys.exit(0)
     if options.action == 'hltbyls':
-        withL1Pass=False
-        withHLTAccept=False
-        if options.verbose:
-            withL1Pass=True
-            withHLTAccept=True
+        withL1Pass=True
+        withHLTAccept=True
         session.transaction().start(True)
-        result=lumiCalcAPI.hltForIds(session.nominalSchema(),irunlsdict,hltpathname=sname,hltpathpattern=spattern,withL1Pass=withL1Pass,withHLTAccept=withHLTAccept)
+        result=lumiCalcAPI.hltForIds(session.nominalSchema(),irunlsdict,dataidmap,hltpathname=sname,hltpathpattern=spattern,withL1Pass=withL1Pass,withHLTAccept=withHLTAccept)
         session.transaction().commit()
         if not options.outputfile:
-            lumiReport.toScreenLSHlt(result,iresults=iresults,isverbose=options.verbose)
+            lumiReport.toScreenLSHlt(result,iresults=iresults)
         else:
-            lumiReport.toCSVLSHlt(result,options.outputfile,iresults,options.verbose)
-    if options.action == 'trgconf':
-        session.transaction().start(True)
-        result=lumiCalcAPI.trgbitsForRange(session.nominalSchema(),irunlsdict,datatag=None)        
-        session.transaction().commit()
-        if not options.outputfile:
-            lumiReport.toScreenConfTrg(result,iresults,options.verbose)
-        else:
-            lumiReport.toCSVConfTrg(result,options.outputfile,iresults,options.verbose)
-    if options.action == 'hltconf':
+            lumiReport.toCSVLSHlt(result,options.outputfile)
+    if options.action == 'hltmenu':
         session.transaction().start(True)
         result=lumiCalcAPI.hltpathsForRange(session.nominalSchema(),irunlsdict,hltpathname=sname,hltpathpattern=spattern)
         session.transaction().commit()
+        #print result
         if not options.outputfile:
-            lumiReport.toScreenConfHlt(result,iresults,options.verbose)
+            lumiReport.toScreenConfHlt(result,iresults)
         else:
-            lumiReport.toCSVConfHlt(result,options.outputfile,iresults,options.verbose)
+            lumiReport.toCSVConfHlt(result,options.outputfile,iresults)
     if options.action == 'beambyls':
         session.transaction().start(True)
         dumpbeamintensity=False

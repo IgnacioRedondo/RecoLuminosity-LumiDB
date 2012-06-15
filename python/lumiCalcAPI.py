@@ -102,7 +102,7 @@ def beamForRange(schema,inputRange,withBeamIntensity=False,minIntensity=0.1,tabl
             result[run].append((lumilsnum,cmslsnum,beamstatus,beamenergy,beamintInfolist))        
     return result
 
-def hltForIds(schema,irunlsdict,dataidmap,hltpathname=None,hltpathpattern=None,withL1Pass=False,withHLTAccept=False,datatag=None):
+def hltForIds(schema,irunlsdict,dataidmap,hltpathname=None,hltpathpattern=None,withL1Pass=False,withHLTAccept=False):
     '''
     input:
            irunlsdict: {run:[cmsls]} (required)
@@ -111,8 +111,6 @@ def hltForIds(schema,irunlsdict,dataidmap,hltpathname=None,hltpathpattern=None,w
            hltpathpattern: regex match hltpathpattern (optional)
            withL1Pass: with L1 pass count
            withHLTAccept: with HLT accept
-           tablename: 
-           branchName : data version
     output: {runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     '''
     result={}

@@ -1280,39 +1280,6 @@ def toCSVLSTrg(trgdata,filename,iresults=[],irunlsdict=None,noWarning=True):
                 for ss in cmslslist:
                     if ss not in datarunlsdict[run]:
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
-def toScreenConfTrg(trgconfdata,iresults=[],isverbose=False):
-    '''
-    input:{run:[datasource,normbitname,[allbits]]}
-    '''
-    if isverbose:
-        labels=[('Run','source','bitnames','normbit')]
-    else:
-        labels=[('Run','source','bitnames')]
-
-    result=[]
-    for r in iresults:
-        result.append(r)
-    for  run in sorted(trgconfdata):
-        if trgconfdata[run] is None:
-            ll=[str(run),'n/a','n/a']
-            if isverbose:
-                ll.append('n/a')
-            result.append(ll)
-            continue
-        source=trgconfdata[run][0]
-        source=source.split('/')[-1]
-        normbit=trgconfdata[run][1]
-        allbits=trgconfdata[run][2]
-        bitnames=', '.join(allbits)
-        if isverbose:
-            result.append([str(run),source,bitnames,normbit])
-        else:
-            result.append([str(run),source,bitnames])
-
-    print ' ==  = '
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'left',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace_strict(x,60) )
 
 def toCSVConfTrg(trgconfdata,filename,iresults=[],isverbose=False):
     '''
@@ -1353,7 +1320,7 @@ def toCSVConfTrg(trgconfdata,filename,iresults=[],isverbose=False):
         r.writeRow(fieldnames)
         r.writeRows(result)
 
-def toScreenLSHlt(hltdata,iresults=[],isverbose=False):
+def toScreenLSHlt(hltdata,iresults=[]):
     '''
     input:{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     '''
@@ -1362,7 +1329,7 @@ def toScreenLSHlt(hltdata,iresults=[],isverbose=False):
         result.append(r)
     for run in hltdata.keys():
         if hltdata[run] is None:            
-            ll=[str(run),'n/a','n/a']
+            ll=[str(run),'n/a','n/a','n/a','n/a','n/a']
             continue
         perrundata=hltdata[run]
         for lsdata in perrundata:
@@ -1376,75 +1343,73 @@ def toScreenLSHlt(hltdata,iresults=[],isverbose=False):
                 thishltaccept=None
                 thispathresult=[]
                 thispathresult.append(thispathname)
-                thispathresult.append('%d'%thispathpresc)
-                if isverbose:
-                    if thispathinfo[2] :
-                        thisl1pass=thispathinfo[2]
-                        thispathresult.append('%d'%thisl1pass)
-                    else:
-                        thispathresult.append('n/a')
-                    if thispathinfo[3]:
-                        thishltaccept=thispathinfo[3]
-                        thispathresult.append('%d'%thishltaccept)
-                    else:
-                        thispathresult.append('n/a')
+                if thispathpresc is None:
+                    thispathpresc='n/a'
+                else:
+                    thispathresult.append('%d'%thispathpresc)
+                thisl1pass=thispathinfo[2]
+                if thispathinfo[2] is None:
+                    thispathresult.append('n/a')
+                else:
+                    thispathresult.append('%d'%thisl1pass)
+                thishltaccept=thispathinfo[3]
+                if thispathinfo[3] is None:
+                    thispathresult.append('n/a')
+                else:
+                    thispathresult.append('%d'%thishltaccept)
+
                 thispathresultStr='('+','.join(thispathresult)+')'
                 allpathresult.append(thispathresultStr)
             result.append([str(run),str(cmslsnum),', '.join(allpathresult)])
     print ' ==  = '
-    if isverbose:
-        labels = [('Run', 'LS', '(hltpath,presc)')]
-    else:
-        labels = [('Run', 'LS', '(hltpath,presc,l1pass,hltaccept)')]
+
+    labels = [('Run', 'LS', '(hltpath,presc,l1pass,hltaccept)')]
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
                                prefix = '| ', postfix = ' |', justify = 'left',
                                delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
     
-def toCSVLSHlt(hltdata,filename,iresults=None,isverbose=False):
+def toCSVLSHlt(hltdata,filename,iresults=[]):
     '''
     input:{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     '''
     result=[]
-    fieldnames=['Run','LS','hltpath,hltprescale']
-    if isverbose:
-        fieldnames[-1]+=',l1pass,hltaccept'
+    fieldnames=['Run','LS','(hltpath,presc,l1pass,hltaccept)']
     for rline in iresults:
         result.append(rline)
     for run in sorted(hltdata):
         lsdata=hltdata[run]
         if lsdata is None:
-            result.append([run,'n/a','n/a'])
+            result.append([run,'n/a','n/a','n/a','n/a','n/a'])
             continue
-        for thislsdata in lsdata:
-            cmslsnum=thislsdata[0]
-            bitsdata=thislsdata[1]
-            allbitsresult=[]
-            for mybit in bitsdata:
-                hltpath=mybit[0]
-                if not hltpath: continue
-                hltprescale=mybit[1]
-                if hltprescale is None:
-                    hltprescale='n/a'
+        perrundata=hltdata[run]
+        for lsdata in perrundata:
+            cmslsnum=lsdata[0]
+            allpathinfo=lsdata[1]
+            allpathresult=[]
+            for thispathinfo in allpathinfo:
+                thispathname=thispathinfo[0]
+                thispathpresc=thispathinfo[1]
+                thisl1pass=None
+                thishltaccept=None
+                thispathresult=[]
+                thispathresult.append(thispathname)
+                if thispathpresc is None:
+                    thispathpresc='n/a'
                 else:
-                    hltprescale='%d'%hltprescale
-                if isverbose:
-                    l1pass=mybit[2]
-                    if l1pass is None:
-                        l1pass='n/a'
-                    else:
-                        l1pass='%d'%l1pass
-                    hltaccept=mybit[3]
-                    if hltaccept is None:
-                        hltaccept='n/a'
-                    else:
-                        hltaccept='%d'%hltaccept
-                    mybitStr=','.join([hltpath,hltprescale,l1pass,hltaccept])
+                    thispathresult.append('%d'%thispathpresc)
+                thisl1pass=thispathinfo[2]
+                if thispathinfo[2] is None:
+                    thispathresult.append('n/a')
                 else:
-                    mybitStr=','.join([hltpath,hltprescale])
-                allbitsresult.append(mybitStr)
-            allbitsresult=';'.join(allbitsresult)
-            result.append([run,cmslsnum,allbitsresult])
-            
+                    thispathresult.append('%d'%thisl1pass)
+                thishltaccept=thispathinfo[3]
+                if thispathinfo[3] is None:
+                    thispathresult.append('n/a')
+                else:
+                    thispathresult.append('%d'%thishltaccept)
+                thispathresultStr='('+','.join(thispathresult)+')'
+                allpathresult.append(thispathresultStr)
+            result.append([str(run),str(cmslsnum),', '.join(allpathresult)])   
     assert(filename)
     if filename.upper()=='STDOUT':
         r=sys.stdout
@@ -1456,7 +1421,7 @@ def toCSVLSHlt(hltdata,filename,iresults=None,isverbose=False):
         r.writeRow(fieldnames)
         r.writeRows(result)        
     
-def toScreenConfHlt(hltconfdata,iresults=[],isverbose=False):
+def toScreenConfHlt(hltconfdata,iresults=[]):
     '''
     input : {runnumber,[(hltpath,l1seedexpr,l1bitname),...]}
     '''
@@ -1479,13 +1444,12 @@ def toScreenConfHlt(hltconfdata,iresults=[],isverbose=False):
             thispath=thispathinfo[0]
             thispath=' '.join([thispath[i:i+25] for i in range(0,len(thispath),25)])
             thisseed=thispathinfo[1]
-            thisseed=''.join(thisseed.split(' '))
-            thisseed=' '.join([thisseed[i:i+25] for i in range(0,len(thisseed),25)])
+            thisseed=' '.join([thisseed[i:i+25] for i in range(0,len(thisseed),25)]).replace('"','')
             thisbit=thispathinfo[2]
             if not thisbit:
                 thisbit='n/a'
             else:
-                thisbit=' '.join([thisbit[i:i+25] for i in range(0,len(thisbit),25)])
+                thisbit=' '.join([thisbit[i:i+25] for i in range(0,len(thisbit),25)]).replace('"','')
             result.append([str(run),thispath,thisseed,thisbit])
     print ' ==  = '
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
@@ -1493,7 +1457,7 @@ def toScreenConfHlt(hltconfdata,iresults=[],isverbose=False):
                                delim = ' | ', wrapfunc = lambda x: wrap_onspace(x,25) )
 
 
-def toCSVConfHlt(hltconfdata,filename,iresults=[],isverbose=False):
+def toCSVConfHlt(hltconfdata,filename,iresults=[]):
     '''
     input:{runnumber,[(hltpath,l1seedexpr,l1bitname),...]}
     '''
@@ -1509,9 +1473,11 @@ def toCSVConfHlt(hltconfdata,filename,iresults=[],isverbose=False):
             thispath=thispathinfo[0]
             thisseed=thispathinfo[1]
             thisbit=thispathinfo[2]
+            if not thisseed:
+                thisseed='n/a'
             if not thisbit:
                 thisbit='n/a'
-            result.append([str(run),thispath,thisseed,thisbit])
+            result.append([str(run),thispath,thisseed.replace('"',''),thisbit.replace('"','')])
     fieldnames=['Run','hltpath','l1seedexpr','l1bit']
     assert(filename)
     if filename.upper()=='STDOUT':
