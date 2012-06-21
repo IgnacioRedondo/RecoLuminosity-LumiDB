@@ -1492,12 +1492,12 @@ def toCSVConfHlt(hltconfdata,filename,iresults=[]):
         
 def toScreenLSBeam(beamdata,iresults=[],dumpIntensity=False,isverbose=False):
     '''
-    input: {run:[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),beaminfolist(4)),..]}
+    input: {run:[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),ncollidingbunches(4),beaminfolist(4)),..]}
     beaminfolist:[(bxidx,b1,b2)]
     '''
-    labels=[('Run','LS','beamstatus','egev')]
+    labels=[('Run','LS','beamstatus','egev','ncollidingbx')]
     if dumpIntensity:
-        labels=[('Run','LS','beamstatus','egev','(bxidx,b1,b2)')]
+        labels=[('Run','LS','beamstatus','egev','ncollidingbx','(bxidx,b1,b2)')]
     result=[]
     for rline in iresults:
         result.append(rline)
@@ -1513,20 +1513,21 @@ def toScreenLSBeam(beamdata,iresults=[],dumpIntensity=False,isverbose=False):
             cmslsnum=lsdata[1]
             beamstatus=lsdata[2]
             beamenergy=lsdata[3]
+            ncollidingbx=lsdata[4]
             if not dumpIntensity:
-                result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy])
+                result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx)])
                 continue
-            allbxinfo=lsdata[4]
+            allbxinfo=lsdata[5]
             allbxresult=[]
             for thisbxinfo in allbxinfo:
-                thisbxresultStr='(n/a,n/a,n/a)'
+                thisbxresultStr='(n/a,n/a,n/a,n/a)'
                 bxidx=thisbxinfo[0]
                 b1=thisbxinfo[1]
                 b2=thisbxinfo[2]
                 thisbxresultStr=','.join(['%d'%bxidx,'%.3e'%b1,'%.3e'%b2])
                 allbxresult.append(thisbxresultStr)
             allbxresultStr=' '.join(allbxresult)
-            result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,allbxresultStr])
+            result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx),allbxresultStr])
     print ' ==  = '
     print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
                                prefix = '| ', postfix = ' |', justify = 'left',
@@ -1534,11 +1535,11 @@ def toScreenLSBeam(beamdata,iresults=[],dumpIntensity=False,isverbose=False):
 
 def toCSVLSBeam(beamdata,filename,resultlines,dumpIntensity=False,isverbose=False):
     '''
-    input: {run:[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),beaminfolist(4)),..]}
+    input: {run:[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),,ncollidingbunches(4),beaminfolist(5)),..]}
     beaminfolist:[(bxidx,b1,b2)]
     '''
     result=[]
-    fieldnames=['Run','LS','beamstatus','egev']
+    fieldnames=['Run','LS','beamstatus','egev','ncollidingbx']
     if dumpIntensity:
         fieldnames.append('(bxidx,b1,b2)')
     for rline in resultlines:
@@ -1546,7 +1547,7 @@ def toCSVLSBeam(beamdata,filename,resultlines,dumpIntensity=False,isverbose=Fals
     for run in sorted(beamdata):
         perrundata=beamdata[run]
         if perrundata is None:            
-            ll=[str(run),'n/a','n/a']
+            ll=[str(run),'n/a','n/a','n/a']
             if dumpIntensity:
                 ll.extend('n/a')
             continue
@@ -1555,21 +1556,22 @@ def toCSVLSBeam(beamdata,filename,resultlines,dumpIntensity=False,isverbose=Fals
             cmslsnum=lsdata[1]
             beamstatus=lsdata[2]
             beamenergy=lsdata[3]
+            ncollidingbx=lsdata[4]
             if not dumpIntensity:
-                result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy])
+                result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx)])
                 continue
-            allbxinfo=lsdata[4]
+            allbxinfo=lsdata[5]
             #print 'allbxinfo ',allbxinfo
             allbxresult=[]
             for thisbxinfo in allbxinfo:
-                thisbxresultStr='(n/a,n/a,n/a)'
+                thisbxresultStr='(n/a,n/a,n/a,n/a)'
                 bxidx=thisbxinfo[0]
                 b1=thisbxinfo[1]
                 b2=thisbxinfo[2]
                 thisbxresultStr=','.join(['%d'%bxidx,'%.3e'%b1,'%.3e'%b2])
                 allbxresult.append(thisbxresultStr)
             allbxresultStr=' '.join(allbxresult)
-            result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,allbxresultStr])
+            result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx),allbxresultStr])
     assert(filename)
     if filename.upper()=='STDOUT':
         r=sys.stdout

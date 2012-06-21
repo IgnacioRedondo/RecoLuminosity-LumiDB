@@ -253,7 +253,7 @@ if __name__ == '__main__':
         dumpbeamintensity=False
         if options.outputfile and options.verbose:
             dumpbeamintensity=True
-        result=lumiCalcAPI.beamForIds(session.nominalSchema(),irunlsdict,withBeamIntensity=options.withbeamintensity,minIntensity=options.minintensity)
+        result=lumiCalcAPI.beamForIds(session.nominalSchema(),irunlsdict,dataidmap,withBeamIntensity=options.withbeamintensity,minIntensity=options.minintensity)
         session.transaction().commit()
         if not options.outputfile:
             lumiReport.toScreenLSBeam(result,iresults=iresults,dumpIntensity=False)
@@ -280,6 +280,7 @@ if __name__ == '__main__':
             if r[3]:
                 egev=str(r[3])
             sequence=r[6]
+            print '==='
             print 'Run ',str(run),' Fill ',fill,' Amodetag ',amodetag,' egev ',egev
             print '\tStart '+starttime,'                  ',' Stop ',stoptime
             print '\tL1key ',l1key,' HLTkey ',hltkey

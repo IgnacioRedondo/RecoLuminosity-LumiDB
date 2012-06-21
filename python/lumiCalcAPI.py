@@ -102,6 +102,43 @@ def beamForRange(schema,inputRange,withBeamIntensity=False,minIntensity=0.1,tabl
             result[run].append((lumilsnum,cmslsnum,beamstatus,beamenergy,beamintInfolist))        
     return result
 
+def beamForIds(schema,irunlsdict,dataidmap,withBeamIntensity=False,minIntensity=0.1):
+    '''
+    input:
+           inputRange: {run:[cmsls]} (required)
+           dataidmap: {run:(lumiid,trgid,hltid)}
+    output : {runnumber:[(lumicmslnum(0),cmslsnum(1),beamenergy(2),beamstatus(3),ncollidingbx(4),[(ibx,b1,b2)])...](5)}
+    '''
+    result={}
+    for run in irunlsdict.keys():
+        result[run]=[]
+        lslist=irunlsdict[run]
+        if lslist is not None and len(lslist)==0:
+            continue
+        if not dataidmap.has_key(run):
+            continue #run non exist
+        lumidataid=dataidmap[run][0]
+        if lumidataid is None:
+            result[run]=None
+            continue
+        lumidata=dataDML.beamInfoById(schema,lumidataid,withBeamIntensity=withBeamIntensity,minIntensity=minIntensity)
+        #(runnum,[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),ncollidingbunches(4),beaminfolist(5),..])
+        if lumidata and lumidata[1]:
+            perrundata=lumidata[1]
+            for perlsdata in perrundata:
+                lumilsnum=perlsdata[0]
+                cmslsnum=perlsdata[1]
+                if lslist is not None and cmslsnum not in lslist:
+                    continue
+                beamstatus=perlsdata[2]
+                beamenergy=perlsdata[3]
+                ncollidingbunches=perlsdata[4]
+                beamintInfolist=[]
+                if withBeamIntensity:
+                    beamintInfolist=perlsdata[5]
+                result[run].append((lumilsnum,cmslsnum,beamstatus,beamenergy,ncollidingbunches,beamintInfolist))        
+    return result
+
 def hltForIds(schema,irunlsdict,dataidmap,hltpathname=None,hltpathpattern=None,withL1Pass=False,withHLTAccept=False):
     '''
     input:
