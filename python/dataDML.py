@@ -803,7 +803,7 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
 def lumiRunByIds(schema,dataidMap,lumitype='HF'):
     '''
     input dataidMap : {run:lumidataid}
-    result {runnum: (datasource(1),nominalegev(2),ncollidingbunches(3)}
+    result {runnum: (datasource(0),nominalegev(1),ncollidingbunches(2)}
     '''
     result={}
     if not dataidMap:

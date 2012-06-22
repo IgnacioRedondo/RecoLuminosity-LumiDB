@@ -556,7 +556,7 @@ def addRunToCurrentDataTag(schema,runnum,lumiid,trgid,hltid,lumitype='HF',commen
     if lumitype=='HF':
         tagrunstablename=nameDealer.tagrunsTableName()
     else:
-        tagrunstablename=nameDealer.pixeltagrunsTableName()
+        tagrunstablename=nameDealer.pixeltagRunsTableName()
     currenttagid=currentDataTag(schema,lumitype=lumitype)[0]
     try:
         db=dbUtil.dbUtil(schema)
