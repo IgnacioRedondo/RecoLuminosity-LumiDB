@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 #
+#########################################################################
+# Command to produce fill summary lumi files using lumiCalc2.py lumibyls#
+# output                                                                # 
+#                                                                       #
+# Author:      Zhen Xie                                                 #
+#########################################################################
+#
 import os,os.path,sys,math,array,datetime,time,re
-import coral
 
-from RecoLuminosity.LumiDB import argparse,lumiTime,CommonUtil,lumiCalcAPI,sessionManager,lumiParameters
+from RecoLuminosity.LumiDB import argparse,lumiTime,lumiCalcAPI,sessionManager,lumiParameters
 MINFILL=1800
 MAXFILL=9999
 allfillname='allfills.txt'
@@ -36,7 +42,15 @@ def lastcompleteFill(infile):
             lastfill=result.group(2)
             break
     return int(lastfill)
-        
+
+##############################
+## ######################## ##
+## ## ################## ## ##
+## ## ## Main Program ## ## ##
+## ## ################## ## ##
+## ######################## ##
+##############################        
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),description = "Dump Fill",formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # parse arguments
