@@ -55,7 +55,7 @@ def toinstlumi(i):
     lumip=lumiParameters.ParametersObject()
     lslength=lumip.lslengthsec()
     return float(i)/lslength
-def parseInputFile(filename):
+def parseInputFile(filename,singlerun=None):
     '''
     input:pixel lumi json file
     output:{runnumber,[(cmslsnum,instlumi)]}
@@ -64,7 +64,15 @@ def parseInputFile(filename):
     json_data=open(filename)
     strresult=json.load(json_data)
     json_data.close()
+    strruns=strresult.keys()
+    rs=[int(x) for x in strruns]
+    rs.sort()
+    print rs
     for runnum,perrundata in strresult.items():
+        if singlerun:
+            if int(runnum)!=int(singlerun):
+                print 'skip '+str(runnum)+' , is not single run ',singlerun
+                continue
         allls=map(int,perrundata.keys())        
         for cmsls in range(1,max(allls)+1):
             instlumi=0.0
@@ -99,6 +107,11 @@ if __name__ == "__main__":
                         required=False,
                         help='patch comment'
                        )
+    parser.add_argument('--singlerun',action='store',
+                        required=False,
+                        default=None,
+                        help='pick single run from input file'
+                       )
     parser.add_argument('--debug',dest='debug',action='store_true',
                         help='debug'
                         )
@@ -108,7 +121,7 @@ if __name__ == "__main__":
                                       debugON=options.debug)
     session=svc.openSession(isReadOnly=False,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
     inputfilename=os.path.abspath(options.inputfile)
-    parseresult=parseInputFile(inputfilename)
+    parseresult=parseInputFile(inputfilename,options.singlerun)
     runlist=parseresult.keys()
     irunlsdict={}
     for run in runlist:
