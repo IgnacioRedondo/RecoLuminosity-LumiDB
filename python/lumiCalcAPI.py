@@ -358,7 +358,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
        withBeamIntensity: get beam intensity info (optional)
        lumitype: luminosity source
     output:
-       result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
+       result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxidxlist,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
        
        special meanings:
        {run:None}  None means no run in lumiDB, 
@@ -433,14 +433,16 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
                         bxvalueList=[]
                         bxerrList=[]
                         for idx,bxval in enumerate(bxvaluesData):
-                            if totcorrectionFac*bxval>xingMinLum:
+                            correctedbxintlumi=totcorrectionFac*bxval*lslen
+                            correctedbxintlumierr=totcorrectionFac*bxerrsData[idx]*lslen
+                            if correctedbxintlumi>xingMinLum:
                                 bxidxList.append(bxidxData[idx])
-                                bxvalueList.append(totcorrectionFac*bxval)
-                                bxerrList.append(totcorrectionFac*bxerrsData[idx])
+                                bxvalueList.append(correctedbxintlumi)
+                                bxerrList.append(correctedbxintlumierr)
                         calibratedbxdata=(bxidxList,bxvalueList,bxerrList)
                     else:
-                        calibratedbxvalue=[totcorrectionFac*x for x in bxvaluesData]
-                        calibratedlumierr=[totcorrectionFac*x for x in bxerrsData]
+                        calibratedbxvalue=[totcorrectionFac*x*lslen for x in bxvaluesData]
+                        calibratedlumierr=[totcorrectionFac*x*lslen for x in bxerrsData]
                         calibratedbxdata=(bxidxData,calibratedbxvalue,calibratedlumierr)
             if withBeamIntensity:
                 beamdata=perlsdata[10]
