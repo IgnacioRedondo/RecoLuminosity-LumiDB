@@ -46,6 +46,11 @@ if __name__ == '__main__':
                         dest='siteconfpath',
                         action='store',
                         help='specific path to site-local-config.xml file, optional. If path undefined, fallback to cern proxy&server')
+    parser.add_argument('--firstsince',
+                        dest='firstsince',
+                        action='store',
+                        default=None,
+                        help='pick only the pieces with since>=firstsince to insert')
     parser.add_argument('--debug',
                         dest='debug',
                         action='store_true',
@@ -114,6 +119,9 @@ if __name__ == '__main__':
                 raise RuntimeError('parameter since is required for create/insert action')
             correctorStr=normvalueDict['corrector']
             sincerun=int(normvalueDict['since'])
+            if options.firstsince:
+                if sincerun<int(options.firstsince):
+                    continue
             amodetag=normvalueDict['amodetag']
             egev=int(normvalueDict['egev'])
             detailcomment=normvalueDict['comment']
