@@ -240,7 +240,7 @@ if __name__ == '__main__':
        if not options.outputfile:
            lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
        else:
-           lumiReport.toCSVOverview(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
+           lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'lumibyls':
        if not options.hltpath:
            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,lumitype='PIXEL')

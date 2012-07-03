@@ -260,14 +260,14 @@ def toCSVTotDelivered(lumidata,filename,resultlines,scalefactor,irunlsdict=None,
         r.writeRow(fieldnames)
         r.writeRows(sortedresult)
 
-def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
+def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
     input:
     lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
     resultlines [[resultrow1],[resultrow2],...,] existing result row
     '''
     result=[]
-    labels = [('Run:Fill', 'Delivered LS', 'Delivered','Selected LS','Recorded')]
+
     totOldDeliveredLS=0
     totOldSelectedLS=0
     totOldDelivered=0.0
@@ -312,7 +312,7 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         totOldRecorded+=rcd
         result.append(r)
     for run in lumidata.keys():
-        lsdata=lumidata[run]        
+        lsdata=lumidata[run]
         if not lsdata:
             result.append([str(run)+':0','n/a','n/a','n/a','n/a'])
             if irunlsdict and not noWarning:
@@ -321,95 +321,47 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         fillnum=0
         if lsdata[0] and lsdata[0][10]:
             fillnum=lsdata[0][10]
-        nls=len(lsdata)
-        if irunlsdict and not noWarning:
-            existdata=[x[1] for x in lsdata if x[1] ]
-            datarunlsdict[run]=existdata
-        deliveredData=[x[5] for x in lsdata]
+        deliveredData=[]
+        recordedData=[]
+        nls=0
+        existdata=[]
+        selectedcmsls=[]
+        for perlsdata in lsdata:
+            lumilsnum=perlsdata[0]
+            cmslsnum=perlsdata[1]
+            if not noWarning:
+                if cmslsnum:
+                    existdata.append(cmslsnum)
+            if irunlsdict and irunlsdict[run]:
+                if cmslsnum and cmslsnum in irunlsdict[run]:
+                    deliveredData.append(perlsdata[5])
+                    recordedData.append(perlsdata[6])
+                    selectedcmsls.append(cmslsnum)
+            else:
+                deliveredData.append(perlsdata[5])
+                if perlsdata[6]:
+                    recordedData.append(perlsdata[6])
+                if cmslsnum:                    
+                    selectedcmsls.append(cmslsnum)
+        datarunlsdict[run]=existdata
+        nls=len(deliveredData)
         totdelivered=sum(deliveredData)
         totalDelivered+=totdelivered
         totalDeliveredLS+=len(deliveredData)
         (totdeliveredlumi,deliveredlumiunit)=CommonUtil.guessUnit(totdelivered)
-        recordedData=[x[6] for x in lsdata if x[6] is not None]
         totrecorded=sum(recordedData)
         totalRecorded+=totrecorded
         (totrecordedlumi,recordedlumiunit)=CommonUtil.guessUnit(totrecorded)
-        #print 'x[1] ',[x[1] for x in lsdata]
-        selectedcmsls=[x[1] for x in lsdata if x[1]!=0]
-        #print 'selectedcmsls ',selectedcmsls
         totalSelectedLS+=len(selectedcmsls)
         if len(selectedcmsls)==0:
             selectedlsStr='n/a'
         else:
             selectedlsStr = CommonUtil.splitlistToRangeString(selectedcmsls)
-        result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totdeliveredlumi*scalefactor)+' ('+deliveredlumiunit+')',selectedlsStr,'%.3f'%(totrecordedlumi*scalefactor)+' ('+recordedlumiunit+')'])
-    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
-    if irunlsdict and not noWarning:
-        for run,cmslslist in irunlsdict.items():
-            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
-                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
-                continue
-            if cmslslist:
-                for ss in cmslslist:
-                    if ss not in datarunlsdict[run]:
-                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
-    print ' ==  = '
-    print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'right',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
-    print ' ==  =  Total : '
-    (totalDeliveredVal,totalDeliveredUni)=CommonUtil.guessUnit(totalDelivered+totOldDelivered)
-    (totalRecordedVal,totalRecordedUni)=CommonUtil.guessUnit(totalRecorded+totOldRecorded)
-    totrowlabels = [('Delivered LS','Delivered('+totalDeliveredUni+')','Selected LS','Recorded('+totalRecordedUni+')')]
-    totaltable.append([str(totalDeliveredLS+totOldDeliveredLS),'%.3f'%(totalDeliveredVal*scalefactor),str(totalSelectedLS+totOldSelectedLS),'%.3f'%(totalRecordedVal*scalefactor)])
-    print tablePrinter.indent (totrowlabels+totaltable, hasHeader = True, separateRows = False, prefix = '| ',
-                               postfix = ' |', justify = 'right', delim = ' | ',
-                               wrapfunc = lambda x: wrap_onspace (x, 20))
-    
-def toCSVOverview(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWarning=True):
-    '''
-    input:
-    lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
-    resultlines [[resultrow1],[resultrow2],...,] existing result row
-    '''
-    result=[]
-    fieldnames = ['Run:Fill', 'DeliveredLS', 'Delivered(/ub)','SelectedLS','Recorded(/ub)']
-    r=csvReporter.csvReporter(filename)
-    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
-    for rline in resultlines:
-        if irunlsdict and not noWarning:
-            runfillstr=r[0]
-            [runnumstr,fillnumstr]=runfillstr.split(':')
-            if r[1] is not 'n/a':
-                datarunlsdict[int(runnumstr)]=[]
-        result.append(rline)
-        
-    for run in lumidata.keys():
-        lsdata=lumidata[run]
-        if not lsdata:
-            result.append([str(run)+':0','n/a','n/a','n/a','n/a'])
-            continue
-        nls=len(lsdata)
-        if irunlsdict and not noWarning:
-            existdata=[x[1] for x in lsdata if x[1] ]
-            datarunlsdict[run]=existdata
-        fillnum=0
-        if lsdata[0][10]:
-            fillnum=lsdata[0][10]
-        deliveredData=[x[5] for x in lsdata]
-        recordedData=[x[6] for x in lsdata if x[6] is not None]
-        totdeliveredlumi=0.0
-        totrecordedlumi=0.0
-        if len(deliveredData)!=0:
-            totdeliveredlumi=sum(deliveredData)
-        if len(recordedData)!=0:
-            totrecordedlumi=sum(recordedData)
-        selectedcmsls=[x[1] for x in lsdata if x[1]!=0]
-        if len(selectedcmsls)==0:
-            selectedlsStr='n/a'
+        if not toFile:
+            result.append([str(run)+':'+str(fillnum),str(nls),'%.3f'%(totdeliveredlumi*scalefactor)+' ('+deliveredlumiunit+')',selectedlsStr,'%.3f'%(totrecordedlumi*scalefactor)+' ('+recordedlumiunit+')'])
         else:
-            selectedlsStr = CommonUtil.splitlistToRangeString(selectedcmsls)
-        result.append([str(run)+':'+str(fillnum),nls,totdeliveredlumi*scalefactor,selectedlsStr,totrecordedlumi*scalefactor])
+            result.append([str(run)+':'+str(fillnum),nls,totdelivered*scalefactor,selectedlsStr,totrecorded*scalefactor])
+            
     sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
@@ -420,17 +372,35 @@ def toCSVOverview(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWa
                 for ss in cmslslist:
                     if ss not in datarunlsdict[run]:
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
-    r=None
-    assert(filename)
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in sortedresult:
-            r.write(str(l)+'\n')
+    if not toFile:
+        labels = [('Run:Fill', 'Delivered LS', 'Delivered','Selected LS','Recorded')]    
+        print ' ==  = '
+        print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
+                                   prefix = '| ', postfix = ' |', justify = 'right',
+                                   delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
+        print ' ==  =  Total : '
+        (totalDeliveredVal,totalDeliveredUni)=CommonUtil.guessUnit(totalDelivered+totOldDelivered)
+        (totalRecordedVal,totalRecordedUni)=CommonUtil.guessUnit(totalRecorded+totOldRecorded)
+        totrowlabels = [('Delivered LS','Delivered('+totalDeliveredUni+')','Selected LS','Recorded('+totalRecordedUni+')')]
+        totaltable.append([str(totalDeliveredLS+totOldDeliveredLS),'%.3f'%(totalDeliveredVal*scalefactor),str(totalSelectedLS+totOldSelectedLS),'%.3f'%(totalRecordedVal*scalefactor)])
+        print tablePrinter.indent (totrowlabels+totaltable, hasHeader = True, separateRows = False, prefix = '| ',
+                                   postfix = ' |', justify = 'right', delim = ' | ',
+                                   wrapfunc = lambda x: wrap_onspace (x, 20))
     else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(sortedresult)
+        fieldnames = ['Run:Fill', 'DeliveredLS', 'Delivered(/ub)','SelectedLS','Recorded(/ub)']
+        filename=toFile
+        assert(filename)
+        r=None
+        if filename.upper()=='STDOUT':
+            r=sys.stdout
+            r.write(','.join(fieldnames)+'\n')
+            for l in sortedresult:
+                r.write(str(l)+'\n')
+        else:
+            r=csvReporter.csvReporter(filename)
+            r.writeRow(fieldnames)
+            r.writeRows(sortedresult)
+        
 def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
     input:
