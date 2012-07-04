@@ -317,7 +317,7 @@ if __name__ == '__main__':
             if not options.outputfile:
                 lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
             else:
-                lumiReport.toCSVLumiByLS(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
+                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
         else:
             hltname=options.hltpath
             hltpat=None

@@ -295,7 +295,7 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         lsdata=lumidata[run]
         if not lsdata:
             result.append([str(run)+':0','n/a','n/a','n/a','n/a'])
-            if irunlsdict and not noWarning:
+            if irunlsdict and irunlsdict[run] and not noWarning:
                 datarunlsdict[run]=None
             continue
         fillnum=0
@@ -380,7 +380,7 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
             r.writeRow(fieldnames)
             r.writeRows(sortedresult)
         
-def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
+def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
     input:
     lumidata {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]}
@@ -433,29 +433,34 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         result.append(rline)
         
     for run in lumidata.keys():
-        rundata=lumidata[run]
-        if not rundata:
+        lsdata=lumidata[run]
+        if not lsdata:
             result.append([str(run),'n/a','n/a','n/a','n/a','n/a','n/a'])
             if irunlsdict and irunlsdict[run] and not noWarning:
-                print '[WARNING] selected but no lumi data for run '+str(run)
+                datarunlsdict[run]=None
+                #print '[WARNING] selected but no lumi data for run '+str(run)
             continue
         fillnum=0
-        if rundata and rundata[0][10]:
-            fillnum=rundata[0][10]
-        if irunlsdict and not noWarning:
-            existdata=[x[1] for x in rundata if x[1] ]
-            datarunlsdict[run]=existdata
-        for lsdata in rundata:
-            lumilsnum=lsdata[0]
-            cmslsnum=lsdata[1]#triggered ls
-            ts=lsdata[2]
-            bs=lsdata[3]
-            begev=lsdata[4]
-            deliveredlumi=lsdata[5]            
+        if lsdata[0] and lsdata[0][10]:
+            fillnum=lsdata[0][10]
+        existdata=[]
+        #if irunlsdict and not noWarning:
+        #    existdata=[x[1] for x in rundata if x[1] ]
+        #    datarunlsdict[run]=existdata
+        for perlsdata in lsdata:
+            lumilsnum=perlsdata[0]
+            cmslsnum=perlsdata[1]#triggered ls
+            if not noWarning:
+                if cmslsnum:
+                    existdata.append(cmslsnum)
+            ts=perlsdata[2]
+            bs=perlsdata[3]
+            begev=perlsdata[4]
+            deliveredlumi=perlsdata[5]            
             if deliveredlumi>maxlslumi: maxlslumi=deliveredlumi
             recordedlumi=0.
-            if  lsdata[6]:
-                recordedlumi=lsdata[6]
+            if perlsdata[6]:
+                recordedlumi=perlsdata[6]
             if irunlsdict and irunlsdict[run]:
                 if run in irunlsdict and cmslsnum in irunlsdict[run]:
                     result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
@@ -463,19 +468,17 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
                     totalDelivered+=deliveredlumi
                     totalRecorded+=recordedlumi
                     totalDeliveredLS+=1
-                    if(cmslsnum!=0):
+                    if cmslsnum:
                         totalSelectedLS+=1
             else:
                 result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
                 totalDelivered+=deliveredlumi
                 totalRecorded+=recordedlumi
                 totalDeliveredLS+=1
-                if(cmslsnum!=0):
+                if cmslsnum :
                     totalSelectedLS+=1
-    #guess ls lumi unit
-    (lsunitstring,unitdenomitor)=CommonUtil.lumiUnitForPrint(maxlslumi*scalefactor)
-    labels = [ ('Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered('+lsunitstring+')','Recorded('+lsunitstring+')') ]
-    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
+        datarunlsdict[run]=existdata       
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))    
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
             if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
@@ -485,99 +488,47 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
                 for ss in cmslslist:
                     if ss not in datarunlsdict[run]:
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
-                        
-    perlsresult=[]
-    for entry in sortedresult:
-        delumi=entry[5]
-        if delumi!='n/a':
-            delumi='%.3f'%float(float(delumi*scalefactor)/float(unitdenomitor))        
-        reclumi=entry[6]
-        if reclumi!='n/a':
-            reclumi='%.3f'%float(float(reclumi*scalefactor)/float(unitdenomitor))
-        perlsresult.append([entry[0],entry[1],entry[2],entry[3],entry[4],delumi,reclumi])
-    totdeliveredlumi=0.0
-    deliveredlumiunit='/ub'
-    #if (totalDelivered+totOldDelivered)!=0:
-    (totdeliveredlumi,deliveredlumiunit)=CommonUtil.guessUnit((totalDelivered+totOldDelivered)*scalefactor)
-    totrecordedlumi=0.0
-    recordedlumiunit='/ub'
-    #if (totalRecorded+totOldRecorded)!=0:
-    (totrecordedlumi,recordedlumiunit)=CommonUtil.guessUnit((totalRecorded+totOldRecorded)*scalefactor)
-    lastrowlabels = [ ('Delivered LS','Selected LS', 'Delivered('+deliveredlumiunit+')', 'Recorded('+recordedlumiunit+')')]
-    totalrow.append ([str(totalDeliveredLS+totOldDeliveredLS),str(totalSelectedLS+totOldSelectedLS),'%.3f'%(totdeliveredlumi),'%.3f'%(totrecordedlumi)])
-    print ' ==  = '
-    print tablePrinter.indent (labels+perlsresult, hasHeader = True, separateRows = False, prefix = '| ',
-                               postfix = ' |', justify = 'right', delim = ' | ',
-                               wrapfunc = lambda x: wrap_onspace_strict (x, 22))
-    print ' ==  =  Total : '
-    print tablePrinter.indent (lastrowlabels+totalrow, hasHeader = True, separateRows = False, prefix = '| ',
-                               postfix = ' |', justify = 'right', delim = ' | ',
-                               wrapfunc = lambda x: wrap_onspace (x, 20))    
-
-                  
-def toCSVLumiByLS(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWarning=True):
-    result=[]
-    fieldnames=['Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered(/ub)','Recorded(/ub)']
-    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with     
-    for rline in resultlines:
-        runfillstr=rline[0]
-        [runnumstr,fillnumstr]=runfillstr.split(':')
-        if irunlsdict and not noWarning:
-            if rline[1] is not 'n/a':
-                if not datarunlsdict.has_key(int(runnumstr)):
-                    datarunlsdict[int(runnumstr)]=[]
-                [lumilsnumStr,cmslsnumStr]=rline[1].split(':')
-                datarunlsdict[int(runnumstr)].append(int(cmslsnumStr))
-        result.append(rline)
-    for run in lumidata.keys():
-        rundata=lumidata[run]
-        if rundata is None:
-            result.append([str(run)+':0','n/a','n/a','n/a','n/a','n/a','n/a'])
-            if irunlsdict and irunlsdict[run]:
-                print '[WARNING] selected but no lumi data for run '+str(run)
-            continue
-        fillnum=0
-        if rundata and rundata[0][10]:
-            fillnum=rundata[0][10]
-        if irunlsdict and not noWarning:
-            existdata=[x[1] for x in rundata if x[1] ]
-            datarunlsdict[run]=existdata
-        for lsdata in rundata:
-            lumilsnum=lsdata[0]
-            cmslsnum=lsdata[1]
-            ts=lsdata[2]
-            bs=lsdata[3]
-            begev=lsdata[4]
-            deliveredlumi=lsdata[5]
-            recordedlumi=0.
-            if lsdata[6]:
-                recordedlumi=lsdata[6]
-            if irunlsdict and irunlsdict[run]:
-                if run in irunlsdict and cmslsnum in irunlsdict[run]:
-                    result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
-            else:
-                result.append([str(run)+':'+str(fillnum),str(lumilsnum)+':'+str(cmslsnum),ts.strftime('%m/%d/%y %H:%M:%S'),bs,'%.1f'%begev,(deliveredlumi),(recordedlumi)])
-    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
-    if irunlsdict and not noWarning:
-        for run,cmslslist in irunlsdict.items():
-            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
-                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
-                continue
-            if cmslslist:
-                for ss in cmslslist:
-                    if ss not in datarunlsdict[run]:
-                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
-                        
-    assert(filename)
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in sortedresult:
-            r.write(str(l)+'\n')
+    if not toFile:                    
+        (lsunitstring,unitdenomitor)=CommonUtil.lumiUnitForPrint(maxlslumi*scalefactor)
+        labels = [ ('Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered('+lsunitstring+')','Recorded('+lsunitstring+')') ]                    
+        perlsresult=[]
+        for entry in sortedresult:
+            delumi=entry[5]
+            if delumi!='n/a':
+                delumi='%.3f'%float(float(delumi*scalefactor)/float(unitdenomitor))        
+            reclumi=entry[6]
+            if reclumi!='n/a':
+                reclumi='%.3f'%float(float(reclumi*scalefactor)/float(unitdenomitor))
+            perlsresult.append([entry[0],entry[1],entry[2],entry[3],entry[4],delumi,reclumi])
+        totdeliveredlumi=0.0
+        deliveredlumiunit='/ub'
+        (totdeliveredlumi,deliveredlumiunit)=CommonUtil.guessUnit((totalDelivered+totOldDelivered)*scalefactor)
+        totrecordedlumi=0.0
+        recordedlumiunit='/ub'
+        (totrecordedlumi,recordedlumiunit)=CommonUtil.guessUnit((totalRecorded+totOldRecorded)*scalefactor)
+        lastrowlabels = [ ('Delivered LS','Selected LS', 'Delivered('+deliveredlumiunit+')', 'Recorded('+recordedlumiunit+')')]
+        totalrow.append ([str(totalDeliveredLS+totOldDeliveredLS),str(totalSelectedLS+totOldSelectedLS),'%.3f'%(totdeliveredlumi),'%.3f'%(totrecordedlumi)])
+        print ' ==  = '
+        print tablePrinter.indent (labels+perlsresult, hasHeader = True, separateRows = False, prefix = '| ',
+                                   postfix = ' |', justify = 'right', delim = ' | ',
+                                   wrapfunc = lambda x: wrap_onspace_strict (x, 22))
+        print ' ==  =  Total : '
+        print tablePrinter.indent (lastrowlabels+totalrow, hasHeader = True, separateRows = False, prefix = '| ',
+                                   postfix = ' |', justify = 'right', delim = ' | ',
+                                   wrapfunc = lambda x: wrap_onspace (x, 20))    
     else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(sortedresult)
+        fieldnames=['Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered(/ub)','Recorded(/ub)']
+        filename=toFile
+        assert(filename)
+        if filename.upper()=='STDOUT':
+            r=sys.stdout
+            r.write(','.join(fieldnames)+'\n')
+            for l in sortedresult:
+                r.write(str(l)+'\n')
+        else:
+            r=csvReporter.csvReporter(filename)
+            r.writeRow(fieldnames)
+            r.writeRows(sortedresult)            
 
 def toScreenLSEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
