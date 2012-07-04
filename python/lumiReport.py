@@ -719,13 +719,13 @@ def toCSVLSEffective(lumidata,filename,resultlines,scalefactor,irunlsdict=None,n
         r.writeRow(fieldnames)
         r.writeRows(sortedresult)
 
-def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True):
+def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
     input:  {run:[lumilsnum(0),triggeredls(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),{hltpath:[l1name,l1prescale,hltprescale,efflumi]}(8),bxdata(9),beamdata](10),fillnum(11)}
     screen Run,SelectedLS,Recorded,HLTPath,L1Bit,Effective
     '''
     result=[]#[run,selectedlsStr,recordedofthisrun,hltpath,l1bit,efflumi]
-    labels = [('Run:Fill','SelectedLS','Recorded','HLTpath(Presc)','L1bit(Presc)','Effective')]
+    
     totdict={}#{hltpath:[nls,toteff]}
     selectedcmsls=[]
     alltotrecorded=0.0
@@ -768,13 +768,14 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
             rline[5]='%.3f'%(rr)+' ('+lumiu+')'
             totdict[mypath][1]+=reff
         result.append(rline)
+    
     for run in lumidata.keys():#loop over runs
         lsdata=lumidata[run]
         hprescdict={}
         lprescdict={}
         if not lsdata:
             result.append([str(run),'n/a','n/a','n/a','n/a','n/a'])
-            if irunlsdict and not noWarning:
+            if irunlsdict and irunlsdict[run] and not noWarning:
                 datarunlsdict[run]=None
             continue
         fillnum=0
@@ -785,8 +786,12 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
         totrecorded=0.0
         toteffective=0.0
         pathmap={}#{hltpathname:1lname}
+        existdata=[]
         for thisls in lsdata:            
             cmslsnum=thisls[1]
+            if not noWarning:
+                if cmslsnum:
+                    existdata.append(cmslsnum)
             efflumiDict=thisls[8]# this ls has no such path?
             recordedlumi=0.0
             if thisls[6]:
@@ -833,21 +838,29 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
             selectedlsStr = CommonUtil.splitlistToRangeString(selectedcmsls)
         if irunlsdict and not noWarning:
             datarunlsdict[run]=selectedcmsls
+        
         for name in sorted(totefflumiDict):
             lname=pathmap[name]
             totrecordedinrun=recordedPerpathPerrun[name][run]
             hprescs=list(set(hprescdict[name]))
             hprescStr='('+','.join(['%d'%(x) for x in hprescs])+')'
             (totrecval,totrecunit)=CommonUtil.guessUnit(totrecordedinrun*scalefactor)
-            if lname=='n/a':
-                result.append([str(run)+':'+str(fillnum),selectedlsStr,'%.3f'%(totrecval)+'('+totrecunit+')',name+hprescStr,lname,'n/a'])
-            else:
-                (efflumival,efflumiunit)=CommonUtil.guessUnit(totefflumiDict[name]*scalefactor)
+            effval='n/a'
+            effvalStr='n/a'
+            lprescStr='n/a'
+            cleanlname=''
+            if lname!='n/a':
+                effval=totefflumiDict[name]*scalefactor
                 lprescs=list(set(lprescdict[lname]))
                 lprescStr='('+','.join(['%d'%(x) for x in lprescs])+')'
                 cleanlname=lname.replace('"','')
-                result.append([str(run)+':'+str(fillnum),selectedlsStr,'%.3f'%(totrecval)+'('+totrecunit+')',name+hprescStr,cleanlname+lprescStr,'%.3f'%(efflumival)+'('+efflumiunit+')'])
-    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
+                (efflumival,efflumiunit)=CommonUtil.guessUnit(effval)
+                effvalStr='%.3f'%(efflumival)+'('+efflumiunit+')'
+            if not toFile:
+                result.append([str(run)+':'+str(fillnum),selectedlsStr,'%.3f'%(totrecval)+'('+totrecunit+')',name+hprescStr,cleanlname+lprescStr,effvalStr])
+            else:
+                result.append([str(run)+':'+str(fillnum),selectedlsStr,totrecordedinrun*scalefactor,name+hprescStr,cleanlname+lprescStr,effval])
+                
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
             if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
@@ -857,28 +870,45 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
                 for ss in cmslslist:
                     if ss not in datarunlsdict[run]:
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB or has no HLT data\n')
-    print ' ==  = '
-    print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'right',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace_strict(x,22) )
-    print ' ==  =  Total : '
-    lastrowlabels=[('HLTPath','SelectedLS','Recorded','Effective')]
-    totresult=[]
-    for hname in sorted(totdict):
-        hdata=totdict[hname]
-        totnls=hdata[0]
-        (toteffval,toteffunit)=CommonUtil.guessUnit(hdata[1]*scalefactor)
-        alltotrecorded=0.0
-        selectedThispath=selectedPerpathPerrun[hname]
-        for runnumber,nselected in selectedThispath.items():
-            if nselected==0: continue
-            alltotrecorded+=recordedPerpathPerrun[hname][runnumber]
-        (alltotrecordedVal,alltotrecordedunit)=CommonUtil.guessUnit(alltotrecorded*scalefactor)                                                   
-        totresult.append([hname,str(totnls),'%.3f'%(alltotrecordedVal)+'('+alltotrecordedunit+')','%.3f'%(toteffval)+'('+toteffunit+')'])
-    print tablePrinter.indent (lastrowlabels+totresult, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'right',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
-    
+                        
+    sortedresult=sorted(result,key=lambda x : int(str(x[0]).split(':')[0]))
+
+    if not toFile:
+        labels = [('Run:Fill','SelectedLS','Recorded','HLTpath(Presc)','L1bit(Presc)','Effective')]
+        print ' ==  = '
+        print tablePrinter.indent (labels+sortedresult, hasHeader = True, separateRows = False,
+                                   prefix = '| ', postfix = ' |', justify = 'right',
+                                   delim = ' | ', wrapfunc = lambda x: wrap_onspace_strict(x,22) )
+        print ' ==  =  Total : '
+        lastrowlabels=[('HLTPath','SelectedLS','Recorded','Effective')]
+        totresult=[]
+        for hname in sorted(totdict):
+            hdata=totdict[hname]
+            totnls=hdata[0]
+            (toteffval,toteffunit)=CommonUtil.guessUnit(hdata[1]*scalefactor)
+            alltotrecorded=0.0
+            selectedThispath=selectedPerpathPerrun[hname]
+            for runnumber,nselected in selectedThispath.items():
+                if nselected==0: continue
+                alltotrecorded+=recordedPerpathPerrun[hname][runnumber]
+            (alltotrecordedVal,alltotrecordedunit)=CommonUtil.guessUnit(alltotrecorded*scalefactor)                                                   
+            totresult.append([hname,str(totnls),'%.3f'%(alltotrecordedVal)+'('+alltotrecordedunit+')','%.3f'%(toteffval)+'('+toteffunit+')'])
+        print tablePrinter.indent (lastrowlabels+totresult, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'right',
+                                   delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
+    else:
+        fieldnames=['Run:Fill','SelectedLS','Recorded','HLTpath(Presc)','L1bit(Presc)','Effective(/ub)']
+        filename=toFile        
+        assert(filename)
+        if filename.upper()=='STDOUT':
+            r=sys.stdout
+            r.write(','.join(fieldnames)+'\n')
+            for l in result:
+                r.write(str(l)+'\n')
+        else:
+            r=csvReporter.csvReporter(filename)
+            r.writeRow(fieldnames)
+            r.writeRows(sortedresult)
+            
 def toCSVTotEffective(lumidata,filename,resultlines,scalefactor,irunlsdict=None,noWarning=True):
     '''
     input:  {run:[lumilsnum(0),triggeredls(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),{hltpath:[l1name,l1prescale,hltprescale,efflumi]}(8),bxdata(9),beamdata(10),fillnum(11)]}

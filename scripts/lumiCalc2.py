@@ -344,7 +344,7 @@ if __name__ == '__main__':
         if not options.outputfile:
             lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
-            lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
+            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'lumibylsXing':
         if not options.outputfile:
             print '[WARNING] no output file given. lumibylsXing writes per-bunch lumi only to a file specified by the -o option'

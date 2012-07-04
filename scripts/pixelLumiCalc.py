@@ -274,7 +274,7 @@ if __name__ == '__main__':
        if not options.outputfile:
            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
        else:
-           lumiReport.toCSVTotEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
+           lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     session.transaction().commit()
     del session
     del svc 

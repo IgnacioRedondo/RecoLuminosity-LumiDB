@@ -58,7 +58,13 @@ def hltpathsForRange(schema,runlist,hltpathname=None,hltpathpattern=None):
         result[run]=[]
         for hltpath in sorted(hlttrgmap):
             l1seedexpr=hlttrgmap[hltpath]
-            l1bitname=hltTrgSeedMapper.findUniqueSeed(hltpath,l1seedexpr)
+            (exptype,l1bits)=hltTrgSeedMapper.findUniqueSeed(hltpath,l1seedexpr)
+            l1bitname='n/a'
+            if l1bits:
+                if exptype:
+                    l1bitname=l1seedexpr
+                else:
+                    l1bitname=l1bits[0]
             result[run].append((hltpath,l1seedexpr,l1bitname))
     return result
 
@@ -592,9 +598,24 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
                     thisl1seed=None
                 if thisl1seed:
                     try:
-                        l1bitname=hltTrgSeedMapper.findUniqueSeed(thispathname,thisl1seed)
-                        if l1bitname:
-                            l1prescale=trgprescalemap[l1bitname]#need to match double quoted string!
+                        (exptype,l1bits)=hltTrgSeedMapper.findUniqueSeed(thispathname,thisl1seed)
+                        if l1bits:
+                            if not exptype:
+                                l1bitname=l1bits[0]
+                                l1prescale=trgprescalemap[l1bits[0]]#need to match double quoted string!                                
+                            else:
+                                pmin=99999999
+                                pmax=0                                
+                                for bit in l1bits:
+                                    l1p=trgprescalemap[bit]
+                                    if exptype=='OR':
+                                        if l1p!=0 and l1p<pmin:
+                                            l1prescale=l1p
+                                            l1bitname=bit
+                                    if exptype=='OR':
+                                        if l1p!=0 and l1p>pmax:
+                                            l1prescale=l1p
+                                            l1bitname=bit
                         else:
                             l1prescale=None
                     except KeyError:

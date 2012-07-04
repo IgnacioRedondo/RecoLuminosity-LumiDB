@@ -694,10 +694,7 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
                     if fnmatch.fnmatch(trgname,trgbitnamepattern):
                         bitnamedict.append((trgnameidx,trgname))
                 else:
-                    if trgname==bitzeroname:
-                        bitnamedict.append((trgnameidx,trgname))
-                        break
-                    #bitnamedict.append((trgnameidx,trgname))
+                    bitnamedict.append((trgnameidx,trgname))
         result=[runnum,source,bitzeroname,bitnamedict]
     except :
         del qHandle
