@@ -304,7 +304,7 @@ if __name__ == '__main__':
         if not options.outputfile:
             lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
-            lumiReport.toCSVTotDelivered(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
+            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'overview':
         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
         if not options.outputfile:
