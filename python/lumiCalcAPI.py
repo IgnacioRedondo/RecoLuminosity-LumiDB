@@ -439,16 +439,16 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
                         bxvalueList=[]
                         bxerrList=[]
                         for idx,bxval in enumerate(bxvaluesData):
-                            correctedbxintlumi=totcorrectionFac*bxval*lslen
-                            correctedbxintlumierr=totcorrectionFac*bxerrsData[idx]*lslen
+                            correctedbxintlumi=totcorrectionFac*bxval
+                            correctedbxintlumierr=totcorrectionFac*bxerrsData[idx]
                             if correctedbxintlumi>xingMinLum:
                                 bxidxList.append(bxidxData[idx])
                                 bxvalueList.append(correctedbxintlumi)
                                 bxerrList.append(correctedbxintlumierr)
                         calibratedbxdata=(bxidxList,bxvalueList,bxerrList)
                     else:
-                        calibratedbxvalue=[totcorrectionFac*x*lslen for x in bxvaluesData]
-                        calibratedlumierr=[totcorrectionFac*x*lslen for x in bxerrsData]
+                        calibratedbxvalue=[totcorrectionFac*x for x in bxvaluesData]
+                        calibratedlumierr=[totcorrectionFac*x for x in bxerrsData]
                         calibratedbxdata=(bxidxData,calibratedbxvalue,calibratedlumierr)
             if withBeamIntensity:
                 beamdata=perlsdata[10]

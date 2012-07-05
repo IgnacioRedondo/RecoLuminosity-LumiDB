@@ -839,7 +839,7 @@ def toCSVLumiByLSXing(lumidata,scalefactor,filename,irunlsdict=None,noWarning=Tr
     '''
     result=[]
     assert(filename)
-    fieldnames=['run:fill','ls','UTCTime','delivered(/ub)','recorded(/ub)','bx']
+    fieldnames=['run:fill','ls','UTCTime','delivered(/ub)','recorded(/ub)','[bx,Hz/ub]']
     datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with     
     for run in sorted(lumidata):
         rundata=lumidata[run]

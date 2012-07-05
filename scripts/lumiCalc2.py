@@ -346,13 +346,12 @@ if __name__ == '__main__':
         else:
             lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'lumibylsXing':
-        if not options.outputfile:
-            print '[WARNING] no output file given. lumibylsXing writes per-bunch lumi only to a file specified by the -o option'
-            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
-            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-        else:
-            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,withBXInfo=True,bxAlgo=options.xingAlgo,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
-            lumiReport.toCSVLumiByLSXing(result,options.scalefactor,options.outputfile,irunlsdict=irunlsdict,noWarning=options.nowarning)
+         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,withBXInfo=True,bxAlgo=options.xingAlgo,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
+         outfile=options.outputfile
+         if not outfile:
+             print '[WARNING] no output file given. lumibylsXing writes per-bunch lumi only to default file lumibylsXing.csv'
+             outfile='lumibylsXing.csv'           
+         lumiReport.toCSVLumiByLSXing(result,options.scalefactor,outfile,irunlsdict=irunlsdict,noWarning=options.nowarning)
     session.transaction().commit()
     del session
     del svc 
