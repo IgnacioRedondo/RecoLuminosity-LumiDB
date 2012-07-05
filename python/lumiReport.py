@@ -809,6 +809,7 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
             cleanlname=''
             if lname!='n/a':
                 effval=totefflumiDict[name]*scalefactor
+                print lprescdict[lname]
                 lprescs=list(set(lprescdict[lname]))
                 lprescStr='('+','.join(['%d'%(x) for x in lprescs])+')'
                 cleanlname=lname.replace('"','')
