@@ -260,7 +260,7 @@ if __name__ == '__main__':
            if not options.outputfile:
                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
            else:
-               lumiReport.toCSVLSEffective(result,options.outputfile,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
+               lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile,)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
        hltname=options.hltpath
        hltpat=None
