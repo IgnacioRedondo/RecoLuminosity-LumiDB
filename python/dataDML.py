@@ -2,9 +2,11 @@ import os,coral,fnmatch,time
 from RecoLuminosity.LumiDB import nameDealer,dbUtil,revisionDML,lumiTime,CommonUtil,lumiCorrections
 import array
 
-#
-# Data DML API
-#
+########################################################################
+# LumiDB DML                           API                             #
+#                                                                      #
+# Author:      Zhen Xie                                                #
+########################################################################
 
 #==============================
 # SELECT

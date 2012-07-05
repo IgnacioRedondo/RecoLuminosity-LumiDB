@@ -349,7 +349,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
         result[run]=lsresult
     return result
 
-def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
+def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF',minbiasXsec=73500.):
     '''
     delivered lumi (including calibration,time integral)
     input:
@@ -364,7 +364,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
        withBeamIntensity: get beam intensity info (optional)
        lumitype: luminosity source
     output:
-       result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxidxlist,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
+       result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxidxlist,bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9),pu(10)]}
        
        special meanings:
        {run:None}  None means no run in lumiDB, 
@@ -431,6 +431,9 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             deliveredlumi=instcorrectedlumi*lslen
             calibratedbxdata=None
             beamdata=None
+            pu=0.#avgPU
+            if nBXs and minbiasXsec:
+                pu=(instcorrectedlumi/nBXs)*minbiasXsec/lumip.rotationRate                
             if withBXInfo:                
                 (bxidxData,bxvaluesData,bxerrsData)=perlsdata[9]
                 if lumitype=='HF':
@@ -453,7 +456,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             if withBeamIntensity:
                 beamdata=perlsdata[10]
             calibratedlumierr=0.0
-            result[run].append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,calibratedlumierr,calibratedbxdata,beamdata,fillnum])
+            result[run].append([lumilsnum,cmslsnum,timestamp,bs,beamenergy,deliveredlumi,calibratedlumierr,calibratedbxdata,beamdata,fillnum,pu])
             del perlsdata[:]
     return result
 
@@ -472,7 +475,7 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
        withBeamIntensity: get beam intensity info (optional)
        lumitype: luminosity source
     output:
-       result {run:[[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10)]...]}
+       result {run:[[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),(bxidx,bxvalues,bxerrs)(8),(bxidx,b1intensities,b2intensities)(9),fillnum(10),ncollidingbunches(11)]...]}
        special meanings:
        {run:None}  None means no run in lumiDB, 
        {run:[]} [] means no lumi for this run in lumiDB
@@ -526,7 +529,7 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
            withBeamIntensity: get beam intensity info (optional)
            lumitype: luminosity source
     output:
-           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),{hltpath:[l1name,l1prescale,hltprescale,efflumi]}(8),bxdata,beamdata,fillnum]}
+           result {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),recordedlumi(6),calibratedlumierror(7),{hltpath:[l1name,l1prescale,hltprescale,efflumi]}(8),bxdata(9),beamdata(10),fillnum(11),ncollidingbunches(12)]}
            {run:None}  None means no run in lumiDB, 
            {run:[]} [] means no lumi for this run in lumiDB
            {run:[....deliveredlumi(5),recorded(6)==None,]} means no trigger in lumiDB

@@ -117,8 +117,13 @@ if __name__ == '__main__':
                         default=None,
                         required=False,
                         type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='max run start time, mm/dd/yy hh:mm:ss (optional)' )
-                            
+                        help='max run start time, mm/dd/yy hh:mm:ss (optional)'
+                        )
+    parser.add_argument('--minBiasXsec',dest='minbiasxsec',action='store',
+                        default=71300,
+                        type='float',
+                        required=False,
+                        )
     #############################################
     #ls filter 
     #############################################
@@ -314,10 +319,7 @@ if __name__ == '__main__':
     if options.action == 'lumibyls':
         if not options.hltpath:
             result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
-            if not options.outputfile:
-                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-            else:
-                lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+            lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)            
         else:
             hltname=options.hltpath
             hltpat=None
