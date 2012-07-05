@@ -606,10 +606,10 @@ def toScreenLSEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarni
                 cleanl1name='n/a'
                 if l1name:
                     cleanl1name=l1name.replace('"','')
-                l1presc='n/a'
+                l1presc='0'
                 if pathdata[1]:
                     l1presc=str(pathdata[1])
-                hltpresc='n/a'
+                hltpresc='0'
                 if pathdata[2]:
                     hltpresc=str(pathdata[2])
                 lumival=0.
@@ -631,23 +631,15 @@ def toScreenLSEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarni
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB or has no qualified data\n')
                         
     if not toFile:
-        print 'totRecorded ',totRecorded
-        print (totRecorded+totOldRecorded)*scalefactor
         (totrecordedlumi,recordedlumiunit)=CommonUtil.guessUnit((totRecorded+totOldRecorded)*scalefactor)
         (totefflumi,efflumiunit)=CommonUtil.guessUnit((totEffective+totOldEffective)*scalefactor)
-        print maxlslumi*scalefactor
         (lsunitstring,unitdenomitor)=CommonUtil.lumiUnitForPrint(maxlslumi*scalefactor)
         labels = [('Run:Fill','LS','HLTpath','L1bit','HLTpresc','L1presc','Recorded('+lsunitstring+')','Effective('+lsunitstring+')')]
         perlsresult=[]
         for entry in sortedresult:
             reclumi=entry[6]
             if reclumi!='n/a':
-                print reclumi
-                print scalefactor
-                print reclumi*scalefactor
-                print unitdenomitor
                 reclumi='%.3f'%float(float(reclumi*scalefactor)/float(unitdenomitor))
-                print 'mava'
             efflumi=entry[7]
             if efflumi!='n/a':
                 efflumi='%.3f'%float(float(efflumi*scalefactor)/float(unitdenomitor))
@@ -807,9 +799,9 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
             effvalStr='n/a'
             lprescStr='n/a'
             cleanlname=''
+            print lname
             if lname!='n/a':
                 effval=totefflumiDict[name]*scalefactor
-                print lprescdict[lname]
                 lprescs=list(set(lprescdict[lname]))
                 lprescStr='('+','.join(['%d'%(x) for x in lprescs])+')'
                 cleanlname=lname.replace('"','')
