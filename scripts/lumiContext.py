@@ -223,7 +223,7 @@ if __name__ == '__main__':
         if not options.outputfile:
             lumiReport.toScreenLSTrg(result,iresults=iresults,irunlsdict=irunlsdict,noWarning=options.nowarning)
         else:
-            lumiReport.toCSVLSTrg(result,options.outputfile,iresults=iresults,irunlsdict=irunlsdict,noWarning=options.nowarning)
+            lumiReport.toScreenLSTrg(result,iresults=iresults,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     #print result
         sys.exit(0)
     if options.action == 'hltbyls':
@@ -238,7 +238,7 @@ if __name__ == '__main__':
         if not options.outputfile:
             lumiReport.toScreenLSHlt(result,iresults=iresults)
         else:
-            lumiReport.toCSVLSHlt(result,options.outputfile)
+            lumiReport.toScreenLSHlt(result,iresults=iresults,toFile=options.outputfile)
     if options.action == 'hltmenu':
         session.transaction().start(True)
         result=lumiCalcAPI.hltpathsForRange(session.nominalSchema(),irunlsdict,hltpathname=sname,hltpathpattern=spattern)
@@ -247,7 +247,7 @@ if __name__ == '__main__':
         if not options.outputfile:
             lumiReport.toScreenConfHlt(result,iresults)
         else:
-            lumiReport.toCSVConfHlt(result,options.outputfile,iresults)
+            lumiReport.toScreenConfHlt(result,iresults,toFile=options.outputfile)
     if options.action == 'beambyls':
         session.transaction().start(True)
         dumpbeamintensity=False
@@ -258,7 +258,7 @@ if __name__ == '__main__':
         if not options.outputfile:
             lumiReport.toScreenLSBeam(result,iresults=iresults,dumpIntensity=False)
         else:
-            lumiReport.toCSVLSBeam(result,options.outputfile,resultlines=iresults,dumpIntensity=options.withbeamintensity,isverbose=options.verbose)
+            lumiReport.toScreenLSBeam(result,resultlines=iresults,dumpIntensity=options.withbeamintensity,toFile=options.outputfile)
     if options.action == 'runsummary':
         session.transaction().start(True)
         result=lumiCalcAPI.runsummary(session.nominalSchema(),irunlsdict)

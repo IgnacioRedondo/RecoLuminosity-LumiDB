@@ -7,6 +7,22 @@
 import os,sys,time
 from RecoLuminosity.LumiDB import tablePrinter, csvReporter,CommonUtil
 from RecoLuminosity.LumiDB.wordWrappers import wrap_always, wrap_onspace, wrap_onspace_strict
+
+def dumptocsv(fieldnames,result,filename):
+    '''
+    utility method to dump result to csv file
+    '''
+    assert(filename)
+    if filename.upper()=='STDOUT':
+        r=sys.stdout
+        r.write(','.join(fieldnames)+'\n')
+        for l in result:
+            r.write(str(l)+'\n')
+    else:
+        r=csvReporter.csvReporter(filename)
+        r.writeRow(fieldnames)
+        r.writeRows(result)
+        
 def toScreenHeader(commandname,datatagname,normtag,worktag,updatetag,lumitype):
     '''
     input:
@@ -229,16 +245,7 @@ def toScreenTotDelivered(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
     else:
         fieldnames = ['Run:Fill', 'N_LS','N_CMSLS','Delivered(/ub)','UTCTime','E(GeV)']
         filename=toFile
-        assert(filename)
-        if filename.upper()=='STDOUT':
-            r=sys.stdout
-            r.write(','.join(fieldnames)+'\n')
-            for l in sortedresult:
-                r.write(str(l)+'\n')
-        else:
-            r=csvReporter.csvReporter(filename)
-            r.writeRow(fieldnames)
-            r.writeRows(sortedresult)
+        dumptocsv(fieldnames,sortedresult,filename)
                 
 def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
@@ -369,16 +376,7 @@ def toScreenOverview(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
     else:
         fieldnames = ['Run:Fill', 'DeliveredLS', 'Delivered(/ub)','SelectedLS','Recorded(/ub)']
         filename=toFile
-        assert(filename)
-        if filename.upper()=='STDOUT':
-            r=sys.stdout
-            r.write(','.join(fieldnames)+'\n')
-            for l in sortedresult:
-                r.write(str(l)+'\n')
-        else:
-            r=csvReporter.csvReporter(filename)
-            r.writeRow(fieldnames)
-            r.writeRows(sortedresult)
+        dumptocsv(fieldnames,sortedresult,filename)
         
 def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
@@ -519,16 +517,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
     else:
         fieldnames=['Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered(/ub)','Recorded(/ub)']
         filename=toFile
-        assert(filename)
-        if filename.upper()=='STDOUT':
-            r=sys.stdout
-            r.write(','.join(fieldnames)+'\n')
-            for l in sortedresult:
-                r.write(str(l)+'\n')
-        else:
-            r=csvReporter.csvReporter(filename)
-            r.writeRow(fieldnames)
-            r.writeRows(sortedresult)            
+        dumptocsv(fieldnames,sortedresult,filename)
 
 def toScreenLSEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
@@ -657,16 +646,7 @@ def toScreenLSEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarni
     else:
         fieldnames = ['Run:Fill','LS','HLTpath','L1bit','HLTpresc','L1presc','Recorded(/ub)','Effective(/ub)']
         filename=toFile
-        assert(filename)
-        if filename.upper()=='STDOUT':
-            r=sys.stdout
-            r.write(','.join(fieldnames)+'\n')
-            for l in result:
-                r.write(str(l)+'\n')
-        else:
-            r=csvReporter.csvReporter(filename)
-            r.writeRow(fieldnames)
-            r.writeRows(sortedresult)
+        dumptocsv(fieldnames,sortedresult,filename)
         
 def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=True,toFile=None):
     '''
@@ -848,17 +828,8 @@ def toScreenTotEffective(lumidata,resultlines,scalefactor,irunlsdict=None,noWarn
                                    delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,20) )
     else:
         fieldnames=['Run:Fill','SelectedLS','Recorded','HLTpath(Presc)','L1bit(Presc)','Effective(/ub)']
-        filename=toFile        
-        assert(filename)
-        if filename.upper()=='STDOUT':
-            r=sys.stdout
-            r.write(','.join(fieldnames)+'\n')
-            for l in result:
-                r.write(str(l)+'\n')
-        else:
-            r=csvReporter.csvReporter(filename)
-            r.writeRow(fieldnames)
-            r.writeRows(sortedresult)
+        filename=toFile
+        dumptocsv(fieldnames,sortedresult,filename)
             
 def toCSVLumiByLSXing(lumidata,scalefactor,filename,irunlsdict=None,noWarning=True):
     '''
@@ -927,7 +898,7 @@ def toCSVLumiByLSXing(lumidata,scalefactor,filename,irunlsdict=None,noWarning=Tr
         r.writeRow(fieldnames)
         r.writeRows(result)
     
-def toScreenLSTrg(trgdata,iresults=[],irunlsdict=None,noWarning=True):
+def toScreenLSTrg(trgdata,iresults=[],irunlsdict=None,noWarning=True,toFile=None):
     '''
     input:{run:[[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(name,count,presc),]],..]
     '''
@@ -968,11 +939,6 @@ def toScreenLSTrg(trgdata,iresults=[],irunlsdict=None,noWarning=True):
                     result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),bitdataStr])
             else:
                 result.append([str(run),str(cmslsnum),'%.4f'%(deadfrac),bitdataStr])
-    print ' ==  = '
-    labels = [('Run', 'LS', 'dfrac','(bitname,count,presc)')]
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'left',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
     if irunlsdict and not noWarning:
         for run,cmslslist in irunlsdict.items():
             if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
@@ -982,110 +948,17 @@ def toScreenLSTrg(trgdata,iresults=[],irunlsdict=None,noWarning=True):
                 for ss in cmslslist:
                     if ss not in datarunlsdict[run]:
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
-                                            
-def toCSVLSTrg(trgdata,filename,iresults=[],irunlsdict=None,noWarning=True):
-    '''
-    input:{run:[[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(name,count,presc),]],..]
-    '''
-    result=[]
-    fieldnames=['Run','LS','dfrac','(bitname,count,presc)']
-    datarunlsdict={}#{run:[ls,...]}from data. construct it only if there is irunlsdict to compare with
-    for rline in iresults:
-        runnumStr=rline[0]
-        cmslsnumStr=rline[1]
-        if irunlsdict and not noWarning:
-            if runnumStr is not 'n/a' and not datarunlsdict.has_key(int(runnumStr)):
-                datarunlsdict[int(runnumstr)]=[]
-            if cmslsnumStr!='n/a':
-                datarunlsdict[int(runnumStr)].append(int(cmslsnumStr))
-        result.append(rline)
-    for run in trgdata.keys():
-        rundata=trgdata[run]
-        if not rundata:
-            ll=[run,'n/a','n/a','n/a',]
-            result.append(ll)
-            if irunlsdict and not noWarning:
-                print '[WARNING] selected but no trg data for run '+str(run)
-            continue
-        if irunlsdict and not noWarning:
-            existdata=[x[0] for x in rundata if x[0] ]
-            datarunlsdict[run]=existdata
-        deadfrac=0.0
-        bitdataStr='n/a'
-        for lsdata in rundata:
-            cmslsnum=lsdata[0]
-            deadfrac=lsdata[1]
-            dcount=lsdata[2]
-            bitdata=lsdata[5]
-            if bitdata:
-                flatbitdata=["("+x[0]+',%d'%x[1]+',%d'%x[2]+")" for x in bitdata if x[0]!='False']
-                bitdataStr=' '.join(flatbitdata)
-            if irunlsdict and irunlsdict[run]:
-                if run in irunlsdict and cmslsnum in irunlsdict[run]:
-                    result.append([run,cmslsnum,deadfrac,bitdataStr])                    
-            else:
-                result.append([run,cmslsnum,deadfrac,bitdataStr])                    
-    assert(filename)
-    
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in result:
-            r.write(str(l)+'\n')
+                        
+    if not toFile:
+        print ' ==  = '
+        labels = [('Run', 'LS', 'dfrac','(bitname,count,presc)')]
+        print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,prefix = '| ', postfix = ' |', justify = 'left',delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
     else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(result)
-    if irunlsdict and not noWarning:
-        for run,cmslslist in irunlsdict.items():
-            if run not in datarunlsdict.keys() or datarunlsdict[run] is None:
-                sys.stdout.write('[WARNING] selected run '+str(run)+' not in lumiDB or has no qualified data\n')
-                continue
-            if cmslslist:
-                for ss in cmslslist:
-                    if ss not in datarunlsdict[run]:
-                        sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
+        filename=toFile
+        fieldnames=['Run','LS','dfrac','(bitname,count,presc)']
+        dumptocsv(fieldnames,sortedresult,filename)
 
-def toCSVConfTrg(trgconfdata,filename,iresults=[],isverbose=False):
-    '''
-    input {run:[datasource,normbitname,[allbits]]}
-    '''
-    result=[]
-    fieldnames=['Run','source','bitnames']
-    if isverbose:
-        fieldnames.append('normbit')
-    for rline in iresults:
-        result.append(rline)
-    for run in sorted(trgconfdata):
-        rundata=trgconfdata[run]
-        if rundata is None:
-            ll=[run,'n/a','n/a']
-            if isverbose:
-                ll.append('n/a')
-            result.append(ll)            
-            continue
-        datasource=rundata[0]
-        if datasource:
-            datasource=datasource.split('/')[-1]
-        normbit=rundata[1]
-        bitdata=rundata[2]        
-        bitnames=','.join(bitdata)
-        if isverbose:
-            result.append([run,datasource,bitnames,normbit])
-        else:
-            result.append([run,datasource,bitnames])
-    assert(filename)
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in result:
-            r.write(str(l)+'\n')
-    else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(result)
-
-def toScreenLSHlt(hltdata,iresults=[]):
+def toScreenLSHlt(hltdata,iresults=[],toFile=None):
     '''
     input:{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     '''
@@ -1126,71 +999,22 @@ def toScreenLSHlt(hltdata,iresults=[]):
                 thispathresultStr='('+','.join(thispathresult)+')'
                 allpathresult.append(thispathresultStr)
             result.append([str(run),str(cmslsnum),', '.join(allpathresult)])
-    print ' ==  = '
-
-    labels = [('Run', 'LS', '(hltpath,presc,l1pass,hltaccept)')]
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'left',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
-    
-def toCSVLSHlt(hltdata,filename,iresults=[]):
-    '''
-    input:{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
-    '''
-    result=[]
-    fieldnames=['Run','LS','(hltpath,presc,l1pass,hltaccept)']
-    for rline in iresults:
-        result.append(rline)
-    for run in sorted(hltdata):
-        lsdata=hltdata[run]
-        if lsdata is None:
-            result.append([run,'n/a','n/a','n/a','n/a','n/a'])
-            continue
-        perrundata=hltdata[run]
-        for lsdata in perrundata:
-            cmslsnum=lsdata[0]
-            allpathinfo=lsdata[1]
-            allpathresult=[]
-            for thispathinfo in allpathinfo:
-                thispathname=thispathinfo[0]
-                thispathpresc=thispathinfo[1]
-                thisl1pass=None
-                thishltaccept=None
-                thispathresult=[]
-                thispathresult.append(thispathname)
-                if thispathpresc is None:
-                    thispathpresc='n/a'
-                else:
-                    thispathresult.append('%d'%thispathpresc)
-                thisl1pass=thispathinfo[2]
-                if thispathinfo[2] is None:
-                    thispathresult.append('n/a')
-                else:
-                    thispathresult.append('%d'%thisl1pass)
-                thishltaccept=thispathinfo[3]
-                if thispathinfo[3] is None:
-                    thispathresult.append('n/a')
-                else:
-                    thispathresult.append('%d'%thishltaccept)
-                thispathresultStr='('+','.join(thispathresult)+')'
-                allpathresult.append(thispathresultStr)
-            result.append([str(run),str(cmslsnum),', '.join(allpathresult)])   
-    assert(filename)
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in result:
-            r.write(str(l)+'\n')
+            
+    if not toFile:
+        print ' ==  = '
+        labels = [('Run', 'LS', '(hltpath,presc,l1pass,hltaccept)')]
+        print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
+                                   prefix = '| ', postfix = ' |', justify = 'left',
+                                   delim = ' | ', wrapfunc = lambda x: wrap_onspace (x,70) )
     else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(result)        
+        fieldnames=['Run','LS','(hltpath,presc,l1pass,hltaccept)']
+        filename=toFile
+        dumptocsv(fieldnames,sortedresult,filename)
     
-def toScreenConfHlt(hltconfdata,iresults=[]):
+def toScreenConfHlt(hltconfdata,iresults=[],toFile=None):
     '''
     input : {runnumber,[(hltpath,l1seedexpr,l1bitname),...]}
     '''
-    labels=[('Run','hltpath','l1seedexpr','l1bit')]
     result=[]
     for r in iresults:
         pp=r[1]
@@ -1216,53 +1040,22 @@ def toScreenConfHlt(hltconfdata,iresults=[]):
             else:
                 thisbit=' '.join([thisbit[i:i+25] for i in range(0,len(thisbit),25)]).replace('"','')
             result.append([str(run),thispath,thisseed,thisbit])
-    print ' ==  = '
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'left',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace(x,25) )
-
-
-def toCSVConfHlt(hltconfdata,filename,iresults=[]):
-    '''
-    input:{runnumber,[(hltpath,l1seedexpr,l1bitname),...]}
-    '''
-    result=[]
-    for rline in iresults:
-        result.append(rline)
-    for run in sorted(hltconfdata):
-        pathdata=hltconfdata[run]
-        if pathdata is None:
-            result.append([str(run),'n/a','n/a','n/a'])
-            continue
-        for thispathinfo in pathdata:
-            thispath=thispathinfo[0]
-            thisseed=thispathinfo[1]
-            thisbit=thispathinfo[2]
-            if not thisseed:
-                thisseed='n/a'
-            if not thisbit:
-                thisbit='n/a'
-            result.append([str(run),thispath,thisseed.replace('"',''),thisbit.replace('"','')])
-    fieldnames=['Run','hltpath','l1seedexpr','l1bit']
-    assert(filename)
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in result:
-            r.write(str(l)+'\n')
+    if not toFile:
+        labels=[('Run','hltpath','l1seedexpr','l1bit')]
+        print ' ==  = '
+        print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
+                                   prefix = '| ', postfix = ' |', justify = 'left',
+                                   delim = ' | ', wrapfunc = lambda x: wrap_onspace(x,25) )
     else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(result)
-        
-def toScreenLSBeam(beamdata,iresults=[],dumpIntensity=False,isverbose=False):
+        filename=toFile
+        fieldnames=['Run','hltpath','l1seedexpr','l1bit']
+        dumptocsv(fieldnames,sortedresult,filename)
+
+def toScreenLSBeam(beamdata,iresults=[],dumpIntensity=False,toFile=None):
     '''
     input: {run:[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),ncollidingbunches(4),beaminfolist(4)),..]}
     beaminfolist:[(bxidx,b1,b2)]
     '''
-    labels=[('Run','LS','beamstatus','egev','ncollidingbx')]
-    if dumpIntensity:
-        labels=[('Run','LS','beamstatus','egev','ncollidingbx','(bxidx,b1,b2)')]
     result=[]
     for rline in iresults:
         result.append(rline)
@@ -1293,60 +1086,21 @@ def toScreenLSBeam(beamdata,iresults=[],dumpIntensity=False,isverbose=False):
                 allbxresult.append(thisbxresultStr)
             allbxresultStr=' '.join(allbxresult)
             result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx),allbxresultStr])
-    print ' ==  = '
-    print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
-                               prefix = '| ', postfix = ' |', justify = 'left',
-                               delim = ' | ', wrapfunc = lambda x: wrap_onspace(x,25) )
 
-def toCSVLSBeam(beamdata,filename,resultlines,dumpIntensity=False,isverbose=False):
-    '''
-    input: {run:[(lumilsnum(0),cmslsnum(1),beamstatus(2),beamenergy(3),,ncollidingbunches(4),beaminfolist(5)),..]}
-    beaminfolist:[(bxidx,b1,b2)]
-    '''
-    result=[]
-    fieldnames=['Run','LS','beamstatus','egev','ncollidingbx']
-    if dumpIntensity:
-        fieldnames.append('(bxidx,b1,b2)')
-    for rline in resultlines:
-        result.append(rline)        
-    for run in sorted(beamdata):
-        perrundata=beamdata[run]
-        if perrundata is None:            
-            ll=[str(run),'n/a','n/a','n/a']
-            if dumpIntensity:
-                ll.extend('n/a')
-            continue
-        for lsdata in perrundata:
-            lumilsnum=lsdata[0]
-            cmslsnum=lsdata[1]
-            beamstatus=lsdata[2]
-            beamenergy=lsdata[3]
-            ncollidingbx=lsdata[4]
-            if not dumpIntensity:
-                result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx)])
-                continue
-            allbxinfo=lsdata[5]
-            #print 'allbxinfo ',allbxinfo
-            allbxresult=[]
-            for thisbxinfo in allbxinfo:
-                thisbxresultStr='(n/a,n/a,n/a,n/a)'
-                bxidx=thisbxinfo[0]
-                b1=thisbxinfo[1]
-                b2=thisbxinfo[2]
-                thisbxresultStr=','.join(['%d'%bxidx,'%.3e'%b1,'%.3e'%b2])
-                allbxresult.append(thisbxresultStr)
-            allbxresultStr=' '.join(allbxresult)
-            result.append([str(run),str(lumilsnum)+':'+str(cmslsnum),beamstatus,'%.2f'%beamenergy,str(ncollidingbx),allbxresultStr])
-    assert(filename)
-    if filename.upper()=='STDOUT':
-        r=sys.stdout
-        r.write(','.join(fieldnames)+'\n')
-        for l in result:
-            r.write(str(l)+'\n')
+    if not toFile:
+        labels=[('Run','LS','beamstatus','egev','ncollidingbx')]
+        if dumpIntensity:
+            labels=[('Run','LS','beamstatus','egev','ncollidingbx','(bxidx,b1,b2)')]
+        print ' ==  = '
+        print tablePrinter.indent (labels+result, hasHeader = True, separateRows = False,
+                                   prefix = '| ', postfix = ' |', justify = 'left',
+                                   delim = ' | ', wrapfunc = lambda x: wrap_onspace(x,25) )
     else:
-        r=csvReporter.csvReporter(filename)
-        r.writeRow(fieldnames)
-        r.writeRows(result)
+        fieldnames=['Run','LS','beamstatus','egev','ncollidingbx']
+        if dumpIntensity:
+            fieldnames.append('(bxidx,b1,b2)')
+        filename=toFile
+        dumptocsv(fieldnames,sortedresult,filename)
 
 if __name__ == "__main__":
     toScreenHeader('lumiCalc2.py','V04-00-00','v0','pp8TeV')
