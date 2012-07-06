@@ -22,10 +22,10 @@ def parseTime(iTime):
         return (None,None,iTime)
     p=re.compile('^\d{6}$')
     if re.match(p,iTime):
-        return (None,int(iTime),None)
+        return (int(iTime),None,None)
     p=re.compile('^\d{4}$')
     if re.match(p,iTime):
-        return (int(iTime),None,None)
+        return (None,int(iTime),None)
     
 def lumiUnitForPrint(t):
     '''

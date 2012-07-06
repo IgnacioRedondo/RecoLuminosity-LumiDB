@@ -235,7 +235,7 @@ def fillrunMap(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=Non
     del qHandle
     return result
     
-def runList(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,lumitype=None):
+def runList(schema,fillnum=None,runmin=None,runmax=None,fillmin=None,fillmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,lumitype=None):
     '''
     select runnum,starttime from cmsrunsummary r,lumidata l,trgdata t,hltdata h where r.runnum=l.runnum and l.runnum=t.runnum and t.runnum=h.runnum and r.fillnum=:fillnum and r.runnum>:runmin and r.runnum<:runmax and r.amodetag=:amodetag and regexp_like(r.l1key,:l1keypattern) and regexp_like(hltkey,:hltkeypattern) and l.nominalEnergy>=:nominalEnergy*(1-energyFlut) and l.nominalEnergy<=:nominalEnergy*(1+energyFlut)
     '''
@@ -279,6 +279,14 @@ def runList(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=None,l
             qConditionStr+=' and '+r+'.RUNNUM<=:runmax'
             qCondition.extend('runmax','unsigned int')
             qCondition['runmax'].setData(runmax)
+        if fillmin:
+            qConditionStr+=' and '+r+'.FILLNUM>=:fillmin'
+            qCondition.extend('fillmin','unsigned int')
+            qCondition['fillmin'].setData(fillmin)
+        if fillmax:
+            qConditionStr+=' and '+r+'.FILLNUM<=:fillmax'
+            qCondition.extend('fillmax','unsigned int')
+            qCondition['fillmax'].setData(fillmax)
         if amodetag:
             qConditionStr+=' and '+r+'.AMODETAG=:amodetag'
             qCondition.extend('amodetag','string')
@@ -926,7 +934,10 @@ def allfillschemes(schema):
     return afterglows
     
 def lumiLSById(schema,dataid,beamstatus=None,withBXInfo=False,bxAlgo='OCC1',withBeamIntensity=False,tableName=None):
-    '''    
+    '''
+    input:
+       beamstatus: filter on beam status flag
+    output:
     result (runnum,{lumilsnum,[cmslsnum(0),instlumi(1),instlumierr(2),instlumiqlty(3),beamstatus(4),beamenergy(5),numorbit(6),startorbit(7),(bxvalueArray,bxerrArray)(8),(bxindexArray,beam1intensityArray,beam2intensityArray)(9)]})
     '''
     runnum=0

@@ -221,7 +221,7 @@ if __name__ == '__main__':
             lute=lumiTime.lumiTime()
             reqtimemaxT=lute.StrToDatetime(reqtimemax,customfm='%m/%d/%y %H:%M:%S')
             timeFilter[1]=reqtimemaxT
-            
+
     ##############################################################
     # check working environment
     ##############################################################
@@ -259,7 +259,7 @@ if __name__ == '__main__':
                                       siteconfpath=options.siteconfpath,
                                       debugON=options.debug)
     session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
-        
+
     ##############################################################
     # check run/ls list
     ##############################################################
