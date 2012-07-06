@@ -241,7 +241,7 @@ def trgForIds(schema,irunlsdict,dataidmap,trgbitname=None,trgbitnamepattern=None
                 result[run].append(lsdata)
     return result
 
-def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
+def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,timeFilter=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
     '''
     FROM ROOT FILE NO CORRECTION AT ALL 
     input:
@@ -249,6 +249,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
            dataidmap: {run:(lumiid,trgid,hltid)}
            runsummaryMap: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
            beamstatus: LS filter on beamstatus (optional)
+           timeFilter: (minLSBegTime,maxLSBegTime)
            withBXInfo: get per bunch info (optional)
            bxAlgo: algoname for bx values (optional) ['OCC1','OCC2','ET']
            xingMinLum: None means apply no cut
@@ -295,6 +296,11 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
             numorbit=perlsdata[6]
             startorbit=perlsdata[7]
             orbittime=c.OrbitToTime(runstarttimeStr,startorbit,0)
+            if timeFilter:
+                if timeFilter[0]:
+                    if orbittime<timeFilter[0]: continue
+                if timeFilter[1]:
+                    if orbittime>timeFilter[1]: continue
             if lumitype=='HF':
                 instlumi=perlsdata[1]*1000.0 #HF db avg values are in Hz/mb,change it to Hz/ub
                 instlumierr=perlsdata[2]*1000.0
@@ -349,7 +355,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
         result[run]=lsresult
     return result
 
-def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF',minbiasXsec=73500.):
+def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,timeFilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF',minbiasXsec=None):
     '''
     delivered lumi (including calibration,time integral)
     input:
@@ -375,7 +381,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
     result = {}
     lumip=lumiParameters.ParametersObject()
     lumirundata=dataDML.lumiRunByIds(schema,dataidmap,lumitype=lumitype)
-    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
+    instresult=instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,timeFilter=timeFilter,withBXInfo=withBXInfo,bxAlgo=bxAlgo,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
     
     intglumimap={}
     if lumitype=='HF':
@@ -460,7 +466,7 @@ def deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilt
             del perlsdata[:]
     return result
 
-def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
+def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,timeFilter=None,normmap=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF',minbiasXsec=None):
     '''
     delivered/recorded lumi  (including calibration,time integral)
     input:
@@ -483,7 +489,7 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
        {run:cmslsnum(1)==0} means either not cmslsnum or is cms but not selected, therefore set recordedlumi=0,efflumi=0
        lumi unit: 1/ub
     '''
-    deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
+    deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,timeFilter=timeFilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,minbiasXsec=minbiasXsec)
     trgresult=trgForIds(schema,irunlsdict,dataidmap)
     for run in deliveredresult.keys():#loop over delivered,already selected
         perrundata=deliveredresult[run]
@@ -512,7 +518,7 @@ def lumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=None,n
             perlsdata[6]=recordedlumi
     return deliveredresult
 
-def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatusfilter=None,normmap=None,hltpathname=None,hltpathpattern=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF'):
+def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatusfilter=None,timeFilter=None,normmap=None,hltpathname=None,hltpathpattern=None,withBXInfo=False,bxAlgo=None,xingMinLum=None,withBeamIntensity=False,lumitype='HF',minbiasXsec=None):
     '''
     delivered/recorded/eff lumi in selected hlt path  (including calibration,time integral)
     input:
@@ -537,7 +543,7 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
            
            lumi unit: 1/ub
     '''
-    deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype)
+    deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,timeFilter=timeFilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,minbiasXsec=minbiasXsec)
     trgresult=trgForIds(schema,irunlsdict,dataidmap,withPrescale=True) #{run:[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(bitname,prescale,counts)]]}
     hltresult=hltForIds(schema,irunlsdict,dataidmap,hltpathname=hltpathname,hltpathpattern=hltpathpattern,withL1Pass=False,withHLTAccept=False) #{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     for run in deliveredresult.keys(): #loop over delivered

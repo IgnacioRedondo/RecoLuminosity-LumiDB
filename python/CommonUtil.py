@@ -11,6 +11,22 @@ def flatten(obj):
             result.append (piece)
     return result
 
+def parseTime(iTime):
+    '''
+    input string of the ("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$" format
+    output (runnum,fillnum,timeStr)
+    '''
+    if not iTime: return (None,None,None)
+    p=re.compile('^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$')
+    if re.match(p,iTime):
+        return (None,None,iTime)
+    p=re.compile('^\d{6}$')
+    if re.match(p,iTime):
+        return (None,int(iTime),None)
+    p=re.compile('^\d{4}$')
+    if re.match(p,iTime):
+        return (int(iTime),None,None)
+    
 def lumiUnitForPrint(t):
     '''
     input : largest lumivalue

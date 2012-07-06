@@ -110,19 +110,20 @@ if __name__ == '__main__':
     parser.add_argument('--begin',dest='begin',action='store',
                         default=None,
                         required=False,
-                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='min run start time, mm/dd/yy hh:mm:ss (optional)' )
-                        
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$","wrong format"),
+                        help='min run start time (mm/dd/yy hh:mm:ss),min fill or min run'
+                        )                        
     parser.add_argument('--end',dest='end',action='store',
                         default=None,
                         required=False,
-                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='max run start time, mm/dd/yy hh:mm:ss (optional)'
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$","wrong format"),
+                        help='max run start time (mm/dd/yy hh:mm:ss),max fill or max run'
                         )
     parser.add_argument('--minBiasXsec',dest='minbiasxsec',action='store',
-                        default=71300,
+                        default=71300.0,
                         type=float,
                         required=False,
+                        help='minbias cross-section in ub'
                         )
     #############################################
     #ls filter 
@@ -187,11 +188,43 @@ if __name__ == '__main__':
                         action='store_true',
                         help='debug'
                         )
-
     options=parser.parse_args()
-    #
+    if not options.runnumber and not options.inputfile and not options.fillnum and not options.begin:
+        raise RuntimeError('at least one run selection argument in [-r,-f,-i,--begin] is required')
+    reqrunmin=None
+    reqfillmin=None
+    reqtimemin=None
+    reqrunmax=None
+    reqfillmax=None
+    reqtimemax=None
+    timeFilter=[None,None]
+    pbeammode = None
+    if options.beammode=='stable':
+        pbeammode = 'STABLE BEAMS'
+    iresults=[]
+    reqTrg=False
+    reqHlt=False
+    if options.action=='overview' or options.action=='lumibyls' or options.action=='lumibylsXing':
+        reqTrg=True
+    if options.action=='recorded':
+        reqTrg=True
+        reqHlt=True
+    if options.begin:
+        (reqrunmin,reqfillmin,reqtimemin)=CommonUtil.parseTime(options.begin)
+        if reqtimemin:
+            lute=lumiTime.lumiTime()
+            reqtimeminT=lute.StrToDatetime(reqtimemin,customfm='%m/%d/%y %H:%M:%S')
+            timeFilter[0]=reqtimeminT
+    if options.end:
+        (reqrunmax,reqfillmax,reqtimemax)=CommonUtil.parseTime(options.end)
+        if reqtimemax:
+            lute=lumiTime.lumiTime()
+            reqtimemaxT=lute.StrToDatetime(reqtimemax,customfm='%m/%d/%y %H:%M:%S')
+            timeFilter[1]=reqtimemaxT
+            
+    ##############################################################
     # check working environment
-    #
+    ##############################################################
     workingversion='UNKNOWN'
     updateversion='NONE'
     thiscmmd=sys.argv[0]
@@ -216,8 +249,7 @@ if __name__ == '__main__':
     #############################################################
     #pre-check option compatibility
     #############################################################
-    if not options.runnumber and not options.inputfile and not options.fillnum and not options.begin :
-        raise RuntimeError('at least one run selection argument is required')
+
     if options.action=='recorded':
         if not options.hltpath:
             raise RuntimeError('argument --hltpath pathname is required for recorded action')
@@ -228,9 +260,9 @@ if __name__ == '__main__':
                                       debugON=options.debug)
     session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
         
-    #
-    # check datatag
-    #
+    ##############################################################
+    # check run/ls list
+    ##############################################################
     irunlsdict={}
     rruns=[]
     session.transaction().start(True)
@@ -238,22 +270,20 @@ if __name__ == '__main__':
         irunlsdict[options.runnumber]=None
         rruns=irunlsdict.keys()
     else:
+        runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=reqrunmin,runmax=reqrunmax,fillmin=reqfillmin,fillmax=reqfillmax,startT=reqtimemin,stopT=reqtimemax,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
         if options.inputfile:
             (irunlsdict,iresults)=parseInputFiles(options.inputfile)
-            #apply further filter only if specified
-            if options.fillnum or options.begin or options.end or options.amodetag or options.beamenergy:
-                runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
-                rruns=[val for val in runlist if val in irunlsdict.keys()]
-                for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
-                    if selectedrun not in rruns:
-                        del irunlsdict[selectedrun]
-            else:
-                rruns=irunlsdict.keys()
+            rruns=[val for val in runlist if val in irunlsdict.keys()]
+            for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
+                if selectedrun not in rruns:
+                    del irunlsdict[selectedrun]
         else:
-            runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=options.beamenergy,energyFlut=options.beamfluctuation,requiretrg=False,requirehlt=False)
             for run in runlist:
                 irunlsdict[run]=None
             rruns=irunlsdict.keys()
+    ##############################################################
+    # check datatag
+    # #############################################################       
     datatagname=options.datatag
     if not datatagname:
         (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
@@ -262,9 +292,9 @@ if __name__ == '__main__':
     else:
         dataidmap=revisionDML.dataIdsByTagName(session.nominalSchema(),datatagname,runlist=rruns,withcomment=False)
         #{run:(lumidataid,trgdataid,hltdataid,())}
-    #
+    ###############################################################
     # check normtag and get norm values if required
-    #
+    ###############################################################
     normname='NONE'
     normid=0
     normvalueDict={}
@@ -286,18 +316,6 @@ if __name__ == '__main__':
     if not dataidmap:
         print '[INFO] No qualified data found, do nothing'
         sys.exit(0)
-
-    pbeammode = None
-    if options.beammode=='stable':
-        pbeammode    = 'STABLE BEAMS'
-    iresults=[]
-    reqTrg=False
-    reqHlt=False
-    if options.action=='overview' or options.action=='lumibyls' or options.action=='lumibylsXing':
-        reqTrg=True
-    if options.action=='recorded':
-        reqTrg=True
-        reqHlt=True
                 
     ##################
     # ls level       #
@@ -305,20 +323,14 @@ if __name__ == '__main__':
     session.transaction().start(True)
     GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict)
     if options.action == 'delivered':
-        result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
-        if not options.outputfile:
-            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-        else:
-            lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+        result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,lumitype='HF')
+        lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'overview':
-        result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
-        if not options.outputfile:
-            lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-        else:
-            lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+        result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,lumitype='HF')
+        lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'lumibyls':
         if not options.hltpath:
-            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,lumitype='HF')
+            result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,lumitype='HF',minbiasXsec=options.minbiasxsec)
             lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)            
         else:
             hltname=options.hltpath
@@ -328,11 +340,8 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-            result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
-            if not options.outputfile:
-                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-            else:
-                lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+            result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
+            lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
         hltname=options.hltpath
         hltpat=None
@@ -342,13 +351,10 @@ if __name__ == '__main__':
             elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
                 hltpat=hltname
                 hltname=None
-        result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
-        if not options.outputfile:
-            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-        else:
-            lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+        result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
+        lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'lumibylsXing':
-         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,normmap=normvalueDict,withBXInfo=True,bxAlgo=options.xingAlgo,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
+         result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,withBXInfo=True,bxAlgo=options.xingAlgo,xingMinLum=options.xingMinLum,withBeamIntensity=False,lumitype='HF')
          outfile=options.outputfile
          if not outfile:
              print '[WARNING] no output file given. lumibylsXing writes per-bunch lumi only to default file lumibylsXing.csv'
