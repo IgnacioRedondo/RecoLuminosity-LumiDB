@@ -173,11 +173,11 @@ if __name__ == '__main__':
                         action='store_true',
                         help='without check for update'
                         )                    
-    parser.add_argument('--verbose',
-                        dest='verbose',
-                        action='store_true',
-                        help='verbose mode for printing'
-                        )
+    #parser.add_argument('--verbose',
+    #                    dest='verbose',
+    #                    action='store_true',
+    #                    help='verbose mode for printing'
+    #                    )
     parser.add_argument('--nowarning',
                         dest='nowarning',
                         action='store_true',
@@ -189,6 +189,7 @@ if __name__ == '__main__':
                         help='debug'
                         )
     options=parser.parse_args()
+    
     if not options.runnumber and not options.inputfile and not options.fillnum and not options.begin:
         raise RuntimeError('at least one run selection argument in [-r,-f,-i,--begin] is required')
     reqrunmin=None
