@@ -488,7 +488,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
                         sys.stdout.write('[WARNING] selected run/ls '+str(run)+' '+str(ss)+' not in lumiDB\n')
     if not toFile:                    
         (lsunitstring,unitdenomitor)=CommonUtil.lumiUnitForPrint(maxlslumi*scalefactor)
-        labels = [ ('Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Delivered('+lsunitstring+')','Recorded('+lsunitstring+')','avgPU') ]                    
+        labels = [ ('Run:Fill','LS','UTCTime','Beam Status','E(GeV)','Del('+lsunitstring+')','Rec('+lsunitstring+')','avgPU') ]                    
         perlsresult=[]
         for entry in sortedresult:
             delumi=entry[5]
