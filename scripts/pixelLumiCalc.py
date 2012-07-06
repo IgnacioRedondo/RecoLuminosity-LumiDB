@@ -88,14 +88,22 @@ if __name__ == '__main__':
                         help='fill number (optional) ')
     
     parser.add_argument('--begin',dest='begin',action='store',
+                        default=None,
                         required=False,
-                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='min run start time, mm/dd/yy hh:mm:ss')
-    
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$","wrong format"),
+                        help='min run start time (mm/dd/yy hh:mm:ss),min fill or min run'
+                        ) 
     parser.add_argument('--end',dest='end',action='store',
                         required=False,
-                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$","must be form mm/dd/yy hh:mm:ss"),
-                        help='max run start time, mm/dd/yy hh:mm:ss')    
+                        type=RegexValidator.RegexValidator("^\d\d/\d\d/\d\d \d\d:\d\d:\d\d$|^\d{6}$|^\d{4}$","wrong format"),
+                        help='max run start time (mm/dd/yy hh:mm:ss),max fill or max run'
+                        )
+    parser.add_argument('--minBiasXsec',dest='minbiasxsec',action='store',
+                        default=71300.0,
+                        type=float,
+                        required=False,
+                        help='minbias cross-section in ub'
+                        )
     #############################################
     #global scale factor
     #############################################       
@@ -124,9 +132,9 @@ if __name__ == '__main__':
                         action='store_true',
                         help='without check for update'
                         )         
-    parser.add_argument('--verbose',dest='verbose',
-                        action='store_true',
-                        help='verbose mode for printing' )
+    #parser.add_argument('--verbose',dest='verbose',
+    #                    action='store_true',
+    #                    help='verbose mode for printing' )
     parser.add_argument('--nowarning',
                         dest='nowarning',
                         action='store_true',
@@ -136,9 +144,19 @@ if __name__ == '__main__':
                         help='debug')
     
     options=parser.parse_args()
+    if not options.runnumber and not options.inputfile and not options.fillnum and not options.begin:
+        raise RuntimeError('at least one run selection argument in [-r,-f,-i,--begin] is required')
     #
     # check working environment
     #
+    reqrunmin=None
+    reqfillmin=None
+    reqtimemin=None
+    reqrunmax=None
+    reqfillmax=None
+    reqtimemax=None
+    timeFilter=[None,None]
+    
     workingversion='UNKNOWN'
     updateversion='NONE'
     thiscmmd=sys.argv[0]
@@ -162,46 +180,57 @@ if __name__ == '__main__':
     #############################################################
     #pre-check option compatibility
     #############################################################
-    if not options.runnumber and not options.inputfile and not options.fillnum and not options.begin :
-        raise RuntimeError('at least one run selection argument is required')
+
     if options.action=='recorded':
         if not options.hltpath:
             raise RuntimeError('argument --hltpath pathname is required for recorded action')
-
+    if options.begin:
+        (reqrunmin,reqfillmin,reqtimemin)=CommonUtil.parseTime(options.begin)
+        if reqtimemin:
+            lute=lumiTime.lumiTime()
+            reqtimeminT=lute.StrToDatetime(reqtimemin,customfm='%m/%d/%y %H:%M:%S')
+            timeFilter[0]=reqtimeminT
+    if options.end:
+        (reqrunmax,reqfillmax,reqtimemax)=CommonUtil.parseTime(options.end)
+        if reqtimemax:
+            lute=lumiTime.lumiTime()
+            reqtimemaxT=lute.StrToDatetime(reqtimemax,customfm='%m/%d/%y %H:%M:%S')
+            timeFilter[1]=reqtimemaxT
+    
     svc=sessionManager.sessionManager(options.connect,
                                       authpath=options.authpath,
                                       siteconfpath=options.siteconfpath,
                                       debugON=options.debug)
     session=svc.openSession(isReadOnly=True,cpp2sqltype=[('unsigned int','NUMBER(10)'),('unsigned long long','NUMBER(20)')])
-    #
-    # check datatag
-    #
+    ##############################################################
+    # check run/ls list
+    ##############################################################
+
     irunlsdict={}
     rruns=[]
     iresults=[]
+
     session.transaction().start(True)
     if options.runnumber: # if runnumber specified, do not go through other run selection criteria
         irunlsdict[options.runnumber]=None
         rruns=irunlsdict.keys()
     else:  
+        runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=reqrunmin,runmax=reqrunmax,fillmin=reqfillmin,fillmax=reqfillmax,startT=reqtimemin,stopT=reqtimemax,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL')
         if options.inputfile:
             (irunlsdict,iresults)=parseInputFiles(options.inputfile)
-            #apply further filter only if specified
-            if options.fillnum or options.begin or options.end:
-                runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL') 
-                rruns=[val for val in runlist if val in irunlsdict.keys()]
-                for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
-                    if selectedrun not in rruns:
-                        del irunlsdict[selectedrun]
-            else:
-                rruns=irunlsdict.keys()
-        else:                        
-            runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=options.begin,stopT=options.end,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False,lumitype='PIXEL')      
+            rruns=[val for val in runlist if val in irunlsdict.keys()]
+            for selectedrun in irunlsdict.keys():#if there's further filter on the runlist,clean input dict
+                if selectedrun not in rruns:
+                    del irunlsdict[selectedrun]
+        else:
             for run in runlist:
                 irunlsdict[run]=None
             rruns=irunlsdict.keys()
-            
+    
     GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict)
+    ###############################################################
+    # check datatag
+    ###############################################################
     datatagname=options.datatag
     if not datatagname:
         (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema(),lumitype='PIXEL')
@@ -234,20 +263,15 @@ if __name__ == '__main__':
     if not dataidmap:
         print '[INFO] No qualified data found, do nothing'
         sys.exit(0)
+    
     session.transaction().start(True)
     if options.action == 'overview':
-       result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,lumitype='PIXEL')
-       if not options.outputfile:
-           lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-       else:
-           lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+       result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,timeFilter=timeFilter,normmap=normvalueDict,lumitype='PIXEL')
+       lumiReport.toScreenOverview(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     if options.action == 'lumibyls':
        if not options.hltpath:
-           result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,lumitype='PIXEL')
-           if not options.outputfile:
-               lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-           else:
-               lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+           result=lumiCalcAPI.lumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,timeFilter=timeFilter,normmap=normvalueDict,lumitype='PIXEL',minbiasXsec=options.minbiasxsec)
+           lumiReport.toScreenLumiByLS(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
        else:
            hltname=options.hltpath
            hltpat=None
@@ -256,11 +280,8 @@ if __name__ == '__main__':
            elif 1 in [c in hltname for c in '*?[]']: #is a fnmatch pattern
               hltpat=hltname
               hltname=None
-           result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,withBeamIntensity=False,lumitype='PIXEL')
-           if not options.outputfile:
-               lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-           else:
-               lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile,)
+           result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,timeFilter=timeFilter,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,withBeamIntensity=False,lumitype='PIXEL')
+           lumiReport.toScreenLSEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile,)
     if options.action == 'recorded':#recorded actually means effective because it needs to show all the hltpaths...
        hltname=options.hltpath
        hltpat=None
@@ -271,10 +292,7 @@ if __name__ == '__main__':
               hltpat=hltname
               hltname=None
        result=lumiCalcAPI.effectiveLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=None,normmap=normvalueDict,hltpathname=hltname,hltpathpattern=hltpat,withBXInfo=False,bxAlgo=None,withBeamIntensity=False,lumitype='PIXEL')
-       if not options.outputfile:
-           lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning)
-       else:
-           lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
+       lumiReport.toScreenTotEffective(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
     session.transaction().commit()
     del session
     del svc 
