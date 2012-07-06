@@ -121,7 +121,7 @@ if __name__ == '__main__':
                         )
     parser.add_argument('--minBiasXsec',dest='minbiasxsec',action='store',
                         default=71300,
-                        type='float',
+                        type=float,
                         required=False,
                         )
     #############################################
