@@ -275,13 +275,18 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
         lumitableName=nameDealer.pixellumidataTableName()
         lumilstableName=nameDealer.pixellumisummaryv2TableName()
     result={}
-    for run,(lumidataid,trgid,hltid ) in dataidmap.items():
+    for run in irunlsdict.keys():
+    #for run,(lumidataid,trgid,hltid ) in dataidmap.items():
         lslist=irunlsdict[run]
         if lslist is not None and len(lslist)==0:
             result[run]=[]#no lumi data for this run in lumiDB
             continue
         fillnum=runsummaryMap[run][4]
         runstarttimeStr=runsummaryMap[run][6]
+        if not dataidmap.has_key(run):
+            result[run]=[]#no lumi data for this run in lumiDB
+            continue
+        (lumidataid,trgid,hltid )=dataidmap[run]
         if lumidataid is None: #selected run not in lumiDB
             result[run]=None
             continue
