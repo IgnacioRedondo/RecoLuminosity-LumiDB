@@ -442,8 +442,11 @@ if __name__ == '__main__':
     #
     # check datatag
     #
+    reqfillmin=min(fillstoprocess)
+    reqfillmax=max(fillstoprocess)
     session.transaction().start(True)
-    runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False)
+    runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,fillmin=reqfillmin,fillmax=reqfillmax,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False)
+    
     datatagname=options.datatag
     if not datatagname:
         (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
