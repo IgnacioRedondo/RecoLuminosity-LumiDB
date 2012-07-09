@@ -433,7 +433,7 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
     for run in lumidata.keys():
         lsdata=lumidata[run]
         if not lsdata:
-            result.append([str(run),'n/a','n/a','n/a','n/a','n/a','n/a','n/a'])
+            #result.append([str(run),'n/a','n/a','n/a','n/a','n/a','n/a','n/a'])
             if irunlsdict and irunlsdict[run] and not noWarning:
                 datarunlsdict[run]=None
                 #print '[WARNING] selected but no lumi data for run '+str(run)
@@ -493,15 +493,16 @@ def toScreenLumiByLS(lumidata,resultlines,scalefactor,irunlsdict=None,noWarning=
         for entry in sortedresult:
             delumi=entry[5]
             if delumi!='n/a':
-                delumi='%.3f'%float(float(delumi*scalefactor)/float(unitdenomitor))        
+                delumi='%.3f'%float(float(delumi*scalefactor)/float(unitdenomitor))
             reclumi=entry[6]
             if reclumi!='n/a':
                 reclumi='%.3f'%float(float(reclumi*scalefactor)/float(unitdenomitor))
             avgPU=entry[7]
-            if avgPU>0:
-                avgPU='%.3f'%avgPU
-            else:
-                avgPU='0'
+            if avgPU!='n/a':                
+                if avgPU>0:
+                    avgPU='%.3f'%avgPU
+                else:
+                    avgPU='0'
             perlsresult.append([entry[0],entry[1],entry[2],entry[3],entry[4],delumi,reclumi,avgPU])
         totdeliveredlumi=0.0
         deliveredlumiunit='/ub'
