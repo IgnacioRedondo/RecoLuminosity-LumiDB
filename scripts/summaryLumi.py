@@ -176,7 +176,7 @@ if __name__ == '__main__':
     lslength=lumip.lslengthsec()
     import commands,os,RecoLuminosity.LumiDB.lumiTime,datetime,time
     for fillnum in fillstoprocess:
-        clineElements=['lumiCalc2.py','lumibyls','-c',dbname,'-P',authdir,'-f',str(fillnum),'-o','tmp.out','--without-checkforupdate']
+        clineElements=['lumiCalc2.py','lumibyls','-c',dbname,'-P',authdir,'-f',str(fillnum),'-o','tmp.out','--without-checkforupdate','--nowarning']
         if not options.withoutStablebeam:
             clineElements.append('-b stable')
         if options.withoutFineCorrection:
@@ -214,6 +214,7 @@ if __name__ == '__main__':
             bstatus=lineList[3]
             t=lumiTime.lumiTime()
             pydate=t.StrToDatetime(timestamp,'%m/%d/%y %H:%M:%S')
+
             os.environ['TZ']='UTC'
             time.tzset()
             unixts=int(time.mktime(pydate.timetuple()))

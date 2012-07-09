@@ -256,7 +256,6 @@ def getSpecificLumi(schema,fillnum,inputdir,dataidmap,normmap,xingMinLum=0.0,amo
     GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict)
     lumidetails=lumiCalcAPI.deliveredLumiForIds(schema,irunlsdict,dataidmap,GrunsummaryData,beamstatusfilter=None,normmap=normmap,withBXInfo=True,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=True,lumitype='HF')
     
-    session.transaction().commit()
     #
     #output: {run:[lumilsnum(0),cmslsnum(1),timestamp(2),beamstatus(3),beamenergy(4),deliveredlumi(5),calibratedlumierr(6),(bxvalues,bxerrs)(7),(bxidx,b1intensities,b2intensities)(8),fillnum(9)]}
     #
@@ -284,7 +283,7 @@ def getSpecificLumi(schema,fillnum,inputdir,dataidmap,normmap,xingMinLum=0.0,amo
                 beamstatusfrac=1.0
             (bxidxlist,bxvaluelist,bxerrolist)=perlsdata[7]
             #instbxvaluelist=[x/lumiparam.lslengthsec() for x in bxvaluelist if x]
-            instbxvaluelist=[x/lumiparam.lslengthsec() for x in bxvaluelist if x]
+            instbxvaluelist=[x for x in bxvaluelist if x]
             maxlumi=0.0
             if len(instbxvaluelist)!=0:
                 maxlumi=max(instbxvaluelist)
@@ -440,10 +439,10 @@ if __name__ == '__main__':
     print '===== Start Processing Fills',fillstoprocess
     print '====='
     filldata={}
-    session.transaction().start(True)
     #
     # check datatag
     #
+    session.transaction().start(True)
     runlist=lumiCalcAPI.runList(session.nominalSchema(),options.fillnum,runmin=None,runmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=options.amodetag,nominalEnergy=None,energyFlut=None,requiretrg=False,requirehlt=False)
     datatagname=options.datatag
     if not datatagname:
@@ -472,9 +471,11 @@ if __name__ == '__main__':
             raise RuntimeError('[ERROR] cannot resolve norm/correction')
             sys.exit(-1)
         normvalueDict=normDML.normValueById(session.nominalSchema(),normid) #{since:[corrector(0),{paramname:paramvalue}(1),amodetag(2),egev(3),comment(4)]}
+    session.transaction().commit()
     for fillnum in fillstoprocess:# process per fill
+        session.transaction().start(True)
         filldata=getSpecificLumi(session.nominalSchema(),fillnum,options.inputdir,dataidmap,normvalueDict,xingMinLum=options.xingMinLum,amodetag=options.amodetag,bxAlgo=options.bxAlgo)
         specificlumiTofile(fillnum,filldata,options.outputdir)
-    session.transaction().commit()
+        session.transaction().commit()
 
 
