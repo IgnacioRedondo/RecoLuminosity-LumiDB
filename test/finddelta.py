@@ -73,6 +73,7 @@ if __name__ == "__main__" :
                 ofile.write('runs_in_pplot lumi %s,runnum %s\n'%(str([plotfilldata[fill][l] for l in runs]),str(runs)))
                 ofile.write('runs_in_lpc lumi %s\n'%(str([l for l in lpcresult[fill]])))
                 ofile.write('=========================\n')
+                ofile.write('\n')
             else:               
                 runs=plotfilldata[fill].keys()
                 runs.sort()
@@ -88,6 +89,7 @@ if __name__ == "__main__" :
                         ofile.write('fill,run,plotlumi,lpclumi\n')
                         ofile.write('%d,%d,%.4f,%.4f\n'%(fill,runs[idx],plotdelrun,lpcdelivered[idx]))
                         ofile.write('*************************\n')
+                        ofile.write('\n')
         elif not plotfilldata.has_key(fill) and lpcresult.has_key(fill):
             ofile.write('====plot has no data====\n')
             ofile.write('fill : %d\n'%fill)
