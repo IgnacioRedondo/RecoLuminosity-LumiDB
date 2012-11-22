@@ -40,6 +40,7 @@ if __name__ == "__main__" :
     ofile=open('a.txt','w')
     delta=1000000.0 #1000/nb perrun
     lpcdir='/afs/cern.ch/cms/CAF/CMSCOMM/COMM_GLOBAL/LHCFILES/'
+    #lpcdir='/afs/cern.ch/user/l/lumipro/scratch0/lumiprodev/head/CMSSW_5_0_1/src/RecoLuminosity/LumiDB/test/'
     plotcachedir='/afs/cern.ch/cms/lumi/www/publicplots/public_lumi_plots_cache/pp_all'
     plotfiles=[f for f in glob.glob(os.path.join(plotcachedir,'lumicalc_cache_2012*.csv')) if os.path.getsize(f)>0]
     fillmin=2400
@@ -51,6 +52,7 @@ if __name__ == "__main__" :
     plotfilldata=parseplotcache(plotfiles,min(lpcfill2012),max(lpcfill2012))
     #print plotfilldata
     #for fill in [3292]:
+    ofile.write('fills %s\n'%str(lpcfill2012))
     for fill in lpcfill2012:
         lpcfile=os.path.join(lpcdir,str(fill),str(fill)+'_summary_CMS.txt')
         if not os.path.exists(lpcfile):
@@ -66,7 +68,7 @@ if __name__ == "__main__" :
         if plotfilldata.has_key(fill) and lpcresult.has_key(fill):
             if len(plotfilldata[fill])!=len(lpcresult[fill]):
                 ofile.write('====different n runs ====\n')
-                ofile.write('fill,run,runs_in_pplot,runs_in_lpc\n')
+                ofile.write('fill,n runs_in_pplot,n runs_in_lpc\n')
                 ofile.write('%d,%d,%d\n'%(fill,len(plotfilldata[fill]),len(lpcresult[fill])))
                 runs=plotfilldata[fill].keys()
                 runs.sort()
