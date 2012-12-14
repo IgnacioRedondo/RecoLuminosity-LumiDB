@@ -235,74 +235,98 @@ def fillrunMap(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=Non
     del qHandle
     return result
     
-def runList(schema,fillnum=None,runmin=None,runmax=None,fillmin=None,fillmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,lumitype=None):
+def runList(schema,datatagid,runmin=None,runmax=None,fillmin=None,fillmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,preselectedruns=None,lumitype=None):
     '''
-    select runnum,starttime from cmsrunsummary r,lumidata l,trgdata t,hltdata h where r.runnum=l.runnum and l.runnum=t.runnum and t.runnum=h.runnum and r.fillnum=:fillnum and r.runnum>:runmin and r.runnum<:runmax and r.amodetag=:amodetag and regexp_like(r.l1key,:l1keypattern) and regexp_like(hltkey,:hltkeypattern) and l.nominalEnergy>=:nominalEnergy*(1-energyFlut) and l.nominalEnergy<=:nominalEnergy*(1+energyFlut)
+    select r.runnum,l.starttime,l.stoptime,l.data_id,t.data_id,h.data_id from cmsrunsummary r,tagruns tag,lumidata l,trgdata t,hltdata h where l.runnum=tag.runnum and r.runnum=l.runnum and l.runnum=t.runnum and t.runnum=h.runnum and r.fillnum>=:fillmin and r.fillnum<=fillmax and r.runnum>:runmin and r.runnum<:runmax and r.amodetag=:amodetag and regexp_like(r.l1key,:l1keypattern) and regexp_like(hltkey,:hltkeypattern) and l.nominalEnergy>=:nominalEnergy*(1-energyFlut) and l.nominalEnergy<=:nominalEnergy*(1+energyFlut) and tag.tagid<=:tagid and l.starttime is not null and l.stoptime is not null
+    output: {runnum:[lumiid,trgid,hltid]}
     '''
     if lumitype not in ['HF','PIXEL']:
         raise ValueError('unknown lumitype '+lumitype)
     lumitableName=''
+    tagrunstablename=''
     if lumitype=='HF':
         lumitableName=nameDealer.lumidataTableName()
+        tagrunstablename=nameDealer.tagRunsTableName()
     elif lumitype == 'PIXEL':
         lumitableName = nameDealer.pixellumidataTableName()
+        tagrunstablename=nameDealer.pixeltagRunsTableName()
     else:
         assert False, "ERROR Unknown lumitype '%s'" % lumitype
-    result=[]
-    timelesslist=[]
+    
+    result={}#{runnum,[[lumiid,trgid,hltid]]}
     qHandle=schema.newQuery()
     r=nameDealer.cmsrunsummaryTableName()
     l=lumitableName
+    tag=tagrunstablename
     t=nameDealer.trgdataTableName()
     h=nameDealer.hltdataTableName()
     lute=lumiTime.lumiTime()
     try:
         qHandle.addToTableList(r)
         qHandle.addToTableList(l)
-        qConditionStr=r+'.RUNNUM='+l+'.RUNNUM'
+        qHandle.addToTableList(tag)
+        qConditionStr=r+'.RUNNUM='+l+'.RUNNUM AND '+tag+'.RUNNUM='+l+'.RUNNUM AND '+tag+'.TAGID<=:tagid'
+        qCondition=coral.AttributeList()
+        qCondition.extend('tagid','unsigned long long')
+        qCondition['tagid'].setData(datatagid)
         if requiretrg:
             qHandle.addToTableList(t)
             qConditionStr+=' and '+l+'.RUNNUM='+t+'.RUNNUM'
         if requirehlt:
             qHandle.addToTableList(h)
             qConditionStr+=' and '+l+'.RUNNUM='+h+'.RUNNUM'
-        qCondition=coral.AttributeList()        
-        if fillnum:
-            qConditionStr+=' and '+r+'.FILLNUM=:fillnum'
-            qCondition.extend('fillnum','unsigned int')
-            qCondition['fillnum'].setData(int(fillnum))
-        if runmin:
-            qConditionStr+=' and '+r+'.RUNNUM>=:runmin'
+        if runmin and runmax :
+            if runmin==runmax:
+                qConditionStr+=' AND '+r+'.RUNNUM=:runmin'
+                qCondition.extend('runmin','unsigned int')
+                qCondition['runmin'].setData(int(runmin))
+            elif runmax>runmin:
+                qConditionStr+=' AND '+r+'.RUNNUM>=:runmin AND '+r+'.RUNNUM<=:runmax'
+                qCondition.extend('runmin','unsigned int')
+                qCondition.extend('runmax','unsigned int')
+                qCondition['runmin'].setData(int(runmin))
+                qCondition['runmax'].setData(int(runmax))
+            else:
+                raise 'runmin > runmax'
+        elif runmin:
+            qConditionStr+=' AND '+r+'.RUNNUM>=:runmin'
             qCondition.extend('runmin','unsigned int')
-            qCondition['runmin'].setData(runmin)
-        if runmax:
-            qConditionStr+=' and '+r+'.RUNNUM<=:runmax'
+            qCondition['runmin'].setData(int(runmin))
+        elif runmax:
+            qConditionStr+=' AND '+r+'.RUNNUM<=:runmax'
             qCondition.extend('runmax','unsigned int')
-            qCondition['runmax'].setData(runmax)
-        if fillmin:
-            qConditionStr+=' and '+r+'.FILLNUM>=:fillmin'
-            qCondition.extend('fillmin','unsigned int')
-            qCondition['fillmin'].setData(fillmin)
-        if fillmax:
-            qConditionStr+=' and '+r+'.FILLNUM<=:fillmax'
-            qCondition.extend('fillmax','unsigned int')
-            qCondition['fillmax'].setData(fillmax)
+            qCondition['runmax'].setData(int(runmax))
+        else:
+            pass
+        if fillmin and fillmax:
+            if fillmin==fillmax:
+                qConditionStr+=' AND '+r+'.FILLNUM=:fillnum'
+                qCondition.extend('fillnum','unsigned int')
+                qCondition['fillnum'].setData(int(fillmin))
+            elif fillmax>fillmin:
+                qConditionStr+=' AND '+r+'.FILLNUM>=:fillmin AND '+r+'.FILLNUM<=:fillmax'
+                qCondition.extend('fillmin','unsigned int')
+                qCondition.extend('fillmax','unsigned int')
+                qCondition['fillmin'].setData(int(fillmin))
+                qCondition['fillmax'].setData(int(fillmax))
+            else:
+                raise 'fillmin > fillmax'
         if amodetag:
-            qConditionStr+=' and '+r+'.AMODETAG=:amodetag'
+            qConditionStr+=' AND '+r+'.AMODETAG=:amodetag'
             qCondition.extend('amodetag','string')
             qCondition['amodetag'].setData(amodetag)
         if l1keyPattern:
-            qConditionStr+=' and regexp_like('+r+'.L1KEY,:l1keypattern)'
+            qConditionStr+=' AND regexp_like('+r+'.L1KEY,:l1keypattern)'
             qCondition.extend('l1keypattern','string')
             qCondition['l1keypattern'].setData(l1keyPattern)
         if hltkeyPattern:
-            qConditionStr+=' and regexp_like('+r+'.HLTKEY,:hltkeypattern)'
+            qConditionStr+=' AND regexp_like('+r+'.HLTKEY,:hltkeypattern)'
             qCondition.extend('hltkeypattern','string')
             qCondition['hltkeypattern'].setData(hltkeyPattern)
         if nominalEnergy:
             emin=nominalEnergy*(1.0-energyFlut)
             emax=nominalEnergy*(1.0+energyFlut)
-            qConditionStr+=' and '+l+'.NOMINALEGEV>=:emin and '+l+'.NOMINALEGEV<=:emax'
+            qConditionStr+=' AND '+l+'.NOMINALEGEV>=:emin and '+l+'.NOMINALEGEV<=:emax'
             qCondition.extend('emin','float')
             qCondition.extend('emax','float')
             qCondition['emin'].setData(emin)
@@ -311,39 +335,72 @@ def runList(schema,fillnum=None,runmin=None,runmax=None,fillmin=None,fillmax=Non
         qResult.extend('runnum','unsigned int')
         qResult.extend('starttime','string')
         qResult.extend('stoptime','string')
-        qHandle.defineOutput(qResult)
+        qResult.extend('lumiid','unsigned long long')
+        if requiretrg:
+            qResult.extend('trgid','unsigned long long')
+        if requirehlt:
+            qResult.extend('hltid','unsigned long long')
         qHandle.setCondition(qConditionStr,qCondition)
         qHandle.addToOutputList(r+'.RUNNUM','runnum')
-        qHandle.addToOutputList('TO_CHAR('+r+'.STARTTIME,\'MM/DD/YY HH24:MI:SS\')','starttime')
-        qHandle.addToOutputList('TO_CHAR('+r+'.STOPTIME,\'MM/DD/YY HH24:MI:SS\')','stoptime')
+        qHandle.addToOutputList('TO_CHAR('+l+'.STARTTIME,\'MM/DD/YY HH24:MI:SS\')','starttime')
+        qHandle.addToOutputList('TO_CHAR('+l+'.STOPTIME,\'MM/DD/YY HH24:MI:SS\')','stoptime')
+        qHandle.addToOutputList(l+'.DATA_ID','lumiid')
+        if requiretrg:
+            qHandle.addToOutputList(t+'.DATA_ID','trgid')
+        if requirehlt:
+            qHandle.addToOutputList(h+'.DATA_ID','hltid')
+        qHandle.defineOutput(qResult)
         cursor=qHandle.execute()
-        
+        lumiid=0
+        trgid=0
+        hltid=0
         while cursor.next():
-            starttimeStr=cursor.currentRow()['starttime'].data()
-            stoptimeStr=cursor.currentRow()['stoptime'].data()
             runnum=cursor.currentRow()['runnum'].data()
+            if preselectedruns and runnum not in preselectedruns:
+                continue
+            if cursor.currentRow()['starttime'].isNull(): continue
+            if cursor.currentRow()['stoptime'].isNull(): continue
+            starttimeStr=cursor.currentRow()['starttime'].data()
+            stoptimeStr=cursor.currentRow()['stoptime'].data()            
             minTime=None
             maxTime=None
             if startT and stopT:
                 minTime=lute.StrToDatetime(startT,customfm='%m/%d/%y %H:%M:%S')
                 maxTime=lute.StrToDatetime(stopT,customfm='%m/%d/%y %H:%M:%S')
+
                 runstartTime=lute.StrToDatetime(starttimeStr,customfm='%m/%d/%y %H:%M:%S')
                 runstopTime=lute.StrToDatetime(stoptimeStr,customfm='%m/%d/%y %H:%M:%S')
-                if runstopTime>=minTime and runstartTime<=maxTime and runnum not in result:
-                    result.append(runnum)
+                if not (runstopTime>=minTime and runstartTime<=maxTime):
+                    continue
             elif startT is not None:
                 minTime=lute.StrToDatetime(startT,customfm='%m/%d/%y %H:%M:%S')
                 runstartTime=lute.StrToDatetime(starttimeStr,customfm='%m/%d/%y %H:%M:%S')
-                if runstopTime>=minTime and runnum not in result:
-                    result.append(runnum)
+                if not (runstopTime>=minTime):
+                    continue
             elif stopT is not None:
                 maxTime=lute.StrToDatetime(stopT,customfm='%m/%d/%y %H:%M:%S')
                 runTime=lute.StrToDatetime(starttimeStr,customfm='%m/%d/%y %H:%M:%S')
-                if runTime<=maxTime and runnum not in result:
-                    result.append(runnum)
+                if not (runTime<=maxTime):
+                    continue
             else:
-                if runnum not in result:
-                    result.append(runnum)
+                pass
+            if not cursor.currentRow()['lumiid'].isNull():
+                lumiid=cursor.currentRow()['lumiid'].data()
+                if result.has_key(runnum):
+                    if lumiid>result[runnum][0]:
+                        result[runnum][0]=lumiid
+                else:
+                    result[runnum]=[lumiid,0,0]
+            if requiretrg and not cursor.currentRow()['trgid'].isNull():
+                trgid=cursor.currentRow()['trgid'].data()
+                if result.has_key(runnum):
+                    if trgid>result[runnum][1]:
+                        result[runnum][1]=trgid
+            if requirehlt and not cursor.currentRow()['hltid'].isNull():
+                hltid=cursor.currentRow()['hltid'].data()
+                if result.has_key(runnum):
+                    if hltid>result[runnum][2]:
+                        result[runnum][2]=hltid
     except :
         del qHandle
         raise
@@ -926,35 +983,35 @@ def correctionByName(schema,correctiontagname=None):
     '''
 
     
-def fillschemeByRun(schema,runnum):
-    fillscheme=''
-    ncollidingbunches=0
-    r=nameDealer.cmsrunsummaryTableName()
-    qHandle=schema.newQuery()
-    try:
-        qHandle.addToTableList(r)
-        qHandle.addToOutputList('FILLSCHEME')
-        qHandle.addToOutputList('NCOLLIDINGBUNCHES')
-        qResult=coral.AttributeList()
-        qResult.extend('FILLSCHEME','string')
-        qResult.extend('NCOLLIDINGBUNCHES','unsigned int')
-        qConditionStr='RUNNUM=:runnum'
-        qCondition=coral.AttributeList()
-        qCondition.extend('runnum','unsigned int')
-        qCondition['runnum'].setData(int(runnum))
-        qHandle.defineOutput(qResult)
-        qHandle.setCondition(qConditionStr,qCondition)
-        cursor=qHandle.execute()
-        while cursor.next(): 
-            if not cursor.currentRow()['NCOLLIDINGBUNCHES'].isNull():
-                ncollidingbunches=cursor.currentRow()['NCOLLIDINGBUNCHES'].data()
-            if not cursor.currentRow()['FILLSCHEME'].isNull():
-                fillscheme=cursor.currentRow()['FILLSCHEME'].data()
-    except :
-        del qHandle
-        raise
-    del qHandle
-    return (fillscheme,ncollidingbunches)
+#def fillschemeByRun(schema,runnum):
+#    fillscheme=''
+#    ncollidingbunches=0
+#    r=nameDealer.cmsrunsummaryTableName()
+#    qHandle=schema.newQuery()
+#    try:
+#        qHandle.addToTableList(r)
+#        qHandle.addToOutputList('FILLSCHEME')
+#        qHandle.addToOutputList('NCOLLIDINGBUNCHES')
+#        qResult=coral.AttributeList()
+#        qResult.extend('FILLSCHEME','string')
+#        qResult.extend('NCOLLIDINGBUNCHES','unsigned int')
+#        qConditionStr='RUNNUM=:runnum'
+#        qCondition=coral.AttributeList()
+#        qCondition.extend('runnum','unsigned int')
+#        qCondition['runnum'].setData(int(runnum))
+#        qHandle.defineOutput(qResult)
+#        qHandle.setCondition(qConditionStr,qCondition)
+#        cursor=qHandle.execute()
+#        while cursor.next(): 
+#            if not cursor.currentRow()['NCOLLIDINGBUNCHES'].isNull():
+#                ncollidingbunches=cursor.currentRow()['NCOLLIDINGBUNCHES'].data()
+#            if not cursor.currentRow()['FILLSCHEME'].isNull():
+#                fillscheme=cursor.currentRow()['FILLSCHEME'].data()
+#    except :
+#        del qHandle
+#        raise
+#    del qHandle
+#    return (fillscheme,ncollidingbunches)
 def allfillschemes(schema):
     afterglows=[]
     s=nameDealer.fillschemeTableName()

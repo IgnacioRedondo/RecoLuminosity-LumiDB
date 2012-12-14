@@ -40,11 +40,11 @@ def fillrunMap(schema,fillnum=None,runmin=None,runmax=None,startT=None,stopT=Non
     '''
     return dataDML.fillrunMap(schema,fillnum=fillnum,runmin=runmin,runmax=runmax,startT=startT,stopT=stopT,l1keyPattern=l1keyPattern,hltkeyPattern=hltkeyPattern,amodetag=amodetag)
              
-def runList(schema,fillnum=None,runmin=None,runmax=None,fillmin=None,fillmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,lumitype='HF'):
+def runList(schema,datatagid,runmin=None,runmax=None,fillmin=None,fillmax=None,startT=None,stopT=None,l1keyPattern=None,hltkeyPattern=None,amodetag=None,nominalEnergy=None,energyFlut=0.2,requiretrg=True,requirehlt=True,preselectedruns=None,lumitype='HF'):
     '''
     output: [runnumber,...]
     '''
-    return dataDML.runList(schema,fillnum=fillnum,runmin=runmin,runmax=runmax,fillmin=None,fillmax=None,startT=startT,stopT=stopT,l1keyPattern=l1keyPattern,hltkeyPattern=hltkeyPattern,amodetag=amodetag,nominalEnergy=nominalEnergy,energyFlut=energyFlut,requiretrg=requiretrg,requirehlt=requirehlt,lumitype=lumitype)
+    return dataDML.runList(schema,datatagid,runmin=runmin,runmax=runmax,fillmin=fillmin,fillmax=fillmax,startT=startT,stopT=stopT,l1keyPattern=l1keyPattern,hltkeyPattern=hltkeyPattern,amodetag=amodetag,nominalEnergy=nominalEnergy,energyFlut=energyFlut,requiretrg=requiretrg,requirehlt=requirehlt,lumitype=lumitype)
 
 def hltpathsForRange(schema,runlist,hltpathname=None,hltpathpattern=None):
     '''
