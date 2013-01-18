@@ -18,14 +18,18 @@ def runsummary(schema,irunlsdict):
         result.append(runinfo)
     return result
 
-def runsummaryMap(schema,irunlsdict):
+def runsummaryMap(schema,irunlsdict,dataidmap,lumitype='HF'):
     '''
-    output  {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
+    output: {run:[l1key(0),amodetag(1),egev(2),hltkey(3),fillnum(4),fillscheme(5),starttime(6),stoptime(7)]}
     '''
     result={}
     seqresult=runsummary(schema,irunlsdict)
-    for [run,l1key,amodetag,egev,hltkey,fillnum,fillscheme,starttime,stoptime] in seqresult:
-        result[run]=[l1key,amodetag,egev,hltkey,fillnum,fillscheme,starttime,stoptime]
+    idresult=dataDML.lumiRunByIds(schema,dataidmap,lumitype)
+    for [run,l1key,amodetag,hltkey,fillnum,fillscheme] in seqresult:
+        egev=idresult[run][2]
+        startT=idresult[run][3]
+        stopT=idresult[run][4]
+        result[run]=[l1key,amodetag,egev,hltkey,fillnum,fillscheme,startT,stopT]
     return result
 
 def fillInRange(schema,fillmin=1000,fillmax=9999,amodetag='PROTPHYS',startT=None,stopT=None):
@@ -302,7 +306,7 @@ def instLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=No
                 cmslsnum=0
             numorbit=perlsdata[6]
             startorbit=perlsdata[7]
-            orbittime=c.OrbitToTime(runstarttimeStr,startorbit,0)
+            orbittime=c.OrbitToTime(runstarttimeStr,startorbit,begorbit=0,customfm='%m/%d/%y %H:%M:%S')
             if timeFilter:
                 if timeFilter[0]:
                     if orbittime<timeFilter[0]: continue

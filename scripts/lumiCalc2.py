@@ -353,7 +353,7 @@ if __name__ == '__main__':
     ##################
     session.transaction().start(True)
     
-    GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict)
+    GrunsummaryData=lumiCalcAPI.runsummaryMap(session.nominalSchema(),irunlsdict,dataidmap,lumitype='HF')
     if options.action == 'delivered':
         result=lumiCalcAPI.deliveredLumiForIds(session.nominalSchema(),irunlsdict,dataidmap,runsummaryMap=GrunsummaryData,beamstatusfilter=pbeammode,timeFilter=timeFilter,normmap=normvalueDict,lumitype='HF')
         lumiReport.toScreenTotDelivered(result,iresults,options.scalefactor,irunlsdict=irunlsdict,noWarning=options.nowarning,toFile=options.outputfile)
