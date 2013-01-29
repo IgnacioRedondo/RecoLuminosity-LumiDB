@@ -719,9 +719,9 @@ def luminormById(schema,dataid):
 
 def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
     '''
-    query: select RUNNUM,SOURCE,BITZERONAME,BITNAMECLOB from trgdata where DATA_ID=:dataid
+    query: select RUNNUM,SOURCE,BITZERONAME,BITNAMECLOB,ALGOMASK_H,ALGOMASK_L,TECHMASK from trgdata where DATA_ID=:dataid
     
-    output: [runnum(0),datasource(1),bitzeroname(2),bitnamedict(3)]
+    output: [runnum(0),datasource(1),bitzeroname(2),bitnamedict(3),algomask_h(4),algomask_l(5),techmask(6)]
              -- runnumber
              -- original source database name
              -- deadtime norm bitname
@@ -739,6 +739,9 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
         qHandle.addToOutputList('SOURCE','source')
         qHandle.addToOutputList('BITZERONAME','bitzeroname')
         qHandle.addToOutputList('BITNAMECLOB','bitnameclob')
+        qHandle.addToOutputList('ALGOMASK_H','algomask_h')
+        qHandle.addToOutputList('ALGOMASK_L','algomask_l')
+        qHandle.addToOutputList('TECHMASK','techmask')
         qCondition=coral.AttributeList()
         qCondition.extend('dataid','unsigned long long')
         qCondition['dataid'].setData(dataid)
@@ -747,6 +750,9 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
         qResult.extend('source','string')
         qResult.extend('bitzeroname','string')
         qResult.extend('bitnameclob','string')
+        qResult.extend('algomask_h','unsigned long long')
+        qResult.extend('algomask_l','unsigned long long')
+        qResult.extend('techmask','unsigned long long')
         qHandle.defineOutput(qResult)
         qHandle.setCondition('DATA_ID=:dataid',qCondition)        
         cursor=qHandle.execute()
@@ -757,6 +763,9 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
             source=cursor.currentRow()['source'].data()
             bitzeroname=cursor.currentRow()['bitzeroname'].data()
             bitnameclob=cursor.currentRow()['bitnameclob'].data()
+            algomask_h=cursor.currentRow()['algomask_h'].data()
+            algomask_l=cursor.currentRow()['algomask_l'].data()
+            techmask=cursor.currentRow()['techmask'].data()
         if bitnameclob:
             bitnames=bitnameclob.split(',')
             for trgnameidx,trgname in enumerate(bitnames):
@@ -769,7 +778,7 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
                         bitnamedict.append((trgnameidx,trgname))
                 else:
                     bitnamedict.append((trgnameidx,trgname))
-        result=[runnum,source,bitzeroname,bitnamedict]
+        result=[runnum,source,bitzeroname,bitnamedict,algomask_h,algomask_l,techmask]
     except :
         del qHandle
         raise 
