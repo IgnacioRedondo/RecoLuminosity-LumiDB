@@ -7,7 +7,6 @@
 ########################################################################
 
 import os,sys,time
-import coral
 from RecoLuminosity.LumiDB import sessionManager,lumiTime,inputFilesetParser,csvSelectionParser,selectionParser,csvReporter,argparse,CommonUtil,revisionDML,lumiCalcAPI,lumiReport,RegexValidator,normDML
         
 beamChoices=['PROTPHYS','IONPHYS','PAPHYS']
