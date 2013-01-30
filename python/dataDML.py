@@ -787,15 +787,17 @@ def trgRunById(schema,dataid,trgbitname=None,trgbitnamepattern=None):
 
 def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=False,withPrescale=False):
     '''
-    output: (runnum,{cmslsnum:[deadtimecount(0),bitzerocount(1),bitzeroprescale(2),deadfrac(3),[(bitname,trgcount,prescale)](4)]})
+    output: (runnum,{cmslsnum:[deadtimecount(0),bitzerocount(1),bitzeroprescale(2),deadfrac(3),[(bitname,trgcount,prescale,mask)](4)]})
     '''
     runnum=0
     result={}
     trgnamedict=[]
     if  trgbitname or trgbitnamepattern or withPrescale or withL1Count:
         trgrundata=trgRunById(schema,dataid,trgbitname=trgbitname,trgbitnamepattern=trgbitnamepattern)
-        trgnamedict=trgrundata[3]
-
+        trgnamedict=trgrundata[3]#[runnum(0),datasource(1),bitzeroname(2),bitnamedict(3),algomask_h(4),algomask_l(5),techmask(6)]
+        algomask_h=trgrundata[4]
+        algomask_l=trgrundata[5]
+        techmask=trgrundata[6]
     qHandle=schema.newQuery()
     try:
         qHandle.addToTableList(nameDealer.lstrgTableName())
@@ -869,7 +871,17 @@ def trgLSById(schema,dataid,trgbitname=None,trgbitnamepattern=None,withL1Count=F
                     thispresc=prescales[bitidx]
                 if trgcounts:
                     thistrgcount=trgcounts[bitidx]
-                thisbitinfo=(thisbitname,thistrgcount,thispresc)
+                maskval=0
+                #[0-127] is algobit
+                if bitidx in range(0,128):
+                    if bitidx<64 :#0-63 is in algo_l
+                        maskval=algomask_l>>bitidx&1
+                    else:#64-127 is in algo_h
+                        maskval=algomask_h>>(bitidx-64)&1
+                else:
+                #[128-191] is techbit
+                    maskval=techmask>>(bitidx-128)&1
+                thisbitinfo=(thisbitname,thistrgcount,thispresc,maskval)
                 bitinfo.append(thisbitinfo)
             result[cmslsnum].append(bitinfo)
     except:
