@@ -555,7 +555,7 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
            lumi unit: 1/ub
     '''
     deliveredresult=deliveredLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap,beamstatusfilter=beamstatusfilter,timeFilter=timeFilter,normmap=normmap,withBXInfo=withBXInfo,bxAlgo=bxAlgo,xingMinLum=xingMinLum,withBeamIntensity=withBeamIntensity,lumitype=lumitype,minbiasXsec=minbiasXsec)
-    trgresult=trgForIds(schema,irunlsdict,dataidmap,withPrescale=True) #{run:[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(bitname,prescale,counts)]]}
+    trgresult=trgForIds(schema,irunlsdict,dataidmap,withPrescale=True) #{run:[cmslsnum,deadfrac,deadtimecount,bitzero_count,bitzero_prescale,[(bitname,prescale,counts,mask)]]}
     hltresult=hltForIds(schema,irunlsdict,dataidmap,hltpathname=hltpathname,hltpathpattern=hltpathpattern,withL1Pass=False,withHLTAccept=False) #{runnumber:[(cmslsnum,[(hltpath,hltprescale,l1pass,hltaccept),...]),(cmslsnum,[])})}
     for run in deliveredresult.keys(): #loop over delivered
         perrundata=deliveredresult[run]
@@ -570,6 +570,7 @@ def effectiveLumiForIds(schema,irunlsdict,dataidmap,runsummaryMap=None,beamstatu
         l1bitinfo=[]
         hltpathinfo=[]
         hlttrgmap=dataDML.hlttrgMappingByrun(schema,run,hltpathname=hltpathname,hltpathpattern=hltpathpattern)
+        
         for perlsdata in perrundata: #loop over ls
             if not perlsdata: continue #no lumi for this ls
             perlsdata.insert(6,None)
