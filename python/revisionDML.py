@@ -655,7 +655,7 @@ def alldataTags(schema,lumitype='HF'):
         raise
     return tagmap
 
-def getDataTagId(schema,datatagname):
+def getDataTagId(schema,tagname,lumitype='HF'):
     '''
     select tagid from tags where tagname=:tagname
     '''
