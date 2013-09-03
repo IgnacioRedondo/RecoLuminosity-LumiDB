@@ -132,11 +132,11 @@ if __name__ == '__main__':
                         action='store_true',
                         help='without afterglow correction'
                         )
-    parser.add_argument('--without-checkforupdate',
-                        dest='withoutCheckforupdate',
-                        action='store_true',
-                        help='without check for update'
-                        )         
+    #parser.add_argument('--without-checkforupdate',
+    #                    dest='withoutCheckforupdate',
+    #                    action='store_true',
+    #                    help='without check for update'
+    #                    )         
     #parser.add_argument('--verbose',dest='verbose',
     #                    action='store_true',
     #                    help='verbose mode for printing' )
@@ -217,18 +217,18 @@ if __name__ == '__main__':
     workingversion='UNKNOWN'
     updateversion='NONE'
     thiscmmd=sys.argv[0]
-    if not options.withoutCheckforupdate:
-        from RecoLuminosity.LumiDB import checkforupdate
-        cmsswWorkingBase=os.environ['CMSSW_BASE']
-        if not cmsswWorkingBase:
-            print 'Please check out RecoLuminosity/LumiDB from CVS,scram b,cmsenv'
-            sys.exit(11)
-        c=checkforupdate.checkforupdate('pixeltagstatus.txt')
-        workingversion=c.runningVersion(cmsswWorkingBase,'pixelLumiCalc.py',isverbose=False)
-        if workingversion:
-            updateversionList=c.checkforupdate(workingversion,isverbose=False)
-            if updateversionList:
-                updateversion=updateversionList[-1][0]
+    #if not options.withoutCheckforupdate:
+    #    from RecoLuminosity.LumiDB import checkforupdate
+    #    cmsswWorkingBase=os.environ['CMSSW_BASE']
+    #    if not cmsswWorkingBase:
+    #        print 'Please check out RecoLuminosity/LumiDB from CVS,scram b,cmsenv'
+   #         sys.exit(11)
+   #     c=checkforupdate.checkforupdate('pixeltagstatus.txt')
+   #     workingversion=c.runningVersion(cmsswWorkingBase,'pixelLumiCalc.py',isverbose=False)
+   #     if workingversion:
+   #         updateversionList=c.checkforupdate(workingversion,isverbose=False)
+   #         if updateversionList:
+   #             updateversion=updateversionList[-1][0]
     #
     # check DB environment
     #   
@@ -261,7 +261,7 @@ if __name__ == '__main__':
     # #############################################################
     datatagname=options.datatag
     if not datatagname:
-        (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema())
+        (datatagid,datatagname)=revisionDML.currentDataTag(session.nominalSchema(),lumitype='PIXEL')
     else:
         datatagid=revisionDML.getDataTagId(session.nominalSchema(),datatagname)
 

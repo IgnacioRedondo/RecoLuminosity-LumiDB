@@ -173,11 +173,11 @@ if __name__ == '__main__':
                         action='store_true',
                         help='without any correction/calibration'
                         )
-    parser.add_argument('--without-checkforupdate',
-                        dest='withoutCheckforupdate',
-                        action='store_true',
-                        help='without check for update'
-                        )                    
+    #parser.add_argument('--without-checkforupdate',
+    #                    dest='withoutCheckforupdate',
+    #                    action='store_true',
+    #                    help='without check for update'
+    #                    )                    
     #parser.add_argument('--verbose',
     #                    dest='verbose',
     #                    action='store_true',
@@ -263,18 +263,18 @@ if __name__ == '__main__':
     workingversion='UNKNOWN'
     updateversion='NONE'
     thiscmmd=sys.argv[0]
-    if not options.withoutCheckforupdate:
-        from RecoLuminosity.LumiDB import checkforupdate
-        cmsswWorkingBase=os.environ['CMSSW_BASE']
-        if not cmsswWorkingBase:
-            print 'Please check out RecoLuminosity/LumiDB from CVS,scram b,cmsenv'
-            sys.exit(11)
-        c=checkforupdate.checkforupdate()
-        workingversion=c.runningVersion(cmsswWorkingBase,'lumiCalc2.py',isverbose=False)
-        if workingversion:
-            updateversionList=c.checkforupdate(workingversion,isverbose=False)
-            if updateversionList:
-                updateversion=updateversionList[-1][0]
+    #if not options.withoutCheckforupdate:
+    #    from RecoLuminosity.LumiDB import checkforupdate
+    #    cmsswWorkingBase=os.environ['CMSSW_BASE']
+    #    if not cmsswWorkingBase:
+    #        print 'Please check out RecoLuminosity/LumiDB from CVS,scram b,cmsenv'
+    #         sys.exit(11)
+    #     c=checkforupdate.checkforupdate()
+    #     workingversion=c.runningVersion(cmsswWorkingBase,'lumiCalc2.py',isverbose=False)
+    #    if workingversion:
+    #        updateversionList=c.checkforupdate(workingversion,isverbose=False)
+    #        if updateversionList:
+    #            updateversion=updateversionList[-1][0]
     #
     # check DB environment
     #
