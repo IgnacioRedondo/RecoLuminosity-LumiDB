@@ -3,6 +3,7 @@ import sys,time
 import json,glob,os,re,itertools
 from itertools import izip_longest
 from optparse import OptionParser
+from collections import OrderedDict
 
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -86,7 +87,11 @@ class FileSetJson(object):
         for myf in self.filenames:
             myfile=open(myf,'r')
             myfilestr=myfile.read().replace('\n','').replace(' ','')
-            myjson=json.loads(myfilestr)
+            #myjson=json.loads(myfilestr)
+            #
+            #load with sorted keys, use object_pairs_hook=collections.OrderedDict requiring python2.7+
+            #
+            myjson=json.loads(myfilestr,object_pairs_hook=OrderedDict)
             myfile.close()
             self.totaljson=dict(self.totaljson.items()+myjson.items())
             self.filejson[myf]=myjson
@@ -224,7 +229,11 @@ if __name__ == '__main__':
     referencefilename=os.path.basename(inputfilename)
     outputjsonfiles=findfiles(options.workdir,referencefilename)
     inputstr=open(inputfilename,'r').read().replace('\n','').replace(' ','')
-    inputjson=json.loads(inputstr)
+    #inputjson=json.loads(inputstr)
+    #
+    #load with sorted keys, use object_pairs_hook=collections.OrderedDict requiring python2.7+
+    #
+    inputjson=json.loads(inputstr,object_pairs_hook=OrderedDict)
     if len(outputjsonfiles)==0:
         splitjson(inputjson,referencefilename,options.workdir,options.nitems)
         sys.exit(0)
