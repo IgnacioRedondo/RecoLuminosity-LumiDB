@@ -784,7 +784,7 @@ if __name__ == "__main__":
             if amodetag_bug_workaround:
                 # Don't use the amodetag in this case. Scary, but
                 # works for the moment.
-                lumicalc_flags = "%s --without-checkforupdate " \
+                lumicalc_flags = "%s " \
                                  "--beamenergy %.1f " \
                                  "--beamfluctuation %.2f " \
                                  "lumibyls" % \
@@ -792,7 +792,7 @@ if __name__ == "__main__":
                                   beam_energy, beam_fluctuation)
             else:
                 # This is the way things should be.
-                lumicalc_flags = "%s --without-checkforupdate " \
+                lumicalc_flags = "%s " \
                                  "--beamenergy %.1f " \
                                  "--beamfluctuation %.2f " \
                                  "--amodetag %s " \
